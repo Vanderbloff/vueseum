@@ -1,5 +1,6 @@
 package com.mvp.artplatform.model;
 
+import com.mvp.artplatform.model.base.baseEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -15,13 +16,10 @@ import java.util.Map;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "artworks")
-public class Artwork {
-    @Id
-    @SequenceGenerator(name = "artwork_sequence", sequenceName = "artwork_sequence")
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "artwork_sequence")
-    @Column(updatable = false, nullable = false)
-    private Long id;
+@Table(name = "artworks",
+        uniqueConstraints = {@UniqueConstraint(name = "external_id_unique", columnNames = {"external_id", "museum_id"})
+    })
+public class Artwork extends baseEntity {
 
     @Column(nullable = false)
     private String title;
@@ -49,8 +47,11 @@ public class Artwork {
     @Column(name = "on_display", nullable = false)
     private Boolean isOnDisplay;
 
+    @Column(name = "external_id", nullable = false)
+    private String externalId;
+
     @ManyToOne
-    @JoinColumn(name = "museum_id")
+    @JoinColumn(name = "museum_id", nullable = false)
     private Museum museum;
 
     @JdbcTypeCode(SqlTypes.JSON)
@@ -80,16 +81,16 @@ public class Artwork {
     @Override
     public String toString() {
         return "Artwork{" +
-                "id=" + id +
-                ", title='" + title + '\'' +
+                "title='" + title + '\'' +
                 ", artist=" + artist +
                 ", medium='" + medium + '\'' +
                 ", imageUrl='" + imageUrl + '\'' +
                 ", description='" + description + '\'' +
                 ", GalleryNumber='" + GalleryNumber + '\'' +
                 ", country='" + country + '\'' +
-                ", creationDate=" + creationDate +
+                ", creationDate='" + creationDate + '\'' +
                 ", isOnDisplay=" + isOnDisplay +
+                ", externalId='" + externalId + '\'' +
                 ", museum=" + museum +
                 ", additionalMetadata=" + additionalMetadata +
                 '}';
