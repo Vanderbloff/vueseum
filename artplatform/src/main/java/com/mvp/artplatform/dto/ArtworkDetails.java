@@ -1,9 +1,6 @@
-package com.mvp.artplatform.adapter;
+package com.mvp.artplatform.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.List;
 
@@ -11,6 +8,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class ArtworkDetails {
     private String apiSource;        // Which museum API provided this data
     private String externalId;       // Unique ID from the source museum
@@ -19,8 +17,8 @@ public class ArtworkDetails {
     // Artist Information
     private String artistName;       // Primary artist name
     private String artistNationality;// Artist's country of origin
-    private Integer artistBirthYear;
-    private Integer artistDeathYear;
+    private String artistBirthYear;
+    private String artistDeathYear;
 
     // Artwork Specifics
     private String medium;           // Painting, sculpture, etc.
@@ -31,6 +29,7 @@ public class ArtworkDetails {
     private String department;       // Museum department
     private Boolean isOnView;        // Current exhibition status
     private String currentLocation;  // Museum/gallery location
+    private String galleryNumber;
 
     // Additional Descriptive Information
     private String description;      // Artwork description
@@ -46,7 +45,7 @@ public class ArtworkDetails {
     private List<String> additionalImageUrls;
 
     // Acquisition and Provenance
-    private Integer creationYear;
+    private String creationYear;
     private String acquisitionDate;
     private String copyrightStatus;
 }
