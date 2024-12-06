@@ -1,15 +1,15 @@
 package com.mvp.artplatform.model;
 
 
+import com.mvp.artplatform.model.base.baseEntity;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDate;
+import java.time.Year;
 import java.util.Map;
 
 
@@ -19,24 +19,19 @@ import java.util.Map;
 @NoArgsConstructor
 @Entity
 @Table(name = "artists")
-public class Artist {
-    @Id
-    @SequenceGenerator(name = "artist_sequence", sequenceName = "artist_sequence")
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "artist_sequence")
-    @Column(updatable = false, nullable = false)
-    private Long id;
+public class Artist extends baseEntity {
 
     @Column(name = "artist_name", nullable = false)
     private String artistName;
 
     private String nationality;
 
-    @Column(columnDefinition = "TEXT")
-    private String biography;
+    /*@Column(columnDefinition = "TEXT")
+    private String biography;*/
 
-    private LocalDate birthDate;
+    private String birthDate;
 
-    private LocalDate deathDate;
+    private String deathDate;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
@@ -44,12 +39,12 @@ public class Artist {
 
     public Artist(String artistName,
                   String nationality,
-                  String biography,
-                  LocalDate birthDate,
-                  LocalDate deathDate) {
+//                  String biography,
+                  String birthDate,
+                  String deathDate) {
         this.artistName = artistName;
         this.nationality = nationality;
-        this.biography = biography;
+//        this.biography = biography;
         this.birthDate = birthDate;
         this.deathDate = deathDate;
     }
@@ -57,10 +52,8 @@ public class Artist {
     @Override
     public String toString() {
         return "Artist{" +
-                "id=" + id +
-                ", artistName='" + artistName + '\'' +
+                "artistName='" + artistName + '\'' +
                 ", nationality='" + nationality + '\'' +
-                ", biography='" + biography + '\'' +
                 ", birthDate=" + birthDate +
                 ", deathDate=" + deathDate +
                 ", additionalMetadata=" + additionalMetadata +
