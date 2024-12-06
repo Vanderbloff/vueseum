@@ -1,105 +1,142 @@
 package com.mvp.artplatform.client.museum_client;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.RateLimiter;
+import com.mvp.artplatform.dto.ArtworkDetails;
 import com.mvp.artplatform.client.BaseMuseumApiClient;
-import com.mvp.artplatform.model.Artist;
-import com.mvp.artplatform.model.Artwork;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Component;
+import com.mvp.artplatform.exception.ApiClientException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
-import java.io.IOException;
-import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
+@Service
 public class MetMuseumApiClient extends BaseMuseumApiClient {
 
-    public MetMuseumApiClient(String baseUrl) {
-        super(baseUrl);
+    private RateLimiter rateLimiter;
+    public MetMuseumApiClient(
+            Environment environment,
+            @Value("${museum.api.metmuseum.baseUrl}") String baseUrl
+    ) {
+        super(environment, baseUrl);
+        this.rateLimiter = RateLimiter.create(Integer.parseInt(environment.getProperty("museum.metropolitan.api.rateLimit", "80")));
     }
 
     @Override
-    public List<Artwork> fetchArtworks() {
-        String endpoint = baseUrl + "/objects";
-        ResponseEntity<String> initialResponse = restClient.get()
-                .uri(endpoint)
-                .retrieve()
-                .toEntity(String.class);
+    public ArtworkDetails fetchArtworkById(String id) {
+        rateLimiter.acquire();
 
-        List<Integer> objectIds = parseObjectIds(initialResponse.getBody());
+        // RestClient provides a more straightforward way to make HTTP requests
+        String response = restClient.get()
+                .uri("/objects/{id}", id)
+                .retrieve()
+                .body(String.class);
+
+        System.out.println(response);
+        return convertToArtworkDetails(response);
+    }
+
+    @Override
+    public ArtworkDetails convertToArtworkDetails(String response) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode rootNode = objectMapper.readTree(response);
+            String galleryNumber = rootNode.get("GalleryNumber").asText();
+            Boolean isOnDisplay = galleryNumber.isBlank();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy");
+
+
+            return ArtworkDetails.builder()
+                    .apiSource("Metropolitan Museum of Art")
+                    .externalId(rootNode.get("objectID").asText())
+                    .title(rootNode.get("title").asText())
+
+                    .artistName(rootNode.get("artistDisplayName").asText())
+                    .artistNationality(rootNode.get("artistNationality").asText())
+                    .artistBirthYear(rootNode.get("artistBeginDate").asText())
+                    //.artistBirthYear(objectMapper.convertValue(rootNode.get("artistBeginDate"), LocalDate.class))
+                    .artistDeathYear(rootNode.get("artistEndDate").asText())
+                    //.artistDeathYear(objectMapper.convertValue(rootNode.get("artistEndDate"), LocalDate.class))
+
+                    .medium(rootNode.get("medium").asText())
+                    .artworkType(rootNode.get("objectName").asText())
+                    .dimensions(rootNode.get("dimensions").asText())
+
+                    .department(rootNode.get("department").asText())
+                    .isOnView(isOnDisplay)
+                    .currentLocation(rootNode.get("country").asText())
+                    .galleryNumber(galleryNumber)
+
+                    .tags(rootNode.findValuesAsText("tags"))
+                    .creditLine(rootNode.get("creditLine").asText())
+
+                    .culture(rootNode.get("culture").asText())
+                    .period(rootNode.get("period").asText())
+
+                    .primaryImageUrl(rootNode.get("primaryImage").asText())
+                    .additionalImageUrls(rootNode.findValuesAsText("additionalImageUrls"))
+
+                    .creationYear(rootNode.get("objectDate").asText())
+                    //.creationYear(objectMapper.convertValue(rootNode.get("objectDate"), LocalDate.class))
+                    .acquisitionDate(rootNode.get("accessionYear").asText())
+                    //.acquisitionDate(objectMapper.convertValue(rootNode.get("acquisitionDate"), LocalDate.class))
+                    .build();
+        } catch (JsonProcessingException e) {
+            throw new ApiClientException("Failed to parse response from Met Museum API", e);
+        }
+    }
+
+    @Override
+    public List<ArtworkDetails> searchArtworks(Map<String, String> criteria) {
+        String searchResponse = restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/search?q")
+                        .queryParams(convertToMultiValueMap(criteria))
+                        .build())
+                .retrieve()
+                .body(String.class);
+
+        List<String> objectIds = parseSearchResponse(searchResponse);
 
         return objectIds.stream()
-                .map(this::fetchArtworkDetails)
+                .limit(100)
+                .map(this::fetchArtworkById)
                 .collect(Collectors.toList());
     }
 
-    private List<Integer> parseObjectIds(String body) {
-        ObjectMapper mapper = new ObjectMapper();
+    private List<String> parseSearchResponse(String searchResponse) {
+        ObjectMapper objectMapper = new ObjectMapper();
         try {
-            JsonNode rootNode = mapper.readTree(body);
-            return mapper.convertValue(
-                    rootNode.get("objectIds"),
-                    new TypeReference<>() {
-                    }
-            );
-        }
-        catch (IOException e) {
-            return Collections.emptyList();
-        }
-    }
+            JsonNode rootNode = objectMapper.readTree(searchResponse);
+            JsonNode objectIds = rootNode.get("objectIDs");
 
-    @Override
-    public List<Artwork> fetchArtworksByArtist(String artistName) {
-        return List.of();
-    }
+            if (objectIds == null || objectIds.isNull())
+                return Collections.emptyList();
 
-    @Override
-    public Artwork fetchArtworkDetails(Integer artworkId) {
+            List<String> parsedIds = new ArrayList<>();
+            objectIds.forEach(id -> parsedIds.add(id.asText()));
+            return parsedIds;
 
-        String endpoint = baseUrl + "/objects/" + artworkId;
-        ResponseEntity<String> detailResponse = restClient.get()
-                .uri(endpoint)
-                .retrieve()
-                .toEntity(String.class);
-
-        // Convert raw JSON directly to ArtworkDetails
-        return convertToArtwork(detailResponse.getBody());
-    }
-
-    @Override
-    public Artwork convertToArtwork(String body) {
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode rootNode = mapper.readTree(body);
-            Artist artist = new Artist();
-            artist.setArtistName(rootNode.get("artistDisplayName").asText());
-            artist.setNationality(rootNode.get("artistNationality").asText());
-            artist.setBirthDate(LocalDate.parse(rootNode.get("artistBeginDate").asText()));
-            artist.setDeathDate(LocalDate.parse(rootNode.get("artistEndDate").asText()));
-
-            Artwork artwork = new Artwork();
-            artwork.setArtist(artist);
-            artwork.setTitle(rootNode.get("title").asText());
-            artwork.setMedium(rootNode.get("medium").asText());
-            artwork.setImageUrl(rootNode.get("primaryImage").asText());
-            artwork.setCountry(rootNode.get("country").asText());
-            artwork.setGalleryNumber(rootNode.get("GalleryNumber").asText());
-            artwork.setCreationDate(rootNode.get("objectDate").asText());
-
-            return artwork;
         } catch (JsonProcessingException e) {
-            return new Artwork();
+            throw new ApiClientException("Failed to parse search response", e);
         }
     }
 
-    /*@Override
-    protected List<Artwork> transformResponseToArtworks(MetMuseumResponse apiResponse) {
-        return apiResponse.getObjectIds().stream()
-                .map()
-                .collect(Collectors.toList());
-    }*/
+    private MultiValueMap<String, String> convertToMultiValueMap(Map<String, String> criteria) {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        for (Map.Entry<String, String> entry : criteria.entrySet()) {
+            params.add(entry.getKey(), entry.getValue());
+        }
+        return params;
+    }
 }
