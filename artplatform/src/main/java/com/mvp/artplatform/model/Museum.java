@@ -1,7 +1,7 @@
 package com.mvp.artplatform.model;
 
+import com.mvp.artplatform.model.base.baseEntity;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,13 +15,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Entity
 @Table(name = "museums")
-public class Museum {
-
-    @Id
-    @SequenceGenerator(name = "museum_sequence", sequenceName = "museum_sequence")
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "museum_sequence")
-    @Column(updatable = false, nullable = false)
-    private Long id;
+public class Museum extends baseEntity {
 
     @Column(nullable = false)
     private String name;
@@ -31,6 +25,10 @@ public class Museum {
 
     @Column(name = "website_url")
     private String websiteUrl;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private Map<String, museumHours> museumHours;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
@@ -49,11 +47,19 @@ public class Museum {
     @Override
     public String toString() {
         return "Museum{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
+                "name='" + name + '\'' +
                 ", location='" + location + '\'' +
                 ", websiteUrl='" + websiteUrl + '\'' +
+                ", museumHours=" + museumHours +
                 ", additionalMetadata=" + additionalMetadata +
                 '}';
+    }
+
+    @SuppressWarnings("InnerClassMayBeStatic")
+    @Getter @Setter
+    public class museumHours {
+        private String open;
+        private String close;
+        private String notes; // For special instructions
     }
 }
