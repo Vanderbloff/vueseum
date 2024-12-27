@@ -32,9 +32,6 @@ public class Tour extends baseEntity {
     // Estimated duration in minutes
     private Integer estimatedDuration;
 
-    // Whether this tour is public or private
-    private boolean isPublic = false;
-
     // The difficulty level of the tour (e.g., easy, moderate, challenging)
     @Enumerated(EnumType.STRING)
     private TourDifficulty difficulty = TourDifficulty.MODERATE;
@@ -68,22 +65,27 @@ public class Tour extends baseEntity {
     private TourTheme theme;
 
     public enum TourTheme {
-        CHRONOLOGICAL("Art through the ages"),
-        ARTISTIC_MOVEMENT("Exploring artistic movements"),
-        ARTIST_FOCUSED("Featured artist spotlight"),
-        MEDIUM_BASED("Exploring artistic techniques"),
-        CULTURAL("Cultural perspectives"),
-        CUSTOM("Custom theme");
+        CHRONOLOGICAL("Art through the ages", "Experience art's evolution across time"),
+        ARTIST_FOCUSED("Featured artist spotlight", "Deep dive into an artist's work"),
+        CULTURAL("Cultural perspectives", "Explore art across cultures");
+        // Future Enhancement Consideration: HIGHLIGHTS
+        // A highlights tour could showcase the museum's masterpieces and most significant works
+        // Implementation would use isHighlight field from Met Museum API
+        // Considerations for future implementation:
+        // - Traffic flow management around popular pieces
+        // - Time of day recommendations for viewing
+        // - Integration with crowd density data
+        // - Possible combination with other themes for "Highlight Artists" or "Cultural Highlights"
 
-        // TODO: This variable is never accessed; I'm assuming when the time comes, a controller method will pass along a pre-selected theme
+        public final String title;
         public final String description;
 
-        TourTheme(String description) {
+        TourTheme(String title, String description) {
+            this.title = title;
             this.description = description;
         }
     }
 
-    // TODO: Decide on just using an Artwork object instead of a TourStop; as it stands, I have to create an OpenAiDescriptionService instance
     // Helper method to add a stop to the tour
     public void addStop(Artwork artwork, Integer sequenceNumber) {
         TourStop stop = new TourStop();
