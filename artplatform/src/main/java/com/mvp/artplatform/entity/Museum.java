@@ -1,6 +1,6 @@
-package com.mvp.artplatform.model;
+package com.mvp.artplatform.entity;
 
-import com.mvp.artplatform.model.base.baseEntity;
+import com.mvp.artplatform.entity.base.baseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -8,7 +8,10 @@ import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -28,11 +31,15 @@ public class Museum extends baseEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
-    private Map<String, museumHours> museumHours;
+    private Map<String, museumHours> museumHours = new HashMap<>();
+
+    @Column(name = "artworks")
+    @OneToMany(mappedBy = "museum", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Artwork> collection = new HashSet<>();
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
-    private Map<String, Object> additionalMetadata;
+    private Map<String, Object> additionalMetadata = new HashMap<>();
 
     public Museum(String name,
                   String location,
@@ -44,6 +51,32 @@ public class Museum extends baseEntity {
         this.additionalMetadata = additionalMetadata;
     }
 
+    @Getter @Setter
+    public static class museumHours {
+        private String open;
+        private String close;
+        private Boolean closed;
+        private String notes; // For special instructions
+    }
+
+    public void addArtwork(Artwork artwork) {
+        collection.add(artwork);
+        if (artwork.getMuseum() != this) {
+            artwork.setMuseum(this);
+        }
+    }
+
+    public void removeArtwork(Artwork artwork) {
+        collection.remove(artwork);
+        if (artwork.getMuseum() == this) {
+            artwork.setMuseum(null);
+        }
+    }
+
+    public Set<Artwork> getCollection() {
+        return new HashSet<>(collection);
+    }
+
     @Override
     public String toString() {
         return "Museum{" +
@@ -51,15 +84,8 @@ public class Museum extends baseEntity {
                 ", location='" + location + '\'' +
                 ", websiteUrl='" + websiteUrl + '\'' +
                 ", museumHours=" + museumHours +
+                ", collectionCount=" + collection.size() +
                 ", additionalMetadata=" + additionalMetadata +
                 '}';
-    }
-
-    @SuppressWarnings("InnerClassMayBeStatic")
-    @Getter @Setter
-    public class museumHours {
-        private String open;
-        private String close;
-        private String notes; // For special instructions
     }
 }
