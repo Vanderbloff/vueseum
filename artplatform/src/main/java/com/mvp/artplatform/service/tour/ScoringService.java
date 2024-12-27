@@ -1,0 +1,316 @@
+package com.mvp.artplatform.service.tour;
+
+import com.mvp.artplatform.domain.TourPreferences;
+import com.mvp.artplatform.entity.Artist;
+import com.mvp.artplatform.entity.Artwork;
+import com.mvp.artplatform.entity.Tour;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+@Service
+public class ScoringService {
+    // Knowledge base for cultural relationships
+    static final Map<String, List<String>> RELATED_CULTURES = Map.of(
+            "European", List.of("French", "Italian", "Dutch", "German", "Spanish"),
+            "East Asian", List.of("Chinese", "Japanese", "Korean"),
+            "Islamic", List.of("Persian", "Ottoman", "Mughal"),
+            "Ancient Mediterranean", List.of("Greek", "Roman", "Egyptian")
+    );
+
+    /**
+     * Main scoring method that combines different scoring components
+     */
+    public double scoreArtwork(Artwork artwork,
+                               TourPreferences preferences,
+                               List<Artwork> currentTourArtworks) {
+        double score = 0.5; // Base score
+
+        score += calculateThemeScore(artwork, preferences.getTheme());
+        score += calculatePreferenceScore(artwork, preferences);
+
+        if (!currentTourArtworks.isEmpty()) {
+            score += calculateFlowScore(
+                    currentTourArtworks.getLast(),
+                    artwork,
+                    preferences.getTheme()
+            );
+        }
+
+        return Math.min(1.0, Math.max(0.0, score));
+    }
+
+    /**
+     * Calculates how well an artwork matches the selected theme.
+     * This uses predefined art historical knowledge to make connections.
+     */
+    private double calculateThemeScore(Artwork artwork, Tour.TourTheme theme) {
+        return switch (theme) {
+            case CHRONOLOGICAL -> calculateChronologicalScore(artwork);
+            case ARTIST_FOCUSED -> calculateArtistScore(artwork);
+            case CULTURAL -> calculateCulturalScore(artwork);
+        };
+    }
+
+    /**
+     * Handles chronological scoring with more robust date parsing
+     */
+    private double calculateChronologicalScore(Artwork artwork) {
+        String dateStr = artwork.getCreationDate();
+        if (dateStr == null) return 0.1;
+
+        Pattern yearPattern = Pattern.compile("\\b(1[0-9]{3}|20[0-2][0-9])\\b");
+        Matcher matcher = yearPattern.matcher(dateStr);
+
+        if (matcher.find()) {
+            return 0.2; // Clear year (was 0.3)
+        } else if (dateStr.matches(".*(century|BCE|CE|BC|AD).*")) {
+            return 0.15; // Period indicator (was 0.2)
+        }
+        return 0.1;
+    }
+
+    private double calculateArtistScore(Artwork artwork) {
+        // Reduced from 0.3 to 0.2 for known artist
+        return artwork.hasKnownArtist() ? 0.2 : 0.1;
+    }
+
+    private double calculateCulturalScore(Artwork artwork) {
+        // Higher score if cultural context is available
+        return artwork.getCulture() != null ? 0.2 : 0.1;
+    }
+
+    /**
+     * Calculates how well an artwork matches the user's explicit preferences.
+     */
+    private double calculatePreferenceScore(Artwork artwork, TourPreferences preferences) {
+        double score = 0.0;
+
+        // Artist preference matching
+        if (artwork.hasKnownArtist() &&
+                preferences.getPreferredArtists().contains(artwork.getArtistName())) {
+            score += 0.15;
+        }
+
+        // Period preference matching
+        if (preferences.getPreferredPeriods().contains(artwork.getCreationDate())) {
+            score += 0.2;
+        }
+
+        // Medium preference matching
+        if (artwork.getMedium() != null &&
+                preferences.getPreferredMediums().contains(artwork.getMedium())) {
+            score += 0.3;
+        }
+
+        if (artwork.getCulture() != null &&
+                preferences.getPreferredCultures().contains(artwork.getCulture())) {
+            score += 0.4;
+        }
+
+        return score;
+    }
+
+    /**
+     * Calculates how well an artwork flows from the previous artwork in the tour.
+     * This helps create a coherent narrative throughout the tour.
+     */
+    private double calculateFlowScore(Artwork previous,
+                                      Artwork current,
+                                      Tour.TourTheme theme) {
+        return switch (theme) {
+            case CHRONOLOGICAL -> calculateChronologicalFlow(previous, current);
+            case ARTIST_FOCUSED -> calculateArtistFlow(previous, current);
+            case CULTURAL -> calculateCulturalFlow(previous, current);
+        };
+    }
+
+    private double calculateChronologicalFlow(Artwork previous, Artwork current) {
+        if (previous.getCreationDate() == null || current.getCreationDate() == null) {
+            return 0.1;
+        }
+
+        try {
+            int prevYear = extractYear(previous.getCreationDate());
+            int currentYear = extractYear(current.getCreationDate());
+            int yearDiff = currentYear - prevYear;
+
+            // Reduced from 0.3/0.2 to 0.2/0.15
+            if (yearDiff > 0 && yearDiff < 50) {
+                return 0.2;  // Good progression within half a century
+            } else if (yearDiff > 0 && yearDiff < 100) {
+                return 0.15;  // Acceptable progression within a century
+            }
+        } catch (NumberFormatException e) {
+            if (areSimilarPeriods(previous.getCreationDate(), current.getCreationDate())) {
+                return 0.15;
+            }
+        }
+        return 0.1;
+    }
+
+    private int extractYear(String dateString) {
+        // TODO: Implement year extraction from various date formats
+        // Handle: specific years, century indicators, circa dates
+        // Look for a clear year pattern first
+        Pattern yearPattern = Pattern.compile("\\b(1[0-9]{3}|20[0-2][0-9])\\b");
+        Matcher matcher = yearPattern.matcher(dateString);
+
+        if (matcher.find()) {
+            return Integer.parseInt(matcher.group(1));
+        }
+
+        // Handle century indicators
+        if (dateString.toLowerCase().contains("century")) {
+            Pattern centuryPattern = Pattern.compile("(\\d+)(st|nd|rd|th)\\s+century");
+            matcher = centuryPattern.matcher(dateString.toLowerCase());
+            if (matcher.find()) {
+                int century = Integer.parseInt(matcher.group(1));
+                return (century - 1) * 100 + 50; // Return mid-century as approximate date
+            }
+        }
+
+        // Handle circa dates
+        if (dateString.toLowerCase().contains("circa") || dateString.toLowerCase().contains("ca.")) {
+            Pattern circaPattern = Pattern.compile("\\b(1[0-9]{3}|20[0-2][0-9])\\b");
+            matcher = circaPattern.matcher(dateString);
+            if (matcher.find()) {
+                return Integer.parseInt(matcher.group(1));
+            }
+        }
+
+        throw new NumberFormatException("Could not extract year from: " + dateString);
+    }
+
+    private boolean areSimilarPeriods(String periodFromArtworkOne, String periodFromArtworkTwo) {
+        if (periodFromArtworkOne == null || periodFromArtworkTwo == null) {
+            return false;
+        }
+
+        // Normalize periods for comparison
+        periodFromArtworkOne = periodFromArtworkOne.toLowerCase();
+        periodFromArtworkTwo = periodFromArtworkTwo.toLowerCase();
+
+        // If they're exactly the same period, return true
+        if (periodFromArtworkOne.equals(periodFromArtworkTwo)) {
+            return true;
+        }
+
+        // Check overlapping time periods based on art historical knowledge
+        Map<String, Set<String>> relatedPeriods = Map.of(
+                "renaissance", Set.of("early renaissance", "high renaissance", "late renaissance", "northern renaissance"),
+                "baroque", Set.of("early baroque", "high baroque", "late baroque", "dutch golden age"),
+                "modern", Set.of("post-impressionism", "art nouveau", "art deco", "modernism"),
+                "medieval", Set.of("romanesque", "gothic", "early medieval", "late medieval")
+        );
+
+        // Check if periods belong to the same group
+        String finalPeriodFromArtworkOne = periodFromArtworkOne;
+        String finalPeriodFromArtworkTwo = periodFromArtworkTwo;
+        return relatedPeriods.values().stream()
+                .anyMatch(group -> group.contains(finalPeriodFromArtworkOne) && group.contains(finalPeriodFromArtworkTwo));
+    }
+
+    private double calculateArtistFlow(Artwork previous, Artwork current) {
+        if (!previous.hasKnownArtist() || !current.hasKnownArtist()) {
+            return 0.1;
+        }
+
+        // Reduced from 0.3 to 0.2 for same artist
+        if (previous.getArtistName().equals(current.getArtistName())) {
+            return 0.2;
+        }
+
+        // Reduced from 0.25 to 0.15 for related artists
+        if (areRelatedArtists(previous.getArtist(), current.getArtist())) {
+            return 0.15;
+        }
+
+        // Reduced from 0.2 to 0.15 for shared characteristics
+        if (shareArtisticCharacteristic(previous.getArtist(), current.getArtist())) {
+            return 0.15;
+        }
+
+        return 0.1;
+    }
+
+    private boolean shareCommonTags(Artist artist1, Artist artist2) {
+        if (artist1 == null || artist2 == null ||
+                !artist1.getAdditionalMetadata().containsKey("tags") ||
+                !artist2.getAdditionalMetadata().containsKey("tags")) {
+            return false;
+        }
+
+        @SuppressWarnings("unchecked")
+        List<String> tags1 = (List<String>) artist1.getAdditionalMetadata().get("tags");
+        @SuppressWarnings("unchecked")
+        List<String> tags2 = (List<String>) artist2.getAdditionalMetadata().get("tags");
+
+        if (tags1 == null || tags2 == null) {
+            return false;
+        }
+
+        // Check for any overlapping tags
+        return tags1.stream()
+                .map(String::toLowerCase)
+                .anyMatch(tag -> tags2.stream()
+                        .map(String::toLowerCase)
+                        .anyMatch(tag2 -> tag2.equals(tag)));
+    }
+
+    private boolean areRelatedCultures(String prevCulture, String currCulture) {
+        // Check if cultures belong to the same group in our RELATED_CULTURES map
+        return RELATED_CULTURES.entrySet().stream()
+                .anyMatch(entry -> {
+                    List<String> relatedCultures = entry.getValue();
+                    return (relatedCultures.contains(prevCulture) && relatedCultures.contains(currCulture));
+                });
+    }
+
+    private boolean areRelatedArtists(Artist artist1, Artist artist2) {
+        // Check if artists were contemporaries
+        if (artist1.getBirthDate() != null && artist1.getDeathDate() != null
+                && artist2.getBirthDate() != null && artist2.getDeathDate() != null) {
+
+            int artist1Start = Integer.parseInt(artist1.getBirthDate());
+            int artist1End = Integer.parseInt(artist1.getDeathDate());
+            int artist2Start = Integer.parseInt(artist2.getBirthDate());
+            int artist2End = Integer.parseInt(artist2.getDeathDate());
+
+            // Check if their lifetimes overlapped
+            return (artist2Start <= artist1End && artist2End >= artist1Start);
+        }
+        return false;
+    }
+
+    private boolean shareArtisticCharacteristic(Artist artist1, Artist artist2) {
+        return Objects.equals(artist1.getNationality(), artist2.getNationality())
+                || shareCommonTags(artist1, artist2);
+    }
+
+    private double calculateCulturalFlow(Artwork previous, Artwork current) {
+        String prevCulture = previous.getCulture();
+        String currCulture = current.getCulture();
+
+        if (prevCulture == null || currCulture == null) {
+            return 0.1; // Keep base connection bonus
+        }
+
+        // Direct culture match reduced from 0.3 to 0.2
+        if (prevCulture.equals(currCulture)) {
+            return 0.2;
+        }
+
+        // Related cultures reduced from 0.2 to 0.15
+        if (areRelatedCultures(prevCulture, currCulture)) {
+            return 0.15;
+        }
+
+        return 0.1;
+    }
+}
