@@ -18,7 +18,7 @@ import java.util.List;
 @Component
 public class ArtworkSpecifications {
     public static Specification<Artwork> withSearchCriteria(ArtworkSearchCriteria criteria) {
-        return (root, query, cb) -> {
+        return (root, _, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
             if (criteria.getTitle() != null) {
@@ -63,7 +63,7 @@ public class ArtworkSpecifications {
     }
 
     public static Specification<Artwork> forTourPreferences(TourPreferences preferences) {
-        return (root, query, cb) -> {
+        return (root, _, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
             if (!preferences.getRequiredArtworkIds().isEmpty()) {
@@ -104,7 +104,7 @@ public class ArtworkSpecifications {
      */
     public static Specification<Artwork> getThemeSpecificPreFilter(Tour.TourTheme theme) {
         return switch (theme) {
-            case CHRONOLOGICAL -> (root, query, cb) -> {
+            case CHRONOLOGICAL -> (root, _, cb) -> {
                 // For chronological tours, prefer artworks with clear dates
                 // and ensure good distribution across time periods
                 return cb.and(
@@ -113,7 +113,7 @@ public class ArtworkSpecifications {
                 );
             };
 
-            case ARTIST_FOCUSED -> (root, query, cb) -> {
+            case ARTIST_FOCUSED -> (root, _, cb) -> {
                 // For artist-focused tours, prefer works by well-documented artists
                 Join<Artwork, Artist> artistJoin = root.join("artist");
                 return cb.and(
@@ -122,12 +122,10 @@ public class ArtworkSpecifications {
                 );
             };
 
-            case CULTURAL -> (root, query, cb) -> {
+            case CULTURAL -> (root, _, cb) -> {
                 // For cultural tours, ensure we have cultural context
                 return cb.isNotNull(root.get("culture"));
             };
-
-            default -> null;
         };
     }
 
@@ -136,24 +134,24 @@ public class ArtworkSpecifications {
 
         // Add specifications for each preference if they're not empty
         if (!prefs.getPreferredArtists().isEmpty()) {
-            spec = spec.and((root, query, cb) -> {
+            spec = spec.and((root, _, _) -> {
                 Join<Artwork, Artist> artistJoin = root.join("artist");
                 return artistJoin.get("artistName").in(prefs.getPreferredArtists());
             });
         }
 
         if (!prefs.getPreferredMediums().isEmpty()) {
-            spec = spec.and((root, query, cb) ->
+            spec = spec.and((root, _, _) ->
                     root.get("medium").in(prefs.getPreferredMediums()));
         }
 
         if (!prefs.getPreferredCultures().isEmpty()) {
-            spec = spec.and((root, query, cb) ->
+            spec = spec.and((root, _, _) ->
                     root.get("culture").in(prefs.getPreferredCultures()));
         }
 
         if (!prefs.getPreferredPeriods().isEmpty()) {
-            spec = spec.and((root, query, cb) ->
+            spec = spec.and((root, _, _) ->
                     root.get("creationDate").in(prefs.getPreferredPeriods()));
         }
 
@@ -171,7 +169,7 @@ public class ArtworkSpecifications {
     }*/
 
     public static Specification<Artwork> forReturningVisitor() {
-        return (root, query, cb) -> cb.isTrue(cb.literal(true));  // Always return true for now
+        return (_, _, cb) -> cb.isTrue(cb.literal(true));  // Always return true for now
     }
 
     /**
@@ -187,12 +185,12 @@ public class ArtworkSpecifications {
 
         // Keep required artworks
         if (!preferences.getRequiredArtworkIds().isEmpty()) {
-            relaxedSpec = relaxedSpec.and((root, query, cb) ->
+            relaxedSpec = relaxedSpec.and((root, _, _) ->
                     root.get("id").in(preferences.getRequiredArtworkIds()));
         }
 
         // Always ensure artworks are on display
-        relaxedSpec = relaxedSpec.and((root, query, cb) ->
+        relaxedSpec = relaxedSpec.and((root, _, cb) ->
                 cb.isTrue(root.get("isOnDisplay")));
 
         return relaxedSpec;
