@@ -137,7 +137,7 @@ public class TourService {
      */
     private String getOrGenerateDescription(TourGenerationRequest request, List<Artwork> artworks) {
         String cacheKey = generateCacheKey(request, artworks);
-        return descriptionCache.get(cacheKey, k ->
+        return descriptionCache.get(cacheKey, _ ->
                 descriptionService.generateTourDescription(artworks, request.getPreferences().getTheme())
         );
     }
