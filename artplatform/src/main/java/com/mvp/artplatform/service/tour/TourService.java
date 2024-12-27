@@ -2,27 +2,31 @@ package com.mvp.artplatform.service.tour;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.mvp.artplatform.dto.TourGenerationRequest;
-import com.mvp.artplatform.dto.TourPreferences;
+import com.mvp.artplatform.domain.TourGenerationRequest;
+import com.mvp.artplatform.domain.TourPreferences;
+import com.mvp.artplatform.domain.TourUpdateRequest;
 import com.mvp.artplatform.entity.Artwork;
 import com.mvp.artplatform.entity.Tour;
-import com.mvp.artplatform.event.TourGenerationProgressEvent;
+import com.mvp.artplatform.event.TourProgressListener;
 import com.mvp.artplatform.exception.GenerationLimitExceededException;
 import com.mvp.artplatform.exception.InvalidRequestException;
+import com.mvp.artplatform.repository.TourRepository;
 import com.mvp.artplatform.service.DescriptionGenerationService;
 import com.mvp.artplatform.service.artwork.ArtworkService;
 import com.mvp.artplatform.service.visitor.DeviceFingerprintService;
 import com.mvp.artplatform.service.visitor.VisitorTrackingService;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,7 +38,8 @@ public class TourService {
     private final VisitorTrackingService visitorTrackingService;
     private final DeviceFingerprintService deviceFingerprintService;
     private final ScoringService scoringService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final TourProgressListener progressListener;
+    private final TourRepository tourRepository;
 
     // Single cache for tour descriptions
     private final Cache<String, String> descriptionCache = Caffeine.newBuilder()
@@ -45,18 +50,31 @@ public class TourService {
     /**
      * Generates a tour based on user preferences and scoring of artwork candidates.
      * This method orchestrates the entire tour generation process.
+     * <p>
+     * Future Enhancement Considerations:
+     * - HIGHLIGHTS theme implementation:
+     *   - Would leverage Met Museum's isHighlight field
+     *   - Could include crowd management features
+     *   - Potential for hybrid themes (e.g., Cultural Highlights)
+     *   - Would need additional metadata for enhanced descriptions
      */
     public Tour generateTour(TourGenerationRequest request, HttpServletRequest httpRequest) {
+        String requestId = UUID.randomUUID().toString();
+        String visitorId = request.getVisitorId();
+        progressListener.startTracking(requestId, visitorId);
+
         validateRequest(request);
         handleVisitorTracking(request.getVisitorId(), deviceFingerprintService.generateFingerprint(httpRequest));
 
+        progressListener.updateProgress(requestId, 0.2, "Selecting artworks...");
         List<Artwork> selectedArtworks = selectArtworks(
                 request.getPreferences(),
                 visitorTrackingService.isReturningVisitor(request.getVisitorId())
         );
 
+        progressListener.updateProgress(requestId, 0.6, "Filling in descriptions...");
         String description = getOrGenerateDescription(request, selectedArtworks);
-        return createTour(selectedArtworks, description, request.getPreferences());
+        return createTour(selectedArtworks, description, request.getPreferences(), requestId);
     }
 
     /**
@@ -65,7 +83,6 @@ public class TourService {
      */
     private List<Artwork> selectArtworks(TourPreferences prefs, boolean isReturningVisitor) {
         // Get initial candidate pool
-        publishProgress(0.1, TourGenerationProgressEvent.GenerationStage.CANDIDATE_SELECTION, "Finding artworks matching your preferences");
         List<Artwork> candidates = artworkService.findArtworkCandidates(prefs, isReturningVisitor);
         List<Artwork> selectedArtworks = new ArrayList<>();
 
@@ -78,7 +95,6 @@ public class TourService {
         candidates.removeAll(selectedArtworks);
 
         // Then select remaining artworks based on scores
-        publishProgress(0.3, TourGenerationProgressEvent.GenerationStage.ARTWORK_SCORING, "Evaluating artwork combinations");
         while (selectedArtworks.size() < prefs.getMaxStops() && !candidates.isEmpty()) {
             // Find the best next artwork based on scoring
             Artwork bestCandidate = candidates.stream()
@@ -92,17 +108,7 @@ public class TourService {
             candidates.remove(bestCandidate);
         }
 
-        publishProgress(0.8, TourGenerationProgressEvent.GenerationStage.TOUR_ASSEMBLY, "Creating your personalized tour");
         return selectedArtworks;
-    }
-
-    private void publishProgress(double progress, TourGenerationProgressEvent.GenerationStage stage, String message) {
-        eventPublisher.publishEvent(new TourGenerationProgressEvent(
-                this,
-                progress,
-                stage,
-                message
-        ));
     }
 
     /**
@@ -136,8 +142,7 @@ public class TourService {
         );
     }
 
-    // TODO: Consider caching descriptions of artworks to provide "standardized, curated" learning experience (i.e., descriptions shouldn't change much for an artwork per person)
-    /**
+     /**
      * Creates a cache key based on request parameters and selected artworks
      */
     private String generateCacheKey(TourGenerationRequest request, List<Artwork> artworks) {
@@ -156,7 +161,8 @@ public class TourService {
     /**
      * Creates a tour entity from the selected artworks and description
      */
-    private Tour createTour(List<Artwork> artworks, String description, TourPreferences prefs) {
+    private Tour createTour(List<Artwork> artworks, String description, TourPreferences prefs, String requestId) {
+        progressListener.updateProgress(requestId, 0.9, "Creating tour...");
         Tour tour = new Tour();
         tour.setName(String.format("%s Tour - %s",
                 prefs.getTheme(),
@@ -172,6 +178,45 @@ public class TourService {
         }
 
         tour.generateDescriptionsForAllStops(descriptionService);
+        progressListener.updateProgress(requestId, 1.0, "Personalized tour completed!");
         return tour;
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Tour> findTourById(Long id) {
+        // Simple lookup with null-safety
+        return tourRepository.findByIdAndDeletedFalse(id);
+    }
+
+    @Transactional
+    public Optional<Tour> updateTour(Long id, TourUpdateRequest request) {
+        return tourRepository.findByIdAndDeletedFalse(id)
+                .map(tour -> {
+                    // Update mutable fields only
+                    if (StringUtils.hasText(request.name())) {
+                        tour.setName(request.name());
+                    }
+                    if (StringUtils.hasText(request.description())) {
+                        tour.setDescription(request.description());
+                    }
+                    return tourRepository.save(tour);
+                });
+    }
+
+    @Transactional
+    public void cancelGeneration(String requestId) {
+        // Mark generation as cancelled in progress tracking
+        progressListener.updateProgress(requestId, 1.0, "Tour generation cancelled");
+
+        // Could add additional cleanup if needed
+    }
+
+    @Transactional
+    public void deleteTour(Long id) {
+        tourRepository.findByIdAndDeletedFalse(id)
+                .ifPresent(tour -> {
+                    tour.markAsDeleted(); // Uses baseEntity soft delete
+                    tourRepository.save(tour);
+                });
     }
 }
