@@ -1,10 +1,13 @@
 package com.mvp.artplatform.service.museum;
 
 import com.mvp.artplatform.config.MuseumConfig;
-import com.mvp.artplatform.model.Museum;
+import com.mvp.artplatform.entity.Museum;
 import com.mvp.artplatform.repository.MuseumRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -19,8 +22,16 @@ public class MuseumService {
         this.museumConfig = museumConfig;
     }
 
+    public List<Museum> findAllMuseums() {
+        return museumRepository.findAll();
+    }
+
+    public Optional<Museum> findMuseumById(Long id) {
+        return museumRepository.findById(id);
+    }
+
     public Museum findOrCreateMuseum(String apiSource) {
-        return museumRepository.findMuseumByName(apiSource)
+        return museumRepository.findByName(apiSource)
                 .orElseGet(() -> {
                     Museum newMuseum = new Museum();
                     String museumIdentifier = determineMuseumIdentifier(apiSource);
