@@ -1,4 +1,4 @@
-package com.mvp.artplatform.dto;
+package com.mvp.artplatform.domain;
 
 import com.mvp.artplatform.entity.Museum;
 import lombok.*;
