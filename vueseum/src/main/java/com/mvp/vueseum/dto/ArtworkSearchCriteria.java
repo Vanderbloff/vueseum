@@ -34,8 +34,6 @@ public class ArtworkSearchCriteria {
     @Size(max = 50)
     private String artworkType;
 
-    //private LocalDate createdAfter;
-    //private LocalDate createdBefore;
     private Boolean isOnDisplay;
 
     @Size(max = 100)

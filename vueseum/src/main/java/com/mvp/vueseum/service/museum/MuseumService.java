@@ -14,8 +14,7 @@ import java.util.Optional;
 public class MuseumService {
 
     private final MuseumRepository museumRepository;
-    @SuppressWarnings("FieldMayBeFinal")
-    private MuseumConfig museumConfig;
+    private final MuseumConfig museumConfig;
 
     public MuseumService(MuseumRepository museumRepository, MuseumConfig museumConfig) {
         this.museumRepository = museumRepository;
