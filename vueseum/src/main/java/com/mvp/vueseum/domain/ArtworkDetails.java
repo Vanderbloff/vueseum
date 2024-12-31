@@ -40,7 +40,7 @@ public class ArtworkDetails {
 
     @Getter(AccessLevel.NONE)
     @Builder.Default
-    private List<String> tags = new ArrayList<>();       // Searchable keywords
+    private final List<String> tags = new ArrayList<>();       // Searchable keywords
     private String creditLine;       // Museum attribution
 
     // Geographical and Cultural Context
@@ -52,7 +52,7 @@ public class ArtworkDetails {
 
     @Getter(AccessLevel.NONE)
     @Builder.Default
-    private List<String> additionalImageUrls = new ArrayList<>();
+    private final List<String> additionalImageUrls = new ArrayList<>();
 
     // Acquisition and Provenance
     private String creationYear;
