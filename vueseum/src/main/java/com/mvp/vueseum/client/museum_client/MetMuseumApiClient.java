@@ -11,10 +11,8 @@ import com.mvp.vueseum.domain.ArtworkDetails;
 import com.mvp.vueseum.entity.Artwork;
 import com.mvp.vueseum.entity.Museum;
 import com.mvp.vueseum.exception.ApiClientException;
-import com.mvp.vueseum.exception.PersistenceException;
 import com.mvp.vueseum.service.artwork.ArtworkService;
 import com.mvp.vueseum.service.museum.MuseumService;
-import jakarta.transaction.Transactional;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,13 +27,14 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+@SuppressWarnings("UnstableApiUsage")
 @Service
 @Getter
 @PropertySource("classpath:museum.properties")
 public class MetMuseumApiClient extends BaseMuseumApiClient {
 
     private static final Logger logger = LoggerFactory.getLogger(MetMuseumApiClient.class);
-    private RateLimiter rateLimiter;
+    private final RateLimiter rateLimiter;
     private final ArtworkService artworkService;
     private final Museum metMuseum;
 
@@ -121,18 +120,6 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
         } catch (Exception e) {
             logger.error("Failed to complete collection sync", e);
             throw new ApiClientException("Collection sync failed", e);
-        }
-    }
-
-    // This is used for testing purposes
-    @Transactional
-    public void fetchAndSaveArtworkById(String id) {
-        try {
-            ArtworkDetails details = fetchArtworkById(id);
-            artworkService.saveFromDetails(details);
-        }
-        catch (PersistenceException e) {
-            throw new PersistenceException("Could not save artwork", e);
         }
     }
 
