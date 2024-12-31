@@ -29,9 +29,6 @@ public class Artist extends baseEntity {
 
     private String nationality;
 
-    /*@Column(columnDefinition = "TEXT")
-    private String biography;*/
-
     @Pattern(regexp = "^[0-9]+$", message = "Year must be a positive number or zero")
     @Size(min = 4, max = 4, message = "Year must be in YYYY format")
     private String birthDate;
