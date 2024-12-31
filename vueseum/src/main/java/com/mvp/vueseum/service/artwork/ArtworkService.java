@@ -18,8 +18,6 @@ import com.mvp.vueseum.specification.ArtworkSpecifications;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Bean;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
@@ -49,7 +47,7 @@ public class ArtworkService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @CacheEvict(value = "artworks", key = "#details.externalId")
-    public Artwork saveFromDetails(ArtworkDetails details) {
+    public void saveFromDetails(ArtworkDetails details) {
         // Find or create the artist
         try {
             Artist artist = null;
@@ -79,7 +77,6 @@ public class ArtworkService {
             Artwork saved = artworkRepository.save(artwork);
             artworkCache.put(artwork.getExternalId(), artwork);
 
-            return saved;
         } catch (DataIntegrityViolationException e) {
             throw new InvalidRequestException("Invalid artwork data: " +
                     e.getMessage());
