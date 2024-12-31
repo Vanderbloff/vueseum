@@ -1,0 +1,44 @@
+package com.mvp.vueseum.event;
+
+import com.mvp.vueseum.domain.TourGenerationProgress;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Listens for and manages tour generation progress events.
+ * This class maintains the state of all active tour generations
+ * and provides methods to query their status.
+ */
+@Component
+@Slf4j
+public class TourProgressListener {
+    // Store active generations with their progress
+    private final Map<String, TourGenerationProgress> activeGenerations = new ConcurrentHashMap<>();
+
+    public void initializeProgress(String requestId, String visitorId) {
+        activeGenerations.put(requestId, new TourGenerationProgress(requestId, visitorId));
+    }
+
+    public void updateProgress(String requestId, double progress, String currentTask) {
+        TourGenerationProgress tracking = activeGenerations.get(requestId);
+        if (tracking != null) {
+            tracking.update(progress, currentTask);
+
+            // Simpler completion handling
+            if (progress >= 1.0) {
+                activeGenerations.remove(requestId);
+            }
+        }
+    }
+
+    /**
+     * Gets current progress of a tour generation
+     */
+    public Optional<TourGenerationProgress> getProgress(String requestId) {
+        return Optional.ofNullable(activeGenerations.get(requestId));
+    }
+}
