@@ -40,14 +40,6 @@ public class ArtworkSpecifications {
                 predicates.add(cb.equal(root.get("medium"), criteria.getMedium()));
             }
 
-            // Add date range predicates
-            /*if (criteria.getCreatedAfter() != null) {
-                predicates.add(cb.greaterThanOrEqualTo(
-                        root.get("creationDate"),
-                        criteria.getCreatedAfter()
-                ));
-            }*/
-
             // Handle museum filtering for future multi-museum support
             if (criteria.getMuseums() != null && !criteria.getMuseums().isEmpty()) {
                 Join<Artwork, Museum> museumJoin = root.join("museum");
@@ -188,21 +180,6 @@ public class ArtworkSpecifications {
         relaxationLevels.add(coreSpec);
 
         return relaxationLevels;
-
-        /*// Start fresh with only required artworks and display status
-        Specification<Artwork> relaxedSpec = Specification.where(null);
-
-        // Keep required artworks
-        if (!preferences.getRequiredArtworkIds().isEmpty()) {
-            relaxedSpec = relaxedSpec.and((root, _, _) ->
-                    root.get("id").in(preferences.getRequiredArtworkIds()));
-        }
-
-        // Always ensure artworks are on display
-        relaxedSpec = relaxedSpec.and((root, _, cb) ->
-                cb.isTrue(root.get("isOnDisplay")));
-
-        return relaxedSpec;*/
     }
 
     /**
