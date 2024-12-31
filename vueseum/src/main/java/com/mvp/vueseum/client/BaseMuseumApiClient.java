@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
+@SuppressWarnings("UnstableApiUsage")
 @Slf4j
 @Getter
 public abstract class BaseMuseumApiClient implements MuseumApiClient {
