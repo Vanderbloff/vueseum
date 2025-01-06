@@ -11,6 +11,7 @@
 		SelectItem,
 		SelectTrigger,
 	} from "$lib/components/ui/select";
+	import type { ArtworkSort } from '$lib/types/artwork';
 
 	export interface ArtworkFilters {
 		searchTerm: string[];
@@ -21,9 +22,12 @@
 		department: string[];
 		onDisplay: boolean;
 		hasImage: boolean;
+		sort?: ArtworkSort;
 	}
-	let { onSearch } = $props<{
+
+	let { onSearch, children } = $props<{
 		onSearch: (filters: ArtworkFilters) => void;
+		children?: unknown;
 	}>();
 
 	const state = $state({
@@ -39,11 +43,7 @@
 		} as ArtworkFilters
 	});
 
-	// Helper functions to handle Select values
 	function handleSearchFieldChange(value: string) {
-/*		if (value.length > 0) {
-			state.filters.searchField = value[0] as ArtworkFilters['searchField'];
-		}*/
 		if (value === "all" || value === "title" || value === "artist" || value === "medium") {
 			state.filters.searchField = value;
 		}
@@ -114,14 +114,18 @@
 		</div>
 	</div>
 
+	{#if children}
+		{@render children()}
+	{/if}
+
 	<!-- Filter Section -->
 	<div>
 		<h3 class="text-lg font-semibold mb-3">Filter By</h3>
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 			<div class="space-y-2 min-w-[200px]">
-				<div class="flex items-center justify-between h-6"> <!-- New div for Label + Reset button row -->
+				<div class="flex items-center justify-between h-6">
 					<Label for="objectType">Object Type</Label>
-					<div class="w-12"> <!-- Container for Reset button with fixed width -->
+					<div class="w-12">
 						{#if state.filters.objectType.length > 0}
 							<Button
 								variant="ghost"
@@ -163,9 +167,9 @@
 			</div>
 
 			<div class="space-y-2">
-				<div class="flex items-center justify-between h-6"> <!-- New div for Label + Reset button row -->
+				<div class="flex items-center justify-between h-6">
 					<Label for="culturalRegion">Cultural Region</Label>
-					<div class="w-12"> <!-- Container for Reset button with fixed width -->
+					<div class="w-12">
 						{#if state.filters.culturalRegion.length > 0}
 							<Button
 								variant="ghost"
@@ -206,9 +210,9 @@
 			</div>
 
 			<div class="space-y-2">
-				<div class="flex items-center justify-between h-6"> <!-- New div for Label + Reset button row -->
+				<div class="flex items-center justify-between h-6">
 					<Label for="era">Era</Label>
-					<div class="w-12"> <!-- Container for Reset button with fixed width -->
+					<div class="w-12">
 						{#if state.filters.era.length > 0}
 							<Button
 								variant="ghost"
@@ -249,9 +253,9 @@
 			</div>
 
 			<div class="space-y-2">
-				<div class="flex items-center justify-between h-6"> <!-- New div for Label + Reset button row -->
+				<div class="flex items-center justify-between h-6">
 					<Label for="department">Department</Label>
-					<div class="w-12"> <!-- Container for Reset button with fixed width -->
+					<div class="w-12">
 						{#if state.filters.department.length > 0}
 							<Button
 								variant="ghost"
