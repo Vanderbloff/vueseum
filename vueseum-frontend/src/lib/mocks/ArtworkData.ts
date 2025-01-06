@@ -12,7 +12,8 @@ export const mockArtworks: Artwork[] = [
 		isOnDisplay: true,
 		galleryNumber: 'G1',
 		department: '',
-		medium: ''
+		medium: '',
+		culturalRegion: ''
 	},
 	{
 		id: 2,
@@ -23,7 +24,8 @@ export const mockArtworks: Artwork[] = [
 		isOnDisplay: false,
 		galleryNumber: 'G2',
 		department: '',
-		medium: ''
+		medium: '',
+		culturalRegion: ''
 	},
 	{
 		id: 3,
@@ -34,18 +36,19 @@ export const mockArtworks: Artwork[] = [
 		isOnDisplay: true,
 		galleryNumber: 'G3',
 		department: '',
-		medium: ''
+		medium: '',
+		culturalRegion: ''
 	}
 ];
 
 // Add the filter interface
 interface ArtworkFilters {
-	searchTerm: string;
+	searchTerm: string[];
 	searchField: 'all' | 'title' | 'artist' | 'medium';
-	objectType: string;
-	location: string;
-	era: string;
-	department: string;
+	objectType: string[];
+	culturalRegion: string[];
+	era: string[];
+	department: string[];
 	onDisplay: boolean;
 	hasImage: boolean;
 }
@@ -53,30 +56,32 @@ interface ArtworkFilters {
 // Function to get paginated artwork data, matching the tour data pattern
 export function getMockPaginatedArtworks(
 	page: number = 0,
-	filters?: ArtworkFilters,
+	filters: ArtworkFilters,  // No longer optional
 	size: number = 10
 ): PaginatedResponse<Artwork> {
-	// First, apply filters if they exist
+	// First, apply filters
 	let filteredArtworks = [...mockArtworks];
 
-	if (filters) {
+	if (hasActiveFilters(filters)) {
 		filteredArtworks = filteredArtworks.filter(artwork => {
-			// Search term filter
-			if (filters.searchTerm) {
-				const searchTerm = filters.searchTerm.toLowerCase();
-				switch (filters.searchField) {
-					case 'title':
-						if (!artwork.title.toLowerCase().includes(searchTerm)) return false;
-						break;
-					case 'artist':
-						if (!artwork.artist.toLowerCase().includes(searchTerm)) return false;
-						break;
-					case 'all':
-						{ const matchesTitle = artwork.title.toLowerCase().includes(searchTerm);
-						const matchesArtist = artwork.artist.toLowerCase().includes(searchTerm);
-						if (!matchesTitle && !matchesArtist) return false;
-						break; }
-				}
+			// Search term filter - now handles array of terms
+			if (filters.searchTerm.length > 0) {
+				const matchesTerm = filters.searchTerm.some(term => {
+					const searchTerm = term.toLowerCase();
+					switch (filters.searchField) {
+						case 'title':
+							return artwork.title.toLowerCase().includes(searchTerm);
+						case 'artist':
+							return artwork.artist.toLowerCase().includes(searchTerm);
+						case 'medium':
+							return artwork.medium.toLowerCase().includes(searchTerm);
+						case 'all':
+							return artwork.title.toLowerCase().includes(searchTerm) ||
+								artwork.artist.toLowerCase().includes(searchTerm) ||
+								artwork.medium.toLowerCase().includes(searchTerm);
+					}
+				});
+				if (!matchesTerm) return false;
 			}
 
 			// On Display filter
@@ -84,28 +89,41 @@ export function getMockPaginatedArtworks(
 				return false;
 			}
 
-			// Has Image filter (all our mock data has images, but in real app this would matter)
+			// Has Image filter
 			if (filters.hasImage && !artwork.imageUrl) {
 				return false;
 			}
 
-			// Era filter (simple implementation based on year)
-			if (filters.era) {
-				const year = parseInt(artwork.year);
-				switch (filters.era) {
-					case 'ancient':
-						if (year > 500) return false;
-						break;
-					case 'medieval':
-						if (year <= 500 || year > 1500) return false;
-						break;
-					case 'modern':
-						if (year <= 1500) return false;
-						break;
-				}
+			// Object Type filter
+			if (filters.objectType.length > 0 && !filters.objectType.includes(artwork.medium)) {
+				return false;
 			}
 
-			return true;
+			// Location filter (assuming we add a location field to Artwork type)
+			if (filters.culturalRegion.length > 0 && !filters.culturalRegion.some(loc => artwork.culturalRegion === loc)) {
+				return false;
+			}
+
+			// Era filter
+			if (filters.era.length > 0) {
+				const year = parseInt(artwork.year);
+				const matchesEra = filters.era.some(era => {
+					switch (era.toLowerCase()) {
+						case 'ancient':
+							return year <= 500;
+						case 'medieval':
+							return year > 500 && year <= 1500;
+						case 'modern':
+							return year > 1500;
+						default:
+							return false;
+					}
+				});
+				if (!matchesEra) return false;
+			}
+
+			// Department filter
+			return !(filters.department.length > 0 && !filters.department.includes(artwork.department));
 		});
 	}
 
@@ -128,6 +146,17 @@ export function getMockPaginatedArtworks(
 		size,
 		number: page
 	};
+}
+
+// Helper function to check if any filters are actively set
+function hasActiveFilters(filters: ArtworkFilters): boolean {
+	return filters.searchTerm.length > 0 ||
+		filters.objectType.length > 0 ||
+		filters.culturalRegion.length > 0 ||
+		filters.era.length > 0 ||
+		filters.department.length > 0 ||
+		filters.onDisplay ||
+		filters.hasImage;
 }
 
 // Helper function to find a specific artwork by ID
