@@ -53,18 +53,43 @@ interface ArtworkFilters {
 	hasImage: boolean;
 }
 
+function sortArtworks(artworks: Artwork[], field: string, direction: 'asc' | 'desc') {
+	return [...artworks].sort((a, b) => {
+		let comparison = 0;
+
+		switch (field) {
+			case 'title':
+				comparison = a.title.localeCompare(b.title);
+				break;
+			case 'artist':
+				comparison = (a.artist || '').localeCompare(b.artist || '');
+				break;
+			case 'date':
+				// Convert dates to numbers for comparison, defaulting to 0 if invalid
+				{ const dateA = a.year ? new Date(a.year).getTime() : 0;
+				const dateB = b.year ? new Date(b.year).getTime() : 0;
+				comparison = dateA - dateB;
+				break; }
+			default: // 'relevance' - maintain current order
+				return 0;
+		}
+
+		return direction === 'asc' ? comparison : -comparison;
+	});
+}
+
 // Function to get paginated artwork data, matching the tour data pattern
 export function getMockPaginatedArtworks(
 	page: number = 0,
-	filters: ArtworkFilters,  // No longer optional
-	size: number = 10
+	filters: ArtworkFilters,
+	size: number = 10,
+	sort?: { field: string; direction: 'asc' | 'desc' }
 ): PaginatedResponse<Artwork> {
 	// First, apply filters
 	let filteredArtworks = [...mockArtworks];
 
 	if (hasActiveFilters(filters)) {
 		filteredArtworks = filteredArtworks.filter(artwork => {
-			// Search term filter - now handles array of terms
 			if (filters.searchTerm.length > 0) {
 				const matchesTerm = filters.searchTerm.some(term => {
 					const searchTerm = term.toLowerCase();
@@ -99,7 +124,7 @@ export function getMockPaginatedArtworks(
 				return false;
 			}
 
-			// Location filter (assuming we add a location field to Artwork type)
+			// Location filter
 			if (filters.culturalRegion.length > 0 && !filters.culturalRegion.some(loc => artwork.culturalRegion === loc)) {
 				return false;
 			}
@@ -125,6 +150,10 @@ export function getMockPaginatedArtworks(
 			// Department filter
 			return !(filters.department.length > 0 && !filters.department.includes(artwork.department));
 		});
+	}
+
+	if (sort && sort.field !== 'relevance') {
+		filteredArtworks = sortArtworks(filteredArtworks, sort.field, sort.direction);
 	}
 
 	// Then apply pagination
