@@ -8,7 +8,7 @@ export interface Artwork {
 	year: string;              // Year created (string to handle "c. 1500" type dates)
 	imageUrl: string;          // URL to the artwork image
 	isOnDisplay: boolean;      // Whether the artwork is currently on display
-	//location?: string;         // Optional: Where in the museum it's located
+	culturalRegion: string;         // Optional: Where in the museum it's located
 	department: string;
 	medium: string;
 	galleryNumber?: string;    // Optional: Specific gallery identifier
@@ -21,11 +21,4 @@ export interface PaginatedResponse<T> {
 	totalPages: number;
 	size: number;
 	number: number;
-}
-
-// For future use when we need to filter artworks
-export interface ArtworkFilters {
-	artist?: string;
-	year?: string;
-	isOnDisplay?: boolean;
 }
