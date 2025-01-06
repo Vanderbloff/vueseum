@@ -20,6 +20,7 @@
 	} from '$lib/components/ui/pagination';
 	import TourGenerator from '$lib/components/tour/TourGenerator.svelte';
 	import ErrorDisplay from '$lib/components/homepage/artwork/ErrorDisplay.svelte';
+	import SortControls from '$lib/components/homepage/artwork/SortControls.svelte';
 
 	let { data } = $props();
 
@@ -29,7 +30,7 @@
 		artworksLoading: false,
 		artworksData: null as PaginatedResponse<Artwork> | null,
 		currentPage: 1,
-		pageSize: 1,
+		pageSize: 3,
 		error: null as {
 			type: 'search' | 'load' | 'pagination',
 			message: string,
@@ -44,6 +45,10 @@
 				department: [] as string[],
 				onDisplay: false,
 				hasImage: true
+			},
+			sort: {
+				field: 'relevance' as 'relevance' | 'title' | 'artist' | 'date',
+				direction: 'asc' as 'asc' | 'desc'
 			}
 		}
 	});
@@ -57,7 +62,8 @@
 			const newData = getMockPaginatedArtworks(
 				page - 1,
 				state.currentFilters.filters,
-				state.pageSize
+				state.pageSize,
+				state.currentFilters.sort
 			);
 
 			// Check if we got empty results
@@ -144,7 +150,8 @@
 												const results = getMockPaginatedArtworks(
 														0, // First page
 														filters,
-														state.pageSize
+														state.pageSize,
+														state.currentFilters.sort
 												);
 
 												// Check if we got any results
@@ -167,7 +174,7 @@
 																state.artworksLoading = true;
 																state.error = null;
 																state.currentPage = 1;
-																getMockPaginatedArtworks(0, filters, state.pageSize);
+																getMockPaginatedArtworks(0, filters, state.pageSize, state.currentFilters.sort);
 																state.artworksLoading = false;
 														}
 												};
@@ -176,7 +183,14 @@
 										}
 								}, 1500);
 						}}
-						/>
+							>
+							<SortControls
+								onSortChange={(field, direction) => {
+										state.currentFilters.sort = { field, direction };
+										handlePageChange(1);
+								}}
+							/>
+						</ArtworkFilters>
 					</CardContent>
 				</Card>
 
