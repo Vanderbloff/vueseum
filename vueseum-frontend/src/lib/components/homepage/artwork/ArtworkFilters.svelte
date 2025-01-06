@@ -1,13 +1,24 @@
 <!-- src/lib/components/homepage/artwork/ArtworkFilters.svelte -->
 <script lang="ts">
-	// We'll define a type for our filters
+	import { Input } from "$lib/components/ui/input";
+	import { Label } from "$lib/components/ui/label";
+	import { Checkbox } from "$lib/components/ui/checkbox";
+	import { Button } from "$lib/components/ui/button";
+	import { Search } from "lucide-svelte";
+	import {
+		Select,
+		SelectContent,
+		SelectItem,
+		SelectTrigger,
+	} from "$lib/components/ui/select";
+
 	export interface ArtworkFilters {
-		searchTerm: string;
+		searchTerm: string[];
 		searchField: 'all' | 'title' | 'artist' | 'medium';
-		objectType: string;
-		location: string;
-		era: string;
-		department: string;
+		objectType: string[];
+		culturalRegion: string[];
+		era: string[];
+		department: string[];
 		onDisplay: boolean;
 		hasImage: boolean;
 	}
@@ -17,109 +28,293 @@
 
 	const state = $state({
 		filters: {
-			searchTerm: '',
-			searchField: 'all',
-			objectType: '',
-			location: '',
-			era: '',
-			department: '',
+			searchTerm: [] as string[],
+			searchField: "all" as "all" | "title" | "artist" | "medium",
+			objectType: [] as string[],
+			culturalRegion: [] as string[],
+			era: [] as string[],
+			department: [] as string[],
 			onDisplay: false,
-			hasImage: true
+			hasImage: false
 		} as ArtworkFilters
 	});
+
+	// Helper functions to handle Select values
+	function handleSearchFieldChange(value: string) {
+/*		if (value.length > 0) {
+			state.filters.searchField = value[0] as ArtworkFilters['searchField'];
+		}*/
+		if (value === "all" || value === "title" || value === "artist" || value === "medium") {
+			state.filters.searchField = value;
+		}
+	}
+
+	function handleObjectTypeChange(value: string[]) {
+		state.filters.objectType = value.length > 0 ? value : [];
+	}
+
+	function handleCulturalRegionChange(value: string[]) {
+		state.filters.culturalRegion = value.length > 0 ? value : [];
+	}
+
+	function handleEraChange(value: string[]) {
+		state.filters.era = value.length > 0 ? value : [];
+	}
+
+	function handleDepartmentChange(value: string[]) {
+		state.filters.department = value.length > 0 ? value : [];
+	}
+
 </script>
 
 <div class="space-y-6">
 	<!-- Main Search Bar -->
 	<div class="flex gap-2">
-		<select
-			class="px-3 py-2 border rounded-lg w-36"
-			bind:value={state.filters.searchField}
+		<Select
+			type="single"
+			value={state.filters.searchField}
+			onValueChange={handleSearchFieldChange}
 		>
-			<option value="all">All Fields</option>
-			<option value="title">Title</option>
-			<option value="artist">Artist</option>
-			<option value="medium">Medium</option>
-		</select>
+			<SelectTrigger class="w-36">
+                <span>{state.filters.searchField === 'all' ? 'All Fields' :
+									state.filters.searchField === 'title' ? 'Title' :
+										state.filters.searchField === 'artist' ? 'Artist' : 'Medium'}</span>
+			</SelectTrigger>
+			<SelectContent>
+				<SelectItem value="all">All Fields</SelectItem>
+				<SelectItem value="title">Title</SelectItem>
+				<SelectItem value="artist">Artist</SelectItem>
+				<SelectItem value="medium">Medium</SelectItem>
+			</SelectContent>
+		</Select>
 
 		<div class="flex-1 relative">
-			<input
+			<Input
 				type="text"
-				placeholder="Search all fields"
-				class="w-full px-4 py-2 border rounded-lg pr-10"
-				bind:value={state.filters.searchTerm}
+				placeholder="Search artworks..."
+				bind:value={state.filters.searchTerm[0]}
 			/>
-			<button
-				class="absolute right-2 top-1/2 -translate-y-1/2 p-2"
-				onclick={() => onSearch(state.filters)}
+			<Button
+				variant="ghost"
+				size="icon"
+				class="absolute right-2 top-1/2 -translate-y-1/2"
+				onclick={() => {
+        // Ensure non-empty search term is in array format
+						const searchTerms = state.filters.searchTerm[0]?.trim()
+								? [state.filters.searchTerm[0]]
+								: [];
+						onSearch({
+								...state.filters,
+								searchTerm: searchTerms
+						});
+				}}
 			>
-				🔍
-			</button>
+				<Search class="h-4 w-4" />
+			</Button>
 		</div>
 	</div>
 
 	<!-- Filter Section -->
 	<div>
-		<h3 class="font-medium mb-3">Filter By</h3>
+		<h3 class="text-lg font-semibold mb-3">Filter By</h3>
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-			<select
-				class="px-3 py-2 border rounded-lg w-full"
-				bind:value={state.filters.objectType}
-			>
-				<option value="">Object Type / Material</option>
-				<option value="painting">Painting</option>
-				<option value="sculpture">Sculpture</option>
-				<option value="photograph">Photograph</option>
-			</select>
+			<div class="space-y-2 min-w-[200px]">
+				<div class="flex items-center justify-between h-6"> <!-- New div for Label + Reset button row -->
+					<Label for="objectType">Object Type</Label>
+					<div class="w-12"> <!-- Container for Reset button with fixed width -->
+						{#if state.filters.objectType.length > 0}
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => handleObjectTypeChange([])}
+							>
+								Reset
+							</Button>
+						{/if}
+					</div>
+				</div>
+				<Select
+					type="multiple"
+					value={state.filters.objectType ? state.filters.objectType : []}
+					onValueChange={handleObjectTypeChange}
+				>
+					<SelectTrigger id="objectType">
+						{#if state.filters.objectType.length === 0}
+							<span class="text-muted-foreground">Object type / material</span>
+						{:else}
+							<div class="flex items-center gap-1 truncate">
+								<!-- Show first 2 selections with comma separation -->
+								<span class="truncate">
+                {state.filters.objectType.slice(0, 2).join(', ')}
+									{#if state.filters.objectType.length > 2}
+                    <span class="text-muted-foreground">+{state.filters.objectType.length - 2} more</span>
+                {/if}
+            </span>
+							</div>
+						{/if}
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="Painting">Painting</SelectItem>
+						<SelectItem value="Sculpture">Sculpture</SelectItem>
+						<SelectItem value="Photograph">Photograph</SelectItem>
+						<SelectItem value="Silver">Silver</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
 
-			<select
-				class="px-3 py-2 border rounded-lg w-full"
-				bind:value={state.filters.location}
-			>
-				<option value="">Geographic Location</option>
-				<option value="europe">Europe</option>
-				<option value="asia">Asia</option>
-				<option value="americas">Americas</option>
-			</select>
+			<div class="space-y-2">
+				<div class="flex items-center justify-between h-6"> <!-- New div for Label + Reset button row -->
+					<Label for="culturalRegion">Cultural Region</Label>
+					<div class="w-12"> <!-- Container for Reset button with fixed width -->
+						{#if state.filters.culturalRegion.length > 0}
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => handleCulturalRegionChange([])}
+							>
+								Reset
+							</Button>
+						{/if}
+					</div>
+				</div>
+				<Select
+					type="multiple"
+					value={state.filters.culturalRegion ? state.filters.culturalRegion : []}
+					onValueChange={handleCulturalRegionChange}
+				>
+					<SelectTrigger id="culturalRegion">
+						{#if state.filters.culturalRegion.length === 0}
+							<span class="text-muted-foreground">Cultural region</span>
+						{:else}
+							<div class="flex items-center gap-1 truncate">
+								<!-- Show first 2 selections with comma separation -->
+								<span class="truncate">
+                {state.filters.culturalRegion.slice(0, 2).join(', ')}
+									{#if state.filters.culturalRegion.length > 2}
+                    <span class="text-muted-foreground">+{state.filters.culturalRegion.length - 2} more</span>
+                {/if}
+            </span>
+							</div>
+						{/if}
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="Europe">Europe</SelectItem>
+						<SelectItem value="Asia">Asia</SelectItem>
+						<SelectItem value="Americas">Americas</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
 
-			<select
-				class="px-3 py-2 border rounded-lg w-full"
-				bind:value={state.filters.era}
-			>
-				<option value="">Date / Era</option>
-				<option value="ancient">Ancient</option>
-				<option value="medieval">Medieval</option>
-				<option value="modern">Modern</option>
-			</select>
+			<div class="space-y-2">
+				<div class="flex items-center justify-between h-6"> <!-- New div for Label + Reset button row -->
+					<Label for="era">Era</Label>
+					<div class="w-12"> <!-- Container for Reset button with fixed width -->
+						{#if state.filters.era.length > 0}
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => handleEraChange([])}
+							>
+								Reset
+							</Button>
+						{/if}
+					</div>
+				</div>
+				<Select
+					type="multiple"
+					value={state.filters.era ? state.filters.era : []}
+					onValueChange={handleEraChange}
+				>
+					<SelectTrigger id="era">
+						{#if state.filters.era.length === 0}
+							<span class="text-muted-foreground">Time period</span>
+						{:else}
+							<div class="flex items-center gap-1 truncate">
+								<!-- Show first 2 selections with comma separation -->
+								<span class="truncate">
+                {state.filters.era.slice(0, 2).join(', ')}
+									{#if state.filters.era.length > 2}
+                    <span class="text-muted-foreground">+{state.filters.era.length - 2} more</span>
+                {/if}
+            </span>
+							</div>
+						{/if}
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="Ancient">Ancient</SelectItem>
+						<SelectItem value="Medieval">Medieval</SelectItem>
+						<SelectItem value="Modern">Modern</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
 
-			<select
-				class="px-3 py-2 border rounded-lg w-full"
-				bind:value={state.filters.department}
-			>
-				<option value="">Department</option>
-				<option value="paintings">Paintings</option>
-				<option value="sculpture">Sculpture</option>
-				<option value="photographs">Photographs</option>
-			</select>
+			<div class="space-y-2">
+				<div class="flex items-center justify-between h-6"> <!-- New div for Label + Reset button row -->
+					<Label for="department">Department</Label>
+					<div class="w-12"> <!-- Container for Reset button with fixed width -->
+						{#if state.filters.department.length > 0}
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => handleDepartmentChange([])}
+							>
+								Reset
+							</Button>
+						{/if}
+					</div>
+				</div>
+				<Select
+					type="multiple"
+					value={state.filters.department ? state.filters.department : []}
+					onValueChange={handleDepartmentChange}
+				>
+					<SelectTrigger id="department">
+						{#if state.filters.department.length === 0}
+							<span class="text-muted-foreground">Museum department</span>
+						{:else}
+							<div class="flex items-center gap-1 truncate">
+								<!-- Show first 2 selections with comma separation -->
+								<span class="truncate">
+                {state.filters.department.slice(0, 2).join(', ')}
+									{#if state.filters.department.length > 2}
+                    <span class="text-muted-foreground">+{state.filters.department.length - 2} more</span>
+                {/if}
+            </span>
+							</div>
+						{/if}
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="Paintings">Paintings</SelectItem>
+						<SelectItem value="Sculpture">Sculpture</SelectItem>
+						<SelectItem value="Photographs">Photographs</SelectItem>
+					</SelectContent>
+				</Select>
+			</div>
 		</div>
 	</div>
 
 	<!-- Checkbox Filters -->
 	<div class="flex flex-wrap gap-6">
-		<label class="flex items-center gap-2">
-			<input
-				type="checkbox"
-				bind:checked={state.filters.onDisplay}
+		<div class="flex items-center space-x-2">
+			<Checkbox
+				id="onDisplay"
+				checked={state.filters.onDisplay}
+				onCheckedChange={(checked) => state.filters.onDisplay = checked}
 			/>
-			<span>On view</span>
-		</label>
+			<Label for="onDisplay" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+				On view
+			</Label>
+		</div>
 
-		<label class="flex items-center gap-2">
-			<input
-				type="checkbox"
-				bind:checked={state.filters.hasImage}
+		<div class="flex items-center space-x-2">
+			<Checkbox
+				id="hasImage"
+				checked={state.filters.hasImage}
+				onCheckedChange={(checked) => state.filters.hasImage = checked}
 			/>
-			<span>Has image</span>
-		</label>
+			<Label for="hasImage" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+				Has image
+			</Label>
+		</div>
 	</div>
 </div>
