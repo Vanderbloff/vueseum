@@ -2,6 +2,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Artwork } from '$lib/types/artwork';
+	import { Button } from '$lib/components/ui/button';
 	
 	export let artwork: Artwork;
 	export let isOpen = false;
@@ -33,47 +34,86 @@
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+		class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 sm:p-6"
 		on:click={handleBackdropClick}
 		on:keydown={handleKeydown}
 		role="presentation"
 	>
 		<div
 			bind:this={modalContent}
-			class="bg-white rounded-lg max-w-2xl w-full mx-4 overflow-hidden focus:outline-none"
+			class="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto focus:outline-none"
 			tabindex="-1"
 			role="dialog"
 			aria-labelledby="artwork-modal-title"
 			aria-modal="true"
 		>
-			<div class="relative aspect-[4/3]">
-				<img
-					src={artwork.imageUrl}
-					alt={artwork.title}
-					class="w-full h-full object-cover"
-				/>
+			<!-- Image container -->
+			<div class="relative">
+				<div class="max-h-[50vh] sm:max-h-[60vh] bg-muted">
+					<img
+						src={artwork.imageUrl}
+						alt={artwork.title}
+						class="w-full h-full object-contain"
+					/>
+				</div>
+
 				{#if artwork.isOnDisplay}
-					<span class="absolute top-4 right-4 px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
-							On Display
-					</span>
+                    <span class="absolute top-4 right-4 px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
+                        On Display
+                    </span>
 				{/if}
 			</div>
 
-			<div class="p-6">
-				<h2 id="artwork-modal-title" class="text-2xl font-bold mb-2">
-					{artwork.title}
-				</h2>
-				<p class="text-lg text-gray-600 mb-4">
-					{artwork.artist}{artwork.year ? ` • ${artwork.year}` : ''}
-				</p>
+			<!-- Details section -->
+			<div class="p-6 space-y-4">
+				<div>
+					<h2 id="artwork-modal-title" class="text-2xl font-bold">
+						{artwork.title}
+					</h2>
+					<p class="text-lg text-muted-foreground">
+						{artwork.artist}
+						{artwork.year ? ` • ${artwork.year}` : ''}
+					</p>
+				</div>
 
-				<button
-					type="button"
-					class="mt-4 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
-					on:click={onClose}
+				<div class="grid gap-2">
+					{#if artwork.medium}
+						<div class="flex gap-2">
+							<span class="font-medium">Medium:</span>
+							<span>{artwork.medium}</span>
+						</div>
+					{/if}
+
+					{#if artwork.department}
+						<div class="flex gap-2">
+							<span class="font-medium">Department:</span>
+							<span>{artwork.department}</span>
+						</div>
+					{/if}
+
+					{#if artwork.culturalRegion}
+						<div class="flex gap-2">
+							<span class="font-medium">Culture:</span>
+							<span>{artwork.culturalRegion}</span>
+						</div>
+					{/if}
+
+					{#if artwork.galleryNumber}
+						<div class="flex gap-2">
+							<span class="font-medium">Location:</span>
+							<span>Gallery {artwork.galleryNumber}</span>
+						</div>
+					{/if}
+				</div>
+
+				<!-- Using shadcn Button component -->
+				<Button
+					variant="secondary"
+					class="mt-6"
+					onclick={onClose}
 				>
 					Close
-				</button>
+				</Button>
 			</div>
 		</div>
 	</div>
