@@ -19,6 +19,7 @@
 		PaginationPrevButton
 	} from '$lib/components/ui/pagination';
 	import TourGenerator from '$lib/components/tour/TourGenerator.svelte';
+	import ErrorDisplay from '$lib/components/homepage/artwork/ErrorDisplay.svelte';
 
 	let { data } = $props();
 
@@ -29,6 +30,10 @@
 		artworksData: null as PaginatedResponse<Artwork> | null,
 		currentPage: 1,
 		pageSize: 1,
+		error: null as {
+			type: 'search' | 'load' | 'pagination',
+			message: string,
+			retryFn?: () => void } | null,
 		currentFilters: {
 			filters: {
 				searchTerm: [] as string[],
@@ -44,44 +49,40 @@
 	});
 
 	async function handlePageChange(page: number) {
-		console.log("handlePageChange called with:", {
-			requestedPage: page,
-			currentState: {
-				currentPage: state.currentPage,
-				artworksData: {
-					totalElements: state.artworksData?.totalElements,
-					totalPages: state.artworksData?.totalPages,
-					content: state.artworksData?.content
-				}
-			}
-		});
-
 		state.artworksLoading = true;
-		state.currentPage = page;  // Store the 1-based page number
+		state.error = null; // Clear any previous errors
+		state.currentPage = page;
 
 		try {
 			const newData = getMockPaginatedArtworks(
-				page - 1,  // Convert to 0-based for the API call
+				page - 1,
 				state.currentFilters.filters,
 				state.pageSize
 			);
-			console.log("New data received:", {
-				page,
-				newData: {
-					totalElements: newData.totalElements,
-					totalPages: newData.totalPages,
-					content: newData.content
-				}
-			});
+
+			// Check if we got empty results
+			if (newData.content.length === 0) {
+				state.error = {
+					type: 'search',
+					message: 'No artworks found for the current page',
+					retryFn: () => handlePageChange(1) // Reset to first page as recovery
+				};
+				return;
+			}
+
 			state.artworksData = newData;
 		} catch (error) {
 			console.error('Error fetching artworks:', error);
+			state.error = {
+				type: 'pagination',
+				message: 'Failed to load the requested page. Please try again.',
+				retryFn: () => handlePageChange(page)
+			};
 		} finally {
 			state.artworksLoading = false;
 		}
 	}
 
-	// Updated to match shadcn's API - it provides the new value directly
 	function handleTabChange(value: string) {
 		// Update the URL when tab changes
 		const url = new URL(window.location.href);
@@ -133,23 +134,48 @@
 					<CardContent>
 						<ArtworkFilters
 							onSearch={(filters) => {
-									state.artworksLoading = true;
-									state.currentFilters.filters = filters;
-									state.currentPage = 1;
-									setTimeout(async () => {
-											try {
-													state.artworksData = getMockPaginatedArtworks(
-															state.currentPage,
-															filters,
-															state.pageSize
-													);
-											} catch (error) {
-													console.error('Error fetching artworks:', error);
-											} finally {
-													state.artworksLoading = false;
-											}
-									}, 1500);
-							}}
+								state.artworksLoading = true;
+								state.error = null; // Clear previous errors using null to match type
+								state.currentFilters.filters = filters;
+								state.currentPage = 1;
+
+								setTimeout(async () => {
+										try {
+												const results = getMockPaginatedArtworks(
+														0, // First page
+														filters,
+														state.pageSize
+												);
+
+												// Check if we got any results
+												if (results.totalElements === 0) {
+														state.error = {
+																type: 'search',
+																message: 'No artworks match your search criteria. Try adjusting your filters.'
+														};
+														return;
+												}
+
+												state.artworksData = results;
+
+										} catch (error) {
+												console.error('Error performing search:', error);
+												state.error = {
+														type: 'search',
+														message: 'An error occurred while searching. Please try again.',
+														retryFn: () => {
+																state.artworksLoading = true;
+																state.error = null;
+																state.currentPage = 1;
+																getMockPaginatedArtworks(0, filters, state.pageSize);
+																state.artworksLoading = false;
+														}
+												};
+										} finally {
+												state.artworksLoading = false;
+										}
+								}, 1500);
+						}}
 						/>
 					</CardContent>
 				</Card>
@@ -168,6 +194,12 @@
 							</div>
 						{/each}
 					</div>
+				{:else if state.error}
+					<ErrorDisplay
+						type={state.error.type}
+						message={state.error.message}
+						retryFn={state.error.retryFn}
+					/>
 				{:else if state.artworksData}
 					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
 						{#each state.artworksData.content as artwork}
@@ -183,13 +215,11 @@
 								count={state.artworksData?.totalElements ?? 0}
 								perPage={state.pageSize}
 								page={state.currentPage}
+								onPageChange={(newPage) => {handlePageChange(newPage);}}
 							>
 							<PaginationContent>
 								<PaginationItem>
-									<PaginationPrevButton
-										onclick={() => handlePageChange(state.currentPage - 1)}
-										disabled={state.currentPage === 1}
-									/>
+									<PaginationPrevButton />
 								</PaginationItem>
 
 								{#each Array(state.artworksData.totalPages) as _, i}
@@ -205,10 +235,7 @@
 								{/each}
 
 								<PaginationItem>
-									<PaginationNextButton
-										onclick={() => handlePageChange(state.currentPage + 1)}
-										disabled={!state.artworksData || state.currentPage >= state.artworksData.totalPages}
-									/>
+									<PaginationNextButton />
 								</PaginationItem>
 							</PaginationContent>
 							</Pagination>
