@@ -28,15 +28,15 @@
 		artworksLoading: false,
 		artworksData: null as PaginatedResponse<Artwork> | null,
 		currentPage: 1,
-		pageSize: 1,    // (3x3 grid),
+		pageSize: 1,
 		currentFilters: {
 			filters: {
-				searchTerm: '',
+				searchTerm: [] as string[],
 				searchField: 'all' as 'all' | 'title' | 'artist' | 'medium',
-				objectType: '',
-				location: '',
-				era: '',
-				department: '',
+				objectType: [] as string[],
+				culturalRegion: [] as string[],
+				era: [] as string[],
+				department: [] as string[],
 				onDisplay: false,
 				hasImage: true
 			}
@@ -140,7 +140,7 @@
 											try {
 													state.artworksData = getMockPaginatedArtworks(
 															state.currentPage,
-															state.currentFilters.filters,
+															filters,
 															state.pageSize
 													);
 											} catch (error) {
