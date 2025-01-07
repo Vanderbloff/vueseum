@@ -19,9 +19,8 @@
 	import { Input } from '$lib/components/ui/input';
 	import { ScrollArea } from "$lib/components/ui/scroll-area";
 	import { Slider } from "$lib/components/ui/slider";
+	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip";
 
-	// State management using Svelte 5 runes
-	// Note: selectedMuseum must be a string array to match the Select component's expectations
 	const state = $state({
 		isOpen: false,
 		selectedMuseum: '',
@@ -34,8 +33,11 @@
 			preferredMediums: [] as string[],
 			preferredCultures: [] as string[]
 		},
-		showAdditionalOptions: false
+		showAdditionalOptions: false,
+		generatedToursToday: 0
 	});
+
+	const canGenerateTour = $derived(state.generatedToursToday < 3);
 
 	// Mock museum data - replace with actual API call
 	const museums = [
@@ -43,7 +45,6 @@
 		{ id: 2, name: "Louvre Museum" }
 	];
 
-	// Handler updated to accept string array type
 	function handleMuseumSelect(value: string) {
 		state.selectedMuseum = value;
 		state.showAdditionalOptions = value.length > 0;
@@ -54,33 +55,47 @@
 			state.tourPreferences.theme = value;
 		}
 	}
-
 </script>
 
-<div class="text-center py-8">
+<div class="text-center py-6">
 	<div class="max-w-2xl mx-auto">
-		<h2 class="text-2xl font-semibold mb-4">
-			Start Your Art Journey
-		</h2>
-		<p class="text-gray-600 mb-6">
+		<h2 class="text-2xl font-semibold mb-4">Take Touring Into Your Own Hands</h2>
+		<p class="text-muted-foreground mb-6">
 			Create a personalized museum tour based on your interests and preferences.
 		</p>
 
 		<Dialog bind:open={state.isOpen}>
-			<DialogTrigger>
-				<Button
-					size="lg"
-					class="bg-primary text-primary-foreground hover:bg-primary/90"
-				>
-					Generate Your Tour
-				</Button>
-			</DialogTrigger>
+			{#if canGenerateTour}
+				<DialogTrigger>
+					<Button
+						size="lg"
+						class="bg-primary text-primary-foreground hover:bg-primary/90"
+					>
+						Generate My Own Tour
+					</Button>
+				</DialogTrigger>
+			{:else}
+				<Tooltip>
+					<TooltipTrigger>
+						<Button
+							size="lg"
+							disabled
+							class="opacity-50"
+						>
+							Generate My Own Tour
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>
+						<p>You've reached your tour generation limit for today. Please try again tomorrow!</p>
+					</TooltipContent>
+				</Tooltip>
+			{/if}
 
 			<DialogContent class="sm:max-w-[425px] max-h-[90vh] p-6">
 				<DialogHeader class="mb-4">
-					<DialogTitle class="text-center">Create Your Self-Guided Tour</DialogTitle>
+					<DialogTitle class="text-center">Create Your Own Self-Guided Tour</DialogTitle>
 					<DialogDescription class="text-center">
-						Choose your preferences to generate your personalized museum tour.
+						Choose your preferences, we'll handle the rest.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -93,15 +108,13 @@
 							onValueChange={handleMuseumSelect}
 						>
 							<SelectTrigger>
-								{state.selectedMuseum[0]
-									? museums.find(m => m.id.toString() === state.selectedMuseum[0])?.name
+								{state.selectedMuseum
+									? museums.find(m => m.id.toString() === state.selectedMuseum)?.name
 									: "Choose a museum"}
 							</SelectTrigger>
 							<SelectContent>
 								{#each museums as museum}
-									<SelectItem
-										value={museum.id.toString()}
-									>
+									<SelectItem value={museum.id.toString()}>
 										{museum.name}
 									</SelectItem>
 								{/each}
@@ -112,7 +125,6 @@
 					{#if state.showAdditionalOptions}
 						<ScrollArea class="h-[400px] pr-4">
 							<div class="space-y-4 px-2">
-								<!-- Tour Theme Selection -->
 								<div class="space-y-3">
 									<Label>Tour Theme</Label>
 									<RadioGroup
@@ -150,7 +162,6 @@
 									</p>
 								</div>
 
-								<!-- Required Artworks -->
 								<div class="space-y-2">
 									<Label for="required-artworks">Required Artworks</Label>
 									<Input
@@ -162,7 +173,6 @@
 									</p>
 								</div>
 
-								<!-- Preferred Artists -->
 								<div class="space-y-2">
 									<Label for="preferred-artists">Preferred Artists</Label>
 									<Input
@@ -171,7 +181,6 @@
 									/>
 								</div>
 
-								<!-- Preferred Mediums -->
 								<div class="space-y-2">
 									<Label for="preferred-mediums">Preferred Mediums</Label>
 									<Input
@@ -180,7 +189,6 @@
 									/>
 								</div>
 
-								<!-- Preferred Cultures -->
 								<div class="space-y-2">
 									<Label for="preferred-cultures">Preferred Cultures</Label>
 									<Input
@@ -189,14 +197,13 @@
 									/>
 								</div>
 
-								<!-- Generate Tour Button -->
 								<Button class="w-full">
 									Generate Tour
 								</Button>
 							</div>
-							</ScrollArea>
-						{/if}
-					</div>
+						</ScrollArea>
+					{/if}
+				</div>
 			</DialogContent>
 		</Dialog>
 	</div>
