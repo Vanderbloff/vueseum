@@ -55,7 +55,7 @@
 
 	async function handlePageChange(page: number) {
 		state.artworksLoading = true;
-		state.error = null; // Clear any previous errors
+		state.error = null;
 		state.currentPage = page;
 
 		try {
@@ -66,7 +66,6 @@
 				state.currentFilters.sort
 			);
 
-			// Check if we got empty results
 			if (newData.content.length === 0) {
 				state.error = {
 					type: 'search',
@@ -90,7 +89,6 @@
 	}
 
 	function handleTabChange(value: string) {
-		// Update the URL when tab changes
 		const url = new URL(window.location.href);
 		url.searchParams.set('tab', value);
 		goto(url.toString(), { replaceState: true });
@@ -114,10 +112,6 @@
 <main class="container mx-auto p-4">
 	<h1 class="text-2xl font-bold mb-4">Vueseum</h1>
 
-	<!--
-			The Tabs component takes a value prop for the active tab and onValueChange for handling changes.
-			This replaces our previous custom event handling system.
-	-->
 	<Tabs value={data.initialTab} onValueChange={handleTabChange}>
 		<!-- Make tabs more compact by adjusting the width -->
 		<div class="flex justify-center mb-4">
@@ -127,10 +121,6 @@
 			</TabsList>
 		</div>
 
-		<!--
-				TabsContent components replace our previous custom tab panels.
-				They automatically handle visibility based on the active tab.
-		-->
 		<TabsContent value="artworks">
 			<div class="w-full max-w-4xl mx-auto">
 				<Card>
@@ -141,20 +131,19 @@
 						<ArtworkFilters
 							onSearch={(filters) => {
 								state.artworksLoading = true;
-								state.error = null; // Clear previous errors using null to match type
+								state.error = null;
 								state.currentFilters.filters = filters;
 								state.currentPage = 1;
 
 								setTimeout(async () => {
 										try {
 												const results = getMockPaginatedArtworks(
-														0, // First page
+														0,
 														filters,
 														state.pageSize,
 														state.currentFilters.sort
 												);
 
-												// Check if we got any results
 												if (results.totalElements === 0) {
 														state.error = {
 																type: 'search',
@@ -265,16 +254,19 @@
 					<CardHeader>
 						<CardTitle>Your Tours</CardTitle>
 					</CardHeader>
-					<CardContent>
+					<CardContent class="space-y-6">
 						{#if hasExistingTours}
 							<TourList initialData={data?.tours ?? getMockPaginatedTours(0)} />
 						{:else}
-							<p class="text-muted-foreground text-center mb-6">
+							<p class="text-muted-foreground text-center">
 								You haven't generated any tours yet. Create your first personalized tour experience!
 							</p>
 						{/if}
-
-						<TourGenerator />
+						<TourGenerator
+								onTourGenerated={() => {
+									data.tours = getMockPaginatedTours(0);
+							}}
+						/>
 					</CardContent>
 				</Card>
 			</div>
