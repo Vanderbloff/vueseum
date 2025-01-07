@@ -77,14 +77,12 @@
 		>
 			<SelectTrigger class="w-36">
                 <span>{state.filters.searchField === 'all' ? 'All Fields' :
-									state.filters.searchField === 'title' ? 'Title' :
-										state.filters.searchField === 'artist' ? 'Artist' : 'Medium'}</span>
+									state.filters.searchField === 'title' ? 'Title' : 'Artist'}</span>
 			</SelectTrigger>
 			<SelectContent>
 				<SelectItem value="all">All Fields</SelectItem>
 				<SelectItem value="title">Title</SelectItem>
 				<SelectItem value="artist">Artist</SelectItem>
-				<SelectItem value="medium">Medium</SelectItem>
 			</SelectContent>
 		</Select>
 
@@ -144,7 +142,7 @@
 				>
 					<SelectTrigger id="objectType">
 						{#if state.filters.objectType.length === 0}
-							<span class="text-muted-foreground">Object type / material</span>
+							<span class="text-muted-foreground">Medium / Object type</span>
 						{:else}
 							<div class="flex items-center gap-1 truncate">
 								<!-- Show first 2 selections with comma separation -->
