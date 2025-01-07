@@ -20,6 +20,19 @@
 	import { ScrollArea } from "$lib/components/ui/scroll-area";
 	import { Slider } from "$lib/components/ui/slider";
 	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip";
+	import {
+		AlertDialog,
+		AlertDialogAction,
+		AlertDialogContent,
+		AlertDialogDescription,
+		AlertDialogFooter,
+		AlertDialogHeader,
+		AlertDialogTitle
+	} from "$lib/components/ui/alert-dialog";
+
+	let { onTourGenerated } = $props<{
+		onTourGenerated: () => void;
+	}>();
 
 	const state = $state({
 		isOpen: false,
@@ -34,7 +47,9 @@
 			preferredCultures: [] as string[]
 		},
 		showAdditionalOptions: false,
-		generatedToursToday: 0
+		generatedToursToday: 0,
+		error: null as { type: 'DAILY_LIMIT' | 'TOTAL_LIMIT' | null, message: string } | null,
+		isGenerating: false
 	});
 
 	const canGenerateTour = $derived(state.generatedToursToday < 3);
@@ -53,6 +68,60 @@
 	function handleThemeChange(value: string) {
 		if (value === "CHRONOLOGICAL" || value === "ARTIST_FOCUSED" || value === "CULTURAL") {
 			state.tourPreferences.theme = value;
+		}
+	}
+
+	async function generateTour() {
+		state.isGenerating = true;
+		state.error = null;
+
+		try {
+			const response = await fetch('/api/v1/tours/generate', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					visitorId: 'temp-id', // You might want to generate this
+					preferences: {
+						museumId: parseInt(state.selectedMuseum),
+						theme: state.tourPreferences.theme,
+						desiredDuration: state.tourPreferences.numStops * 15,
+						maxStops: state.tourPreferences.numStops,
+						minStops: Math.max(3, state.tourPreferences.numStops - 2),
+					}
+				})
+			});
+
+			if (!response.ok) {
+				if (response.status === 507) {
+					state.error = {
+						type: 'TOTAL_LIMIT',
+						message: 'You\'ve reached the maximum number of tours. Please delete an existing tour before creating a new one.'
+					};
+				} else if (response.status === 429) {
+					state.error = {
+						type: 'DAILY_LIMIT',
+						message: 'You\'ve reached your daily tour generation limit. Please try again tomorrow.'
+					};
+				} else {
+					const errorData = await response.json();
+					throw new Error(errorData.message || 'Failed to generate tour');
+				}
+				return;
+			}
+
+			await response.json();
+			onTourGenerated();
+			state.isOpen = false;
+
+		} catch (error) {
+			state.error = {
+				type: null,
+				message: error instanceof Error ? error.message : 'An unexpected error occurred'
+			};
+		} finally {
+			state.isGenerating = false;
 		}
 	}
 </script>
@@ -197,8 +266,12 @@
 									/>
 								</div>
 
-								<Button class="w-full">
-									Generate Tour
+								<Button
+									class="w-full"
+									onclick={generateTour}
+									disabled={state.isGenerating}
+								>
+									{state.isGenerating ? 'Generating...' : 'Generate Tour'}
 								</Button>
 							</div>
 						</ScrollArea>
@@ -206,5 +279,34 @@
 				</div>
 			</DialogContent>
 		</Dialog>
+
+		{#if state.error}
+			<AlertDialog open={!!state.error}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>
+							{state.error.type === 'TOTAL_LIMIT' ? 'Tour Limit Reached' :
+								state.error.type === 'DAILY_LIMIT' ? 'Daily Limit Reached' :
+									'Error'}
+						</AlertDialogTitle>
+						<AlertDialogDescription>
+							{state.error.message}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogAction
+							onclick={() => {
+								if (state.error?.type === 'TOTAL_LIMIT') {
+									state.isOpen = false;
+								}
+								state.error = null;
+						}}
+						>
+							Okay
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		{/if}
 	</div>
 </div>
