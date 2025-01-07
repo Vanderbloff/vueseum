@@ -4,57 +4,67 @@
 	import TourCard from './TourCard.svelte';
 	import type { Tour, PaginatedResponse } from '$lib/types/tour';
 	import { getMockPaginatedTours } from '$lib/mocks/TourData';
+	import { Button } from "$lib/components/ui/button";
 
-	export let initialData: PaginatedResponse<Tour>;
+	let { initialData } = $props<{
+		initialData: PaginatedResponse<Tour>;
+	}>();
 
-	// Component state
-	let tours: Tour[] = initialData.content;
-	let isLoading = false;
-	let error: string | null = null;
-	let currentPage = initialData.number;
-	let totalPages = initialData.totalPages;
+	const state = $state({
+		tours: initialData.content,
+		isLoading: false,
+		error: null as string | null,
+		currentPage: initialData.number,
+		totalPages: initialData.totalPages
+	});
 
 	async function loadTours(page = 0) {
-		isLoading = true;
-		error = null;
+		state.isLoading = true;
+		state.error = null;
 
 		try {
-				await new Promise(resolve => setTimeout(resolve, 1000));
-				const data = getMockPaginatedTours(page);
-				tours = data.content;
-				totalPages = data.totalPages;
-				currentPage = data.number;
+			await new Promise(resolve => setTimeout(resolve, 1000));
+			const data = getMockPaginatedTours(page);
+			state.tours = data.content;
+			state.totalPages = data.totalPages;
+			state.currentPage = data.number;
 		} catch (e) {
-				error = e instanceof Error ? e.message : 'An error occurred';
-				tours = [];
+			state.error = e instanceof Error ? e.message : 'An error occurred';
+			state.tours = [];
 		} finally {
-				isLoading = false;
+			state.isLoading = false;
 		}
 	}
 
-	// Handle page changes
 	async function changePage(newPage: number) {
-		if (newPage >= 0 && newPage < totalPages) {
+		if (newPage >= 0 && newPage < state.totalPages) {
 			await loadTours(newPage);
 		}
 	}
+
+	function handleDelete(tourId: number) {
+		// Remove from local state
+		state.tours = state.tours.filter((tour : Tour) => tour.id !== tourId);
+	}
+
 </script>
 
 <div class="w-full space-y-6">
 	<!-- Error state -->
-	{#if error}
+	{#if state.error}
 		<div class="p-4 bg-red-50 border border-red-100 rounded-lg">
-			<p class="text-red-700">{error}</p>
-			<button
-				class="mt-2 text-sm text-red-700 underline hover:text-red-800"
-				on:click={() => loadTours(currentPage)}
+			<p class="text-red-700">{state.error}</p>
+			<Button
+				variant="link"
+				class="mt-2 text-red-700 hover:text-red-800"
+				onclick={() => loadTours(state.currentPage)}
 			>
 				Try again
-			</button>
+			</Button>
 		</div>
 	{/if}
 
-	{#if isLoading}
+	{#if state.isLoading}
 		<div class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
 			{#each [...Array(6).keys()] as _}
 				<div class="space-y-4">
@@ -66,42 +76,42 @@
 				</div>
 			{/each}
 		</div>
-	{:else if tours.length === 0 && !error}
+	{:else if state.tours.length === 0 && !state.error}
 		<div class="text-center py-12">
 			<p class="text-gray-500">No tours available yet.</p>
-			<p class="text-gray-500 mt-2">Check back later for new tours.</p>
 		</div>
 	{:else}
-		<div class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-			{#each tours as tour (tour.id)}
-				<TourCard {tour} />
+		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+			{#each state.tours as tour (tour.id)}
+				<TourCard
+					{tour}
+					onDelete={(id) => handleDelete(Number(id))}
+				/>
 			{/each}
 		</div>
 	{/if}
 
-	{#if totalPages > 1}
+	{#if state.totalPages > 1}
 		<div class="flex justify-center gap-2 mt-6">
-			<button
-				class="px-3 py-1 rounded bg-gray-100 disabled:opacity-50
-                       transition-colors duration-200 hover:bg-gray-200"
-				disabled={currentPage === 0 || isLoading}
-				on:click={() => changePage(currentPage - 1)}
+			<Button
+				variant="outline"
+				disabled={state.currentPage === 0 || state.isLoading}
+				onclick={() => changePage(state.currentPage - 1)}
 			>
 				Previous
-			</button>
+			</Button>
 
 			<span class="px-3 py-1">
-                Page {currentPage + 1} of {totalPages}
+                Page {state.currentPage + 1} of {state.totalPages}
             </span>
 
-			<button
-				class="px-3 py-1 rounded bg-gray-100 disabled:opacity-50
-                       transition-colors duration-200 hover:bg-gray-200"
-				disabled={currentPage === totalPages - 1 || isLoading}
-				on:click={() => changePage(currentPage + 1)}
+			<Button
+				variant="outline"
+				disabled={state.currentPage === state.totalPages - 1 || state.isLoading}
+				onclick={() => changePage(state.currentPage + 1)}
 			>
 				Next
-			</button>
+			</Button>
 		</div>
 	{/if}
 </div>
