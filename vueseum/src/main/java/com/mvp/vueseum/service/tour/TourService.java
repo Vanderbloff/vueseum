@@ -10,6 +10,7 @@ import com.mvp.vueseum.entity.Tour;
 import com.mvp.vueseum.event.TourProgressListener;
 import com.mvp.vueseum.exception.GenerationLimitExceededException;
 import com.mvp.vueseum.exception.InvalidRequestException;
+import com.mvp.vueseum.exception.TourLimitExceededException;
 import com.mvp.vueseum.repository.TourRepository;
 import com.mvp.vueseum.service.DescriptionGenerationService;
 import com.mvp.vueseum.service.artwork.ArtworkService;
@@ -65,8 +66,10 @@ public class TourService {
         String visitorId = request.getVisitorId();
         progressListener.initializeProgress(requestId, visitorId);
 
+
         validateRequest(request);
-        handleVisitorTracking(request.getVisitorId(), deviceFingerprintService.generateFingerprint(httpRequest));
+        String deviceFingerprint = deviceFingerprintService.generateFingerprint(httpRequest);
+        handleVisitorTracking(request.getVisitorId(), deviceFingerprint);
 
         progressListener.updateProgress(requestId, 0.2, "Selecting artworks...");
         List<Artwork> selectedArtworks = selectArtworks(
@@ -76,7 +79,7 @@ public class TourService {
 
         progressListener.updateProgress(requestId, 0.6, "Filling in descriptions...");
         String description = getOrGenerateDescription(request, selectedArtworks);
-        return createTour(selectedArtworks, description, request.getPreferences(), requestId);
+        return createTour(selectedArtworks, description, request.getPreferences(), requestId, deviceFingerprint);
     }
 
     /**
@@ -130,6 +133,12 @@ public class TourService {
      * Handles visitor tracking and enforces generation limits
      */
     private void handleVisitorTracking(String visitorId, String fingerprint) {
+        long totalTours = tourRepository.countByDeviceFingerprintAndDeletedFalse(fingerprint);
+        if (totalTours >= 10) {
+            throw new TourLimitExceededException(
+                    "Maximum tour limit reached. Please delete an existing tour before creating a new one."
+            );
+        }
         if (!visitorTrackingService.recordTourGeneration(visitorId, fingerprint)) {
             throw new GenerationLimitExceededException(
                     "Daily tour generation limit reached. Please try again tomorrow."
@@ -165,9 +174,10 @@ public class TourService {
     /**
      * Creates a tour entity from the selected artworks and description
      */
-    private Tour createTour(List<Artwork> artworks, String description, TourPreferences prefs, String requestId) {
+    private Tour createTour(List<Artwork> artworks, String description, TourPreferences prefs, String requestId, String deviceFingerprint) {
         progressListener.updateProgress(requestId, 0.9, "Creating tour...");
         Tour tour = new Tour();
+        tour.setDeviceFingerprint(deviceFingerprint);
         tour.setName(String.format("%s Tour - %s",
                 prefs.getTheme(),
                 LocalDateTime.now().toLocalDate()));
