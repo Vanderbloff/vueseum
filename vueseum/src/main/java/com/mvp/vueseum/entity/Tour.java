@@ -17,11 +17,15 @@ import java.util.Map;
 import java.util.Set;
 
 @Entity
-@Table(name = "tours")
 @Getter
 @Setter
 @Slf4j
+@Table(name = "tours",
+        indexes = @Index(name = "idx_device_fingerprint", columnList = "device_fingerprint"))
 public class Tour extends baseEntity {
+
+    @Column(name = "device_fingerprint", nullable = false)
+    private String deviceFingerprint;
 
     @Column(nullable = false)
     private String name;
