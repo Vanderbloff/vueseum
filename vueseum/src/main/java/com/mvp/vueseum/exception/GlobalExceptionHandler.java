@@ -93,7 +93,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AiProviderAuthException.class)
-    public ResponseEntity<StandardizedErrorResponse> handleAiAuthException(
+    public ResponseEntity<StandardizedErrorResponse> handleAiAuthException (
             AiProviderAuthException e) {
         logger.error("AI provider authentication error: {}", e.getMessage());
 
@@ -107,7 +107,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AiProviderRateLimitException.class)
-    public ResponseEntity<StandardizedErrorResponse> handleAiRateLimitException(
+    public ResponseEntity<StandardizedErrorResponse> handleAiProviderRateLimitException (
             AiProviderRateLimitException e) {
         logger.warn("AI provider rate limit exceeded: {}", e.getMessage());
 
@@ -124,5 +124,20 @@ public class GlobalExceptionHandler {
         );
 
         return new ResponseEntity<>(error, headers, HttpStatus.TOO_MANY_REQUESTS);
+    }
+
+    @ExceptionHandler(TourLimitExceededException.class)
+    public ResponseEntity<StandardizedErrorResponse> handleTourGenerationLimitExceededException (
+            TourLimitExceededException e) {
+        logger.warn("Maximum number of tours in storage reached: {}", e.getMessage());
+
+        StandardizedErrorResponse error = new StandardizedErrorResponse(
+                HttpStatus.INSUFFICIENT_STORAGE.value(),
+                "Tour storage limit exceeded",
+                e.getMessage()
+
+        );
+
+        return new ResponseEntity<>(error, HttpStatus.INSUFFICIENT_STORAGE);
     }
 }
