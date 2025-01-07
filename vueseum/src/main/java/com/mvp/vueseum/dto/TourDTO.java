@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 @Setter
 public class TourDTO {
     private Long id;
+    private String deviceFingerprint;
     private String name;
     private String description;
     private List<TourStopDTO> stops;
@@ -24,6 +25,7 @@ public class TourDTO {
     public static TourDTO fromEntity(Tour tour) {
         TourDTO dto = new TourDTO();
         dto.id = tour.getId();
+        dto.deviceFingerprint = tour.getDeviceFingerprint();
         dto.name = tour.getName();
         dto.description = tour.getDescription();
         dto.museum = MuseumDTO.fromEntity(tour.getMuseum());
