@@ -4,7 +4,11 @@
 export interface Artwork {
 	id: number;                 // Unique identifier for the artwork
 	title: string;             // Title of the piece
-	artist: string;            // Artist's name
+	artist: string;             // Simple artist name
+	artistPrefix?: string;      // Attribution prefix if any
+	artistRole?: string;        // Artist role if any
+	fullAttribution: string;    // Complete attribution text
+	isConfidentAttribution: boolean;
 	year: string;              // Year created (string to handle "c. 1500" type dates)
 	imageUrl: string;          // URL to the artwork image
 	isOnDisplay: boolean;      // Whether the artwork is currently on display
