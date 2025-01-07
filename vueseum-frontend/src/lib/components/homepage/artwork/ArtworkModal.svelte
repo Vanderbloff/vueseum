@@ -71,7 +71,7 @@
 						{artwork.title}
 					</h2>
 					<p class="text-lg text-muted-foreground">
-						{artwork.artist}
+						{artwork.fullAttribution}
 						{artwork.year ? ` • ${artwork.year}` : ''}
 					</p>
 				</div>
