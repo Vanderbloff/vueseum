@@ -6,6 +6,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Getter
 @NoArgsConstructor
@@ -71,6 +72,36 @@ public class ArtworkDetails {
 
     public String getArtistName() {
         return StringUtils.hasText(artistName) ? artistName : "Unknown Artist";
+    }
+
+    public String getFullAttribution() {
+        StringBuilder attribution = new StringBuilder();
+        if (StringUtils.hasText(artistPrefix)) {
+            attribution.append(artistPrefix).append(" ");
+        }
+        attribution.append(getArtistName());
+        if (StringUtils.hasText(artistRole)) {
+            attribution.append(" (").append(artistRole).append(")");
+        }
+        return attribution.toString();
+    }
+
+    public boolean isConfidentAttribution() {
+        // Replicating the logic from Artwork.java
+        if (!StringUtils.hasText(artistName)) {
+            return false;
+        }
+
+        Set<String> uncertainPrefixes = Set.of(
+                "Attributed to",
+                "Workshop of",
+                "Circle of",
+                "School of",
+                "Style of",
+                "After"
+        );
+
+        return artistPrefix == null || !uncertainPrefixes.contains(artistPrefix);
     }
 
     @Override
