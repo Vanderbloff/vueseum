@@ -15,6 +15,10 @@ public class ArtworkDetailsDTO {
     private String externalId;
     private String title;
     private String artistName;
+    private String artistPrefix;
+    private String artistRole;
+    private String fullAttribution;
+    private boolean isConfidentAttribution;
     private String medium;
     private String culture;
     private String imageUrl;
@@ -31,7 +35,11 @@ public class ArtworkDetailsDTO {
         dto.id = artwork.getId();
         dto.externalId = artwork.getExternalId();
         dto.title = artwork.getTitle();
-        dto.artistName = artwork.getArtistNameAndAttribution();  // Using existing helper method
+        dto.artistName = artwork.getArtistName();
+        dto.artistPrefix = artwork.getArtistPrefix();
+        dto.artistRole = artwork.getArtistRole();
+        dto.fullAttribution = artwork.getArtistNameAndAttribution();
+        dto.isConfidentAttribution = artwork.isConfidentAttribution();
         dto.medium = artwork.getMedium();
         dto.culture = artwork.getCulture();
         dto.imageUrl = artwork.getImageUrl();
@@ -55,7 +63,11 @@ public class ArtworkDetailsDTO {
         ArtworkDetailsDTO dto = new ArtworkDetailsDTO();
         dto.externalId = details.getExternalId();
         dto.title = details.getTitle();
-        dto.artistName = details.getArtistPrefix() + " " + details.getArtistName();
+        dto.artistName = details.getArtistName();
+        dto.artistPrefix = details.getArtistPrefix();
+        dto.artistRole = details.getArtistRole();
+        dto.fullAttribution = details.getFullAttribution();
+        dto.isConfidentAttribution = details.isConfidentAttribution();
         dto.medium = details.getMedium();
         dto.culture = details.getCulture();
         dto.imageUrl = details.getPrimaryImageUrl();
