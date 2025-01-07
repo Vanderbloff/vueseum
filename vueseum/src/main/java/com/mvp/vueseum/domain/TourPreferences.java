@@ -17,7 +17,6 @@ public class TourPreferences {
     private Tour.TourTheme theme;
     private Integer desiredDuration;
 
-    // Content preferences with default empty collections
     @Builder.Default
     private Set<Long> requiredArtworkIds = new HashSet<>();
 
@@ -56,8 +55,8 @@ public class TourPreferences {
             throw new InvalidRequestException("Maximum stops cannot be less than minimum stops");
         }
 
-        if (minStops < 1) {
-            throw new InvalidRequestException("Minimum stops must be at least 1");
+        if (minStops < 3) {
+            throw new InvalidRequestException("Minimum stops must be at least 3");
         }
 
         if (!requiredArtworkIds.isEmpty() && requiredArtworkIds.size() > maxStops) {
