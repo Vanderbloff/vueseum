@@ -18,6 +18,17 @@ export interface Artwork {
 	galleryNumber?: string;    // Optional: Specific gallery identifier
 }
 
+export type StandardPeriod =
+	| "2000-1000 B.C."
+	| "1000 B.C.-A.D. 1"
+	| "A.D. 1-500"
+	| "A.D. 500-1000"
+	| "A.D. 1000-1400"
+	| "A.D. 1400-1600"
+	| "A.D. 1600-1800"
+	| "A.D. 1800-1900"
+	| "A.D. 1900-present";
+
 export interface ArtworkSort {
 	field: 'relevance' | 'title' | 'artist' | 'date';
 	direction: 'asc' | 'desc';
