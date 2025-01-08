@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { Tabs, TabsList, TabsTrigger, TabsContent } from "$lib/components/ui/tabs";
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card";
-	import { Skeleton } from "$lib/components/ui/skeleton";
 	import ArtworkCard from '$lib/components/homepage/artwork/ArtworkCard.svelte';
 	import ArtworkFilters from '$lib/components/homepage/artwork/ArtworkFilters.svelte';
 	import ArtworkModal from '$lib/components/homepage/artwork/ArtworkModal.svelte';
@@ -21,6 +20,7 @@
 	import TourGenerator from '$lib/components/tour/TourGenerator.svelte';
 	import ErrorDisplay from '$lib/components/homepage/artwork/ErrorDisplay.svelte';
 	import SortControls from '$lib/components/homepage/artwork/SortControls.svelte';
+	import GridSkeleton from '$lib/components/shared/GridSkeleton.svelte';
 
 	let { data } = $props();
 
@@ -185,17 +185,8 @@
 
 				<!-- Results Section -->
 				{#if state.artworksLoading}
-					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-						{#each [...Array(6).keys()] as _}
-							<div class="space-y-4">
-								<!-- Image placeholder -->
-								<Skeleton class="w-full h-48" />
-								<!-- Title placeholder -->
-								<Skeleton class="h-4 w-3/4" />
-								<!-- Artist/year placeholder -->
-								<Skeleton class="h-3 w-1/2" />
-							</div>
-						{/each}
+					<div class="mt-6">
+						<GridSkeleton variant="artwork" />
 					</div>
 				{:else if state.error}
 					<ErrorDisplay
