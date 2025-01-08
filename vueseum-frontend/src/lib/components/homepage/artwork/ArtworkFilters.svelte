@@ -11,14 +11,26 @@
 		SelectItem,
 		SelectTrigger,
 	} from "$lib/components/ui/select";
-	import type { ArtworkSort } from '$lib/types/artwork';
+	import type { ArtworkSort, StandardPeriod } from '$lib/types/artwork';
+
+	const PERIOD_OPTIONS: StandardPeriod[] = [
+		"2000-1000 B.C.",
+		"1000 B.C.-A.D. 1",
+		"A.D. 1-500",
+		"A.D. 500-1000",
+		"A.D. 1000-1400",
+		"A.D. 1400-1600",
+		"A.D. 1600-1800",
+		"A.D. 1800-1900",
+		"A.D. 1900-present"
+	];
 
 	export interface ArtworkFilters {
 		searchTerm: string[];
 		searchField: 'all' | 'title' | 'artist' | 'medium';
 		objectType: string[];
 		culturalRegion: string[];
-		era: string[];
+		era: StandardPeriod[];
 		department: string[];
 		onDisplay: boolean;
 		hasImage: boolean;
@@ -36,7 +48,7 @@
 			searchField: "all" as "all" | "title" | "artist" | "medium",
 			objectType: [] as string[],
 			culturalRegion: [] as string[],
-			era: [] as string[],
+			era: [] as StandardPeriod[],
 			department: [] as string[],
 			onDisplay: false,
 			hasImage: false
@@ -57,8 +69,8 @@
 		state.filters.culturalRegion = value.length > 0 ? value : [];
 	}
 
-	function handleEraChange(value: string[]) {
-		state.filters.era = value.length > 0 ? value : [];
+	function handleEraChange(value: string | undefined) {
+		state.filters.era = value ? [value as StandardPeriod] : [];
 	}
 
 	function handleDepartmentChange(value: string[]) {
@@ -215,7 +227,7 @@
 							<Button
 								variant="ghost"
 								size="sm"
-								onclick={() => handleEraChange([])}
+								onclick={() => handleEraChange(undefined)}
 							>
 								Reset
 							</Button>
@@ -223,29 +235,21 @@
 					</div>
 				</div>
 				<Select
-					type="multiple"
-					value={state.filters.era ? state.filters.era : []}
+					type="single"
+					value={state.filters.era?.length ? state.filters.era[0] : ''}
 					onValueChange={handleEraChange}
 				>
 					<SelectTrigger id="era">
-						{#if state.filters.era.length === 0}
+						{#if !state.filters.era.length}
 							<span class="text-muted-foreground">Time period</span>
 						{:else}
-							<div class="flex items-center gap-1 truncate">
-								<!-- Show first 2 selections with comma separation -->
-								<span class="truncate">
-                {state.filters.era.slice(0, 2).join(', ')}
-									{#if state.filters.era.length > 2}
-                    <span class="text-muted-foreground">+{state.filters.era.length - 2} more</span>
-                {/if}
-            </span>
-							</div>
+							<span>{state.filters.era[0]}</span>
 						{/if}
 					</SelectTrigger>
 					<SelectContent>
-						<SelectItem value="Ancient">Ancient</SelectItem>
-						<SelectItem value="Medieval">Medieval</SelectItem>
-						<SelectItem value="Modern">Modern</SelectItem>
+						{#each PERIOD_OPTIONS as period}
+							<SelectItem value={period}>{period}</SelectItem>
+						{/each}
 					</SelectContent>
 				</Select>
 			</div>
