@@ -1,5 +1,5 @@
 // src/lib/mocks/ArtworkData.ts
-import type { Artwork, PaginatedResponse } from '$lib/types/artwork';
+import type { Artwork, PaginatedResponse, StandardPeriod } from '$lib/types/artwork';
 
 // Our collection of mock artworks
 export const mockArtworks: Artwork[] = [
@@ -13,7 +13,9 @@ export const mockArtworks: Artwork[] = [
 		galleryNumber: 'G1',
 		department: '',
 		medium: '',
-		culturalRegion: ''
+		culturalRegion: '',
+		fullAttribution: 'Vincent van Gogh',
+		isConfidentAttribution: true
 	},
 	{
 		id: 2,
@@ -25,7 +27,9 @@ export const mockArtworks: Artwork[] = [
 		galleryNumber: 'G2',
 		department: '',
 		medium: '',
-		culturalRegion: ''
+		culturalRegion: '',
+		fullAttribution: 'Johannes Vermeer',
+		isConfidentAttribution: true
 	},
 	{
 		id: 3,
@@ -37,17 +41,18 @@ export const mockArtworks: Artwork[] = [
 		galleryNumber: 'G3',
 		department: '',
 		medium: '',
-		culturalRegion: ''
+		culturalRegion: '',
+		fullAttribution: 'Salvador Dalí',
+		isConfidentAttribution: true
 	}
 ];
 
-// Add the filter interface
 interface ArtworkFilters {
 	searchTerm: string[];
 	searchField: 'all' | 'title' | 'artist' | 'medium';
 	objectType: string[];
 	culturalRegion: string[];
-	era: string[];
+	era: StandardPeriod[];
 	department: string[];
 	onDisplay: boolean;
 	hasImage: boolean;
@@ -78,18 +83,46 @@ function sortArtworks(artworks: Artwork[], field: string, direction: 'asc' | 'de
 	});
 }
 
-// Function to get paginated artwork data, matching the tour data pattern
+function parseYear(yearStr: string): number {
+	// Handle various year formats
+	if (!yearStr) return 0;
+
+	// Extract first number from string (e.g., "ca. 1885" -> 1885)
+	const match = yearStr.match(/\d+/);
+	return match ? parseInt(match[0]) : 0;
+}
+
+function isYearInPeriod(year: number, periodStr: StandardPeriod): boolean {
+	// Handle B.C. periods
+	if (periodStr.includes('B.C.')) {
+		// Parse numbers from the period (e.g., "2000-1000 B.C." -> [2000, 1000])
+		const numbers = periodStr.split('-')
+			.map(p => parseInt(p.replace(/[^0-9]/g, '')));
+
+		// Convert to negative years for BC dates and check range
+		return year <= -numbers[1] && year >= -numbers[0];
+	}
+
+	// Handle A.D. periods
+	const yearRange = periodStr
+		.replace('A.D. ', '')
+		.split('-')
+		.map(p => p === 'present' ? new Date().getFullYear() : parseInt(p));
+
+	return year >= yearRange[0] && year <= yearRange[1];
+}
+
 export function getMockPaginatedArtworks(
 	page: number = 0,
 	filters: ArtworkFilters,
 	size: number = 10,
 	sort?: { field: string; direction: 'asc' | 'desc' }
 ): PaginatedResponse<Artwork> {
-	// First, apply filters
 	let filteredArtworks = [...mockArtworks];
 
 	if (hasActiveFilters(filters)) {
 		filteredArtworks = filteredArtworks.filter(artwork => {
+			// Search term filter
 			if (filters.searchTerm.length > 0) {
 				const matchesTerm = filters.searchTerm.some(term => {
 					const searchTerm = term.toLowerCase();
@@ -109,64 +142,34 @@ export function getMockPaginatedArtworks(
 				if (!matchesTerm) return false;
 			}
 
-			// On Display filter
-			if (filters.onDisplay && !artwork.isOnDisplay) {
-				return false;
-			}
-
-			// Has Image filter
-			if (filters.hasImage && !artwork.imageUrl) {
-				return false;
-			}
-
-			// Object Type filter
-			if (filters.objectType.length > 0 && !filters.objectType.includes(artwork.medium)) {
-				return false;
-			}
-
-			// Location filter
-			if (filters.culturalRegion.length > 0 && !filters.culturalRegion.some(loc => artwork.culturalRegion === loc)) {
-				return false;
-			}
-
 			// Era filter
 			if (filters.era.length > 0) {
-				const year = parseInt(artwork.year);
-				const matchesEra = filters.era.some(era => {
-					switch (era.toLowerCase()) {
-						case 'ancient':
-							return year <= 500;
-						case 'medieval':
-							return year > 500 && year <= 1500;
-						case 'modern':
-							return year > 1500;
-						default:
-							return false;
-					}
-				});
+				const year = parseYear(artwork.year);
+				const matchesEra = filters.era.some(period =>
+					isYearInPeriod(year, period)
+				);
 				if (!matchesEra) return false;
 			}
 
-			// Department filter
-			return !(filters.department.length > 0 && !filters.department.includes(artwork.department));
+			// Other existing filters
+			if (filters.onDisplay && !artwork.isOnDisplay) return false;
+			if (filters.hasImage && !artwork.imageUrl) return false;
+			if (filters.objectType.length > 0 && !filters.objectType.includes(artwork.medium)) return false;
+			if (filters.culturalRegion.length > 0 && !filters.culturalRegion.includes(artwork.culturalRegion)) return false;
+			if (filters.department.length > 0 && !filters.department.includes(artwork.department)) return false;
+
+			return true;
 		});
 	}
 
+	// Apply sorting if specified
 	if (sort && sort.field !== 'relevance') {
 		filteredArtworks = sortArtworks(filteredArtworks, sort.field, sort.direction);
 	}
 
-	// Then apply pagination
+	// Apply pagination
 	const start = page * size;
 	const content = filteredArtworks.slice(start, start + size);
-
-	console.log("getMockPaginatedArtworks called with:", {
-		page,
-		size,
-		filteredLength: filteredArtworks.length,
-		returnedContent: content,
-		calculatedTotalPages: Math.ceil(filteredArtworks.length / size)
-	});
 
 	return {
 		content,
