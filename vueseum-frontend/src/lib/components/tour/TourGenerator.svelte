@@ -29,6 +29,7 @@
 		AlertDialogHeader,
 		AlertDialogTitle
 	} from "$lib/components/ui/alert-dialog";
+	import TourProgress from './TourProgress.svelte';
 
 	let { onTourGenerated } = $props<{
 		onTourGenerated: () => void;
@@ -49,7 +50,8 @@
 		showAdditionalOptions: false,
 		generatedToursToday: 0,
 		error: null as { type: 'DAILY_LIMIT' | 'TOTAL_LIMIT' | null, message: string } | null,
-		isGenerating: false
+		isGenerating: false,
+		requestId: null as string | null,
 	});
 
 	const canGenerateTour = $derived(state.generatedToursToday < 3);
@@ -76,22 +78,32 @@
 		state.error = null;
 
 		try {
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 30000);
+
 			const response = await fetch('/api/v1/tours/generate', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 				},
 				body: JSON.stringify({
-					visitorId: 'temp-id', // You might want to generate this
+					visitorId: 'temp-id',
 					preferences: {
 						museumId: parseInt(state.selectedMuseum),
 						theme: state.tourPreferences.theme,
 						desiredDuration: state.tourPreferences.numStops * 15,
 						maxStops: state.tourPreferences.numStops,
 						minStops: Math.max(3, state.tourPreferences.numStops - 2),
+						requiredArtworkIds: state.tourPreferences.requiredArtworks,
+						preferredArtists: state.tourPreferences.preferredArtists,
+						preferredMediums: state.tourPreferences.preferredMediums,
+						preferredCultures: state.tourPreferences.preferredCultures,
 					}
-				})
+				}),
+				signal: controller.signal
 			});
+
+			clearTimeout(timeoutId);
 
 			if (!response.ok) {
 				if (response.status === 507) {
@@ -111,17 +123,23 @@
 				return;
 			}
 
-			await response.json();
-			onTourGenerated();
-			state.isOpen = false;
+			const data = await response.json();
+			state.requestId = data.requestId;
 
-		} catch (error) {
-			state.error = {
-				type: null,
-				message: error instanceof Error ? error.message : 'An unexpected error occurred'
-			};
-		} finally {
-			state.isGenerating = false;
+		} catch (error: unknown) {
+			if (error instanceof DOMException && error.name === 'AbortError') {
+				state.error = {
+					type: null,
+					message: 'Tour generation timed out. Please try again.'
+				};
+			} else {
+				state.error = {
+					type: null,
+					message: error instanceof Error ? error.message : 'An unexpected error occurred'
+				};
+			}
+			state.isGenerating = false; // Reset generating state on error
+			state.requestId = null; // Clear requestId if any
 		}
 	}
 </script>
@@ -266,13 +284,24 @@
 									/>
 								</div>
 
-								<Button
-									class="w-full"
-									onclick={generateTour}
-									disabled={state.isGenerating}
-								>
-									{state.isGenerating ? 'Generating...' : 'Generate Tour'}
-								</Button>
+								{#if state.isGenerating && state.requestId}
+									<TourProgress
+										requestId={state.requestId}
+										onComplete={() => {
+												onTourGenerated();
+												state.isOpen = false;
+												state.isGenerating = false;
+										}}
+									/>
+								{:else}
+									<Button
+										class="w-full"
+										onclick={generateTour}
+										disabled={state.isGenerating}
+									>
+										{state.isGenerating ? 'Generating...' : 'Generate Tour'}
+									</Button>
+									{/if}
 							</div>
 						</ScrollArea>
 					{/if}
