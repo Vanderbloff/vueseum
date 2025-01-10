@@ -5,14 +5,13 @@ import com.mvp.vueseum.entity.Artist;
 import com.mvp.vueseum.entity.Artwork;
 import com.mvp.vueseum.entity.Tour;
 import com.mvp.vueseum.service.cultural.CulturalMapping;
+import com.mvp.vueseum.util.DateParsingUtil;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 public class ScoringService {
@@ -58,13 +57,14 @@ public class ScoringService {
         String dateStr = artwork.getCreationDate();
         if (dateStr == null) return 0.1;
 
-        Pattern yearPattern = Pattern.compile("\\b(1[0-9]{3}|20[0-2][0-9])\\b");
-        Matcher matcher = yearPattern.matcher(dateStr);
-
-        if (matcher.find()) {
+        try {
+            DateParsingUtil.extractYear(dateStr);
             return 0.2;
-        } else if (dateStr.matches(".*(century|BCE|CE|BC|AD).*")) {
-            return 0.15;
+        } catch (NumberFormatException e) {
+            // If we can't parse year but have century/period info
+            if (dateStr.matches(".*(century|BCE|CE|BC|AD).*")) {
+                return 0.15;
+            }
         }
         return 0.1;
     }
@@ -140,8 +140,8 @@ public class ScoringService {
         }
 
         try {
-            int prevYear = extractYear(previous.getCreationDate());
-            int currentYear = extractYear(current.getCreationDate());
+            int prevYear = DateParsingUtil.extractYear(previous.getCreationDate());
+            int currentYear = DateParsingUtil.extractYear(current.getCreationDate());
             int yearDiff = Math.abs(currentYear - prevYear);
 
             // Reduced from 0.3/0.2 to 0.2/0.15
@@ -156,39 +156,6 @@ public class ScoringService {
             }
         }
         return 0.1;
-    }
-
-    private int extractYear(String dateString) {
-        // TODO: Implement year extraction from various date formats
-        // Handle: specific years, century indicators, circa dates
-        // Look for a clear year pattern first
-        Pattern yearPattern = Pattern.compile("\\b(1[0-9]{3}|20[0-2][0-9])\\b");
-        Matcher matcher = yearPattern.matcher(dateString);
-
-        if (matcher.find()) {
-            return Integer.parseInt(matcher.group(1));
-        }
-
-        // Handle century indicators
-        if (dateString.toLowerCase().contains("century")) {
-            Pattern centuryPattern = Pattern.compile("(\\d+)(st|nd|rd|th)\\s+century");
-            matcher = centuryPattern.matcher(dateString.toLowerCase());
-            if (matcher.find()) {
-                int century = Integer.parseInt(matcher.group(1));
-                return (century - 1) * 100 + 50; // Return mid-century as approximate date
-            }
-        }
-
-        // Handle circa dates
-        if (dateString.toLowerCase().contains("circa") || dateString.toLowerCase().contains("ca.")) {
-            Pattern circaPattern = Pattern.compile("\\b(1[0-9]{3}|20[0-2][0-9])\\b");
-            matcher = circaPattern.matcher(dateString);
-            if (matcher.find()) {
-                return Integer.parseInt(matcher.group(1));
-            }
-        }
-
-        throw new NumberFormatException("Could not extract year from: " + dateString);
     }
 
     private boolean areSimilarPeriods(String periodFromArtworkOne, String periodFromArtworkTwo) {
