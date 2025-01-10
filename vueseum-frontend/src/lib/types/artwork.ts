@@ -1,23 +1,4 @@
 // src/lib/types/artwork.ts
-
-// This represents a single artwork piece in our system
-export interface Artwork {
-	id: number;                 // Unique identifier for the artwork
-	title: string;             // Title of the piece
-	artist: string;             // Simple artist name
-	artistPrefix?: string;      // Attribution prefix if any
-	artistRole?: string;        // Artist role if any
-	fullAttribution: string;    // Complete attribution text
-	isConfidentAttribution: boolean;
-	year: string;              // Year created (string to handle "c. 1500" type dates)
-	imageUrl: string;          // URL to the artwork image
-	isOnDisplay: boolean;      // Whether the artwork is currently on display
-	culturalRegion: string;
-	department: string;
-	medium: string;
-	galleryNumber?: string;    // Optional: Specific gallery identifier
-}
-
 export type StandardPeriod =
 	| "2000-1000 B.C."
 	| "1000 B.C.-A.D. 1"
@@ -28,6 +9,33 @@ export type StandardPeriod =
 	| "A.D. 1600-1800"
 	| "A.D. 1800-1900"
 	| "A.D. 1900-present";
+
+export interface Museum {
+	id: number;
+	name: string;
+}
+
+
+export interface Artwork {
+	id: number;
+	externalId: string;
+	title: string;
+	artist: string;
+	artistPrefix?: string;
+	artistRole?: string;
+	fullAttribution: string;
+	isConfidentAttribution: boolean;
+	medium: string;
+	culture: string;
+	imageUrl: string;
+	description: string | null;
+	geographicLocation: string;
+	galleryNumber: string | null;
+	isOnDisplay: boolean;
+	creationDate: string;
+	museum: Museum | null;
+	tags: string[];
+}
 
 export interface ArtworkSort {
 	field: 'relevance' | 'title' | 'artist' | 'date';
