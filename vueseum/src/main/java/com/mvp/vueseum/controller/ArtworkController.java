@@ -16,16 +16,19 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequiredArgsConstructor
 @Validated
-@RequestMapping(path = "api/v1")
+@RequestMapping(path = "api/v1/artworks")
 public class ArtworkController {
 
     private final ArtworkService artworkService;
 
     @Operation(summary = "Search artworks", description = "Search artworks across all connected museums with filtering")
-    @GetMapping("/artworks")
+    @GetMapping
     public ResponseEntity<Page<ArtworkDetailsDTO>> searchArtworks(
             @ModelAttribute @Valid ArtworkSearchCriteria criteria,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -37,7 +40,7 @@ public class ArtworkController {
     }
 
     @Operation(summary = "Get artwork by ID")
-    @GetMapping("/artworks/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<ArtworkDetailsDTO> getArtwork(
             @Parameter(description = "Artwork ID from museum API")
             @PathVariable String id,
@@ -45,5 +48,12 @@ public class ArtworkController {
             @RequestParam Long museumId) {
         ArtworkDetails details = artworkService.fetchArtworkById(id, museumId);
         return ResponseEntity.ok(ArtworkDetailsDTO.fromArtworkDetails(details));
+    }
+
+    @GetMapping("/filter-options")
+    public ResponseEntity<Map<String, List<String>>> getFilterOptions(
+            @ModelAttribute ArtworkSearchCriteria criteria) {
+        Map<String, List<String>> options = artworkService.getFilterOptions(criteria);
+        return ResponseEntity.ok(options);
     }
 }
