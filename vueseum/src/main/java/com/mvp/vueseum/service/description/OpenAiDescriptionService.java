@@ -3,7 +3,7 @@ package com.mvp.vueseum.service.description;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mvp.vueseum.client.HttpUtils;
+import com.mvp.vueseum.util.HttpUtils;
 import com.mvp.vueseum.exception.AiProviderAuthException;
 import com.mvp.vueseum.exception.AiProviderException;
 import com.mvp.vueseum.exception.AiProviderRateLimitException;
