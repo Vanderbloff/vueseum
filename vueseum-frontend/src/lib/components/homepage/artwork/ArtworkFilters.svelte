@@ -27,9 +27,9 @@
 
 	export interface ArtworkFilters {
 		searchTerm: string[];
-		searchField: 'all' | 'title' | 'artist' | 'medium';
+		searchField: 'all' | 'title' | 'artist' | 'culture';
 		objectType: string[];
-		culturalRegion: string[];
+		geographicLocation: string[];
 		era: StandardPeriod[];
 		department: string[];
 		onDisplay: boolean;
@@ -45,9 +45,9 @@
 	const state = $state({
 		filters: {
 			searchTerm: [] as string[],
-			searchField: "all" as "all" | "title" | "artist" | "medium",
+			searchField: "all" as "all" | "title" | "artist" | "culture",
 			objectType: [] as string[],
-			culturalRegion: [] as string[],
+			geographicLocation: [] as string[],
 			era: [] as StandardPeriod[],
 			department: [] as string[],
 			onDisplay: false,
@@ -56,7 +56,7 @@
 	});
 
 	function handleSearchFieldChange(value: string) {
-		if (value === "all" || value === "title" || value === "artist" || value === "medium") {
+		if (value === "all" || value === "title" || value === "artist" || value === "culture") {
 			state.filters.searchField = value;
 		}
 	}
@@ -66,7 +66,7 @@
 	}
 
 	function handleCulturalRegionChange(value: string[]) {
-		state.filters.culturalRegion = value.length > 0 ? value : [];
+		state.filters.geographicLocation = value.length > 0 ? value : [];
 	}
 
 	function handleEraChange(value: string | undefined) {
@@ -180,7 +180,7 @@
 				<div class="flex items-center justify-between h-6">
 					<Label for="culturalRegion">Cultural Region</Label>
 					<div class="w-12">
-						{#if state.filters.culturalRegion.length > 0}
+						{#if state.filters.geographicLocation.length > 0}
 							<Button
 								variant="ghost"
 								size="sm"
@@ -193,19 +193,19 @@
 				</div>
 				<Select
 					type="multiple"
-					value={state.filters.culturalRegion ? state.filters.culturalRegion : []}
+					value={state.filters.geographicLocation ? state.filters.geographicLocation : []}
 					onValueChange={handleCulturalRegionChange}
 				>
 					<SelectTrigger id="culturalRegion">
-						{#if state.filters.culturalRegion.length === 0}
+						{#if state.filters.geographicLocation.length === 0}
 							<span class="text-muted-foreground">Cultural region</span>
 						{:else}
 							<div class="flex items-center gap-1 truncate">
 								<!-- Show first 2 selections with comma separation -->
 								<span class="truncate">
-                {state.filters.culturalRegion.slice(0, 2).join(', ')}
-									{#if state.filters.culturalRegion.length > 2}
-                    <span class="text-muted-foreground">+{state.filters.culturalRegion.length - 2} more</span>
+                {state.filters.geographicLocation.slice(0, 2).join(', ')}
+									{#if state.filters.geographicLocation.length > 2}
+                    <span class="text-muted-foreground">+{state.filters.geographicLocation.length - 2} more</span>
                 {/if}
             </span>
 							</div>
