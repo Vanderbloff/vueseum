@@ -29,7 +29,7 @@ public abstract class BaseDescriptionService implements DescriptionGenerationSer
             Aim for a tone that is knowledgeable but accessible.
             """,
                 artwork.getTitle(),
-                artwork.isConfidentAttribution() ? artwork.getArtistAttribution() : "",
+                artwork.getFullAttribution(),
                 artwork.getCreationDate(),
                 artwork.hasKnownArtist() ? "The artist's technique and style" : "The artistic techniques used"
         );
