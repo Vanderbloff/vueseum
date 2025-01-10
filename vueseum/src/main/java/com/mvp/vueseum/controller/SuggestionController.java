@@ -19,7 +19,7 @@ public class SuggestionController {
             @RequestParam String prefix,
             @RequestParam SuggestionService.SuggestionType type,
             @RequestParam Long museumId,
-            @RequestBody(required = false) TourPreferences preferences) {
+            @ModelAttribute TourPreferences preferences) {
         TourPreferences prefs = preferences != null ? preferences : new TourPreferences();
         return ResponseEntity.ok(suggestionService.getSuggestions(prefix, type, museumId, prefs));
     }
