@@ -17,6 +17,15 @@ import java.util.Optional;
 
 @Repository
 public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpecificationExecutor<Artwork> {
+    @Query("SELECT DISTINCT a.classification FROM Artwork a WHERE a.classification IS NOT NULL")
+    List<String> findDistinctClassifications();
+
+    @Query("SELECT DISTINCT a.medium FROM Artwork a WHERE a.medium IS NOT NULL")
+    List<String> findDistinctMediums();
+
+    @Query("SELECT DISTINCT a.culture FROM Artwork a WHERE a.culture IS NOT NULL")
+    List<String> findDistinctCultures();
+
     Optional<Artwork> findByExternalId(String externalId);
     Optional<Artwork> findByExternalIdAndMuseum(String externalId, Museum museum);
     @NotNull Page<Artwork> findAll(Specification<Artwork> specification, @NotNull Pageable pageable);
