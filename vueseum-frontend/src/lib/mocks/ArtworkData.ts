@@ -8,48 +8,60 @@ export const mockArtworks: Artwork[] = [
 		title: 'The Starry Night',
 		artist: 'Vincent van Gogh',
 		imageUrl: '/api/placeholder/400/300',
-		year: '1889',
+		creationDate: '1889',
 		isOnDisplay: true,
 		galleryNumber: 'G1',
-		department: '',
 		medium: '',
-		culturalRegion: '',
+		geographicLocation: '',
 		fullAttribution: 'Vincent van Gogh',
-		isConfidentAttribution: true
+		isConfidentAttribution: true,
+		externalId: '',
+		culture: '',
+		description: null,
+		museum: null,
+		tags: []
 	},
 	{
 		id: 2,
 		title: 'Girl with a Pearl Earring',
 		artist: 'Johannes Vermeer',
 		imageUrl: '/api/placeholder/400/300',
-		year: '1665',
+		creationDate: '1665',
 		isOnDisplay: false,
 		galleryNumber: 'G2',
-		department: '',
 		medium: '',
-		culturalRegion: '',
+		geographicLocation: '',
 		fullAttribution: 'Johannes Vermeer',
-		isConfidentAttribution: true
+		isConfidentAttribution: true,
+		externalId: '',
+		culture: '',
+		description: null,
+		museum: null,
+		tags: []
 	},
 	{
 		id: 3,
 		title: 'The Persistence of Memory',
 		artist: 'Salvador Dalí',
 		imageUrl: '/api/placeholder/400/300',
-		year: '1931',
+		creationDate: '1931',
 		isOnDisplay: true,
 		galleryNumber: 'G3',
-		department: '',
 		medium: '',
-		culturalRegion: '',
+		geographicLocation: '',
 		fullAttribution: 'Salvador Dalí',
-		isConfidentAttribution: true
+		isConfidentAttribution: true,
+		externalId: '',
+		culture: '',
+		description: null,
+		museum: null,
+		tags: []
 	}
 ];
 
 interface ArtworkFilters {
 	searchTerm: string[];
-	searchField: 'all' | 'title' | 'artist' | 'medium';
+	searchField: 'all' | 'title' | 'artist' | 'culture';
 	objectType: string[];
 	culturalRegion: string[];
 	era: StandardPeriod[];
@@ -71,8 +83,8 @@ function sortArtworks(artworks: Artwork[], field: string, direction: 'asc' | 'de
 				break;
 			case 'date':
 				// Convert dates to numbers for comparison, defaulting to 0 if invalid
-				{ const dateA = a.year ? new Date(a.year).getTime() : 0;
-				const dateB = b.year ? new Date(b.year).getTime() : 0;
+				{ const dateA = a.creationDate ? new Date(a.creationDate).getTime() : 0;
+				const dateB = b.creationDate ? new Date(b.creationDate).getTime() : 0;
 				comparison = dateA - dateB;
 				break; }
 			default: // 'relevance' - maintain current order
@@ -131,8 +143,6 @@ export function getMockPaginatedArtworks(
 							return artwork.title.toLowerCase().includes(searchTerm);
 						case 'artist':
 							return artwork.artist.toLowerCase().includes(searchTerm);
-						case 'medium':
-							return artwork.medium.toLowerCase().includes(searchTerm);
 						case 'all':
 							return artwork.title.toLowerCase().includes(searchTerm) ||
 								artwork.artist.toLowerCase().includes(searchTerm) ||
@@ -144,7 +154,7 @@ export function getMockPaginatedArtworks(
 
 			// Era filter
 			if (filters.era.length > 0) {
-				const year = parseYear(artwork.year);
+				const year = parseYear(artwork.creationDate);
 				const matchesEra = filters.era.some(period =>
 					isYearInPeriod(year, period)
 				);
@@ -155,8 +165,7 @@ export function getMockPaginatedArtworks(
 			if (filters.onDisplay && !artwork.isOnDisplay) return false;
 			if (filters.hasImage && !artwork.imageUrl) return false;
 			if (filters.objectType.length > 0 && !filters.objectType.includes(artwork.medium)) return false;
-			if (filters.culturalRegion.length > 0 && !filters.culturalRegion.includes(artwork.culturalRegion)) return false;
-			if (filters.department.length > 0 && !filters.department.includes(artwork.department)) return false;
+			if (filters.culturalRegion.length > 0 && !filters.culturalRegion.includes(artwork.geographicLocation)) return false;
 
 			return true;
 		});
