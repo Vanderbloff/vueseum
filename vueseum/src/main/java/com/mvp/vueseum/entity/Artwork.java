@@ -119,11 +119,21 @@ public class Artwork extends baseEntity {
         return hasKnownArtist() ? artist.getArtistName() : "Unknown Artist";
     }
 
-    public String getArtistNameAndAttribution() {
-        if (isConfidentAttribution()) {
-            return getArtistAttribution();
+    public String getFullAttribution() {
+        if (!hasKnownArtist()) {
+            return "Unknown Artist";
         }
-        return "Unknown Artist";
+
+        // Build the full attribution string regardless of confidence
+        StringBuilder attribution = new StringBuilder();
+        if (artistPrefix != null) {
+            attribution.append(artistPrefix).append(" ");
+        }
+        attribution.append(artist.getArtistName());
+        if (artistRole != null) {
+            attribution.append(" (").append(artistRole).append(")");
+        }
+        return attribution.toString();
     }
 
     public boolean hasKnownArtist() {
