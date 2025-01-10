@@ -23,6 +23,9 @@ public class TourGenerationProgress {
     private double progress;  // 0.0 to 1.0
     private String currentTask;  // E.g., "Selecting artworks", "Generating descriptions"
 
+    private boolean hasError;
+    private String errorMessage;
+
     public TourGenerationProgress(String requestId, String visitorId) {
         this.requestId = requestId;
         this.visitorId = visitorId;
@@ -34,5 +37,11 @@ public class TourGenerationProgress {
     public void update(double progress, String currentTask) {
         this.progress = progress;
         this.currentTask = currentTask;
+    }
+
+    public void setError(String message) {
+        this.hasError = true;
+        this.errorMessage = message;
+        this.progress = 1.0;  // This will trigger removal from activeGenerations
     }
 }
