@@ -6,13 +6,12 @@ import com.mvp.vueseum.domain.TourPreferences;
 import com.mvp.vueseum.entity.Artwork;
 import com.mvp.vueseum.repository.ArtworkRepository;
 import com.mvp.vueseum.specification.ArtworkSpecifications;
+import com.mvp.vueseum.util.DateParsingUtil;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -42,13 +41,13 @@ public class FilterOptionsService {
         }
 
         String cacheKey = generateCacheKey(prefs, museumId);
-        return filterOptionsCache.get(cacheKey, k -> computeFilterOptions(prefs, museumId));
+        return filterOptionsCache.get(cacheKey, _ -> computeFilterOptions(prefs, museumId));
     }
 
     private FilterOptions computeFilterOptions(TourPreferences prefs, Long museumId) {
         Specification<Artwork> spec = ArtworkSpecifications.buildSpecificationFromPreferences(prefs)
-                .and((root, query, cb) -> cb.equal(root.get("museum").get("id"), museumId))
-                .and((root, query, cb) -> cb.isTrue(root.get("isOnDisplay")));
+                .and((root, _, cb) -> cb.equal(root.get("museum").get("id"), museumId))
+                .and((root, _, cb) -> cb.isTrue(root.get("isOnDisplay")));
 
         List<Artwork> matchingArtworks = artworkRepository.findAll(spec);
 
@@ -56,7 +55,7 @@ public class FilterOptionsService {
                 extractUniqueValues(matchingArtworks, Artwork::getArtistName),
                 extractUniqueValues(matchingArtworks, Artwork::getMedium),
                 extractUniqueValues(matchingArtworks, Artwork::getCulture),
-                extractUniqueValues(matchingArtworks, Artwork::getCreationDate)
+                extractPeriodValues(matchingArtworks)
         );
     }
 
@@ -75,5 +74,21 @@ public class FilterOptionsService {
                 prefs.getPreferredCultures().hashCode(),
                 prefs.getPreferredPeriods().hashCode()
         );
+    }
+
+    private Set<String> extractPeriodValues(List<Artwork> artworks) {
+        return artworks.stream()
+                .map(Artwork::getCreationDate)
+                .filter(Objects::nonNull)
+                .map(date -> {
+                    try {
+                        int year = DateParsingUtil.extractYear(date);
+                        return DateParsingUtil.mapYearToPeriod(year);
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
     }
 }
