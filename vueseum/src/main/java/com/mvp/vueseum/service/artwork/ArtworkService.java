@@ -15,6 +15,7 @@ import com.mvp.vueseum.repository.ArtworkRepository;
 import com.mvp.vueseum.service.artist.ArtistService;
 import com.mvp.vueseum.service.museum.MuseumService;
 import com.mvp.vueseum.specification.ArtworkSpecifications;
+import com.mvp.vueseum.service.cultural.CulturalMapping;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -87,6 +88,84 @@ public class ArtworkService {
         }
     }
 
+    private final Cache<String, List<String>> filterOptionsCache = Caffeine.newBuilder()
+            .expireAfterWrite(Duration.ofHours(24))
+            .build();
+
+    public Map<String, List<String>> getFilterOptions(ArtworkSearchCriteria criteria) {
+        try {
+            Map<String, List<String>> options = new HashMap<>();
+
+            // Handle object type hierarchy
+            if (criteria.getArtworkType() == null) {
+                options.put("objectType", filterOptionsCache.get("classifications", _ ->
+                        artworkRepository.findDistinctClassifications().stream()
+                                .map(this::getTopLevelCategory)
+                                .distinct()
+                                .collect(Collectors.toList())
+                ));
+            } else {
+                String selectedType = criteria.getArtworkType();
+                validateClassification(selectedType);
+
+                // Get subcategories for selected type
+                Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
+                List<String> subtypes = artworkRepository.findAll(spec)
+                        .stream()
+                        .map(Artwork::getClassification)
+                        .filter(c -> isSubcategoryOf(c, selectedType))
+                        .distinct()
+                        .collect(Collectors.toList());
+
+                options.put("subtypes", subtypes);
+                options.put("materials", filterOptionsCache.get("mediums", _ ->
+                        artworkRepository.findDistinctMediums()));
+            }
+
+            // Handle cultural/geographic filtering
+            if (criteria.getGeographicLocation() == null) {
+                options.put("culturalRegions", CulturalMapping.getCulturalRegions());
+                options.put("cultures", filterOptionsCache.get("cultures", _ ->
+                        artworkRepository.findDistinctCultures()));
+            } else {
+                validateGeographicLocation(criteria.getGeographicLocation());
+                options.put("cultures",
+                        CulturalMapping.getCulturesForRegion(criteria.getGeographicLocation()));
+            }
+
+            return options;
+
+        } catch (IllegalArgumentException e) {
+            throw new InvalidRequestException("Invalid filter criteria: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("Error fetching filter options", e);
+            throw new PersistenceException("Failed to fetch filter options", e);
+        }
+    }
+
+    private void validateClassification(String classification) {
+        if (!artworkRepository.findDistinctClassifications()
+                .stream()
+                .anyMatch(c -> c.startsWith(classification))) {
+            throw new IllegalArgumentException("Invalid classification: " + classification);
+        }
+    }
+
+    private void validateGeographicLocation(String location) {
+        if (!CulturalMapping.getCulturalRegions().contains(location)) {
+            throw new IllegalArgumentException("Invalid geographic location: " + location);
+        }
+    }
+
+    private String getTopLevelCategory(String classification) {
+        return classification.split("/")[0];
+    }
+
+    private boolean isSubcategoryOf(String category, String parentCategory) {
+        return category.startsWith(parentCategory + "/");
+    }
+
+
     public Page<ArtworkDetails> searchArtworks(ArtworkSearchCriteria criteria, Pageable pageable) {
         Page<Artwork> localResults = artworkRepository.findAll(ArtworkSpecifications.withSearchCriteria(criteria), pageable);
 
@@ -118,7 +197,8 @@ public class ArtworkService {
 
         if (!preferences.getPreferredArtists().isEmpty() ||
                 !preferences.getPreferredPeriods().isEmpty() ||
-                !preferences.getPreferredMediums().isEmpty()) {
+                !preferences.getPreferredMediums().isEmpty() ||
+                !preferences.getPreferredCultures().isEmpty()) {
             spec = spec.and(
                     ArtworkSpecifications.forTourPreferences(preferences));
         }
