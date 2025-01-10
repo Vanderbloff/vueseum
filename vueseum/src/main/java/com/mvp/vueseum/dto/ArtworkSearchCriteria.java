@@ -36,12 +36,14 @@ public class ArtworkSearchCriteria {
 
     private Boolean isOnDisplay;
 
+    private Boolean hasImage;
+
     @Size(max = 100)
     private String geographicLocation;
 
     private Double accessionNumber;
 
-    private List<String> museums;  // For future museum additions
+    private List<String> museums;
 
     private List<String> tags;
 }
