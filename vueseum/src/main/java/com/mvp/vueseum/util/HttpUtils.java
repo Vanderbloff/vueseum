@@ -1,4 +1,4 @@
-package com.mvp.vueseum.client;
+package com.mvp.vueseum.util;
 
 import com.mvp.vueseum.exception.AiProviderException;
 import org.springframework.http.MediaType;
