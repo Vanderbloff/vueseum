@@ -75,11 +75,15 @@ public class ArtworkDetails {
     }
 
     public String getFullAttribution() {
+        if (!StringUtils.hasText(artistName)) {
+            return "Unknown Artist";
+        }
+
         StringBuilder attribution = new StringBuilder();
         if (StringUtils.hasText(artistPrefix)) {
             attribution.append(artistPrefix).append(" ");
         }
-        attribution.append(getArtistName());
+        attribution.append(artistName);
         if (StringUtils.hasText(artistRole)) {
             attribution.append(" (").append(artistRole).append(")");
         }
@@ -87,7 +91,6 @@ public class ArtworkDetails {
     }
 
     public boolean isConfidentAttribution() {
-        // Replicating the logic from Artwork.java
         if (!StringUtils.hasText(artistName)) {
             return false;
         }
