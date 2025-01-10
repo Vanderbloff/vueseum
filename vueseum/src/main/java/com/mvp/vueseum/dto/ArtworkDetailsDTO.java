@@ -38,7 +38,7 @@ public class ArtworkDetailsDTO {
         dto.artistName = artwork.getArtistName();
         dto.artistPrefix = artwork.getArtistPrefix();
         dto.artistRole = artwork.getArtistRole();
-        dto.fullAttribution = artwork.getArtistNameAndAttribution();
+        dto.fullAttribution = artwork.getFullAttribution();
         dto.isConfidentAttribution = artwork.isConfidentAttribution();
         dto.medium = artwork.getMedium();
         dto.culture = artwork.getCulture();
