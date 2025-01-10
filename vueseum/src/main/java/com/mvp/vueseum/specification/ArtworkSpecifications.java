@@ -6,51 +6,87 @@ import com.mvp.vueseum.entity.Artist;
 import com.mvp.vueseum.entity.Artwork;
 import com.mvp.vueseum.entity.Museum;
 import com.mvp.vueseum.entity.Tour;
+import com.mvp.vueseum.service.cultural.CulturalMapping;
 import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Component
 public class ArtworkSpecifications {
+
     public static Specification<Artwork> withSearchCriteria(ArtworkSearchCriteria criteria) {
         return (root, _, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (criteria.getTitle() != null) {
-                predicates.add(cb.like(
-                        cb.lower(root.get("title")),
-                        "%" + criteria.getTitle().toLowerCase() + "%"
-                ));
+            // Handle artwork type/classification with hierarchical relationships
+            if (criteria.getArtworkType() != null) {
+                String artworkType = criteria.getArtworkType();
+                Predicate typePredicate = cb.or(
+                        cb.equal(root.get("classification"), artworkType),
+                        cb.like(root.get("classification"), artworkType + "/%")
+                );
+                predicates.add(typePredicate);
             }
 
-            if (criteria.getArtistName() != null) {
-                Join<Artwork, Artist> artistJoin = root.join("artist", JoinType.LEFT);
-                predicates.add(cb.like(
-                        cb.lower(artistJoin.get("artistName")),
-                        "%" + criteria.getArtistName().toLowerCase() + "%"
-                ));
-            }
-
+            // Handle medium separately
             if (criteria.getMedium() != null) {
-                predicates.add(cb.equal(root.get("medium"), criteria.getMedium()));
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("medium")),
+                                "%" + criteria.getMedium().toLowerCase() + "%"
+                        )
+                );
             }
 
-            // Handle museum filtering for future multi-museum support
-            if (criteria.getMuseums() != null && !criteria.getMuseums().isEmpty()) {
-                Join<Artwork, Museum> museumJoin = root.join("museum");
-                predicates.add(museumJoin.get("name").in(criteria.getMuseums()));
+            // Handle geographic and cultural relationships
+            if (criteria.getGeographicLocation() != null) {
+                String location = criteria.getGeographicLocation();
+                Set<String> relatedCultures = CulturalMapping
+                        .getCountriesForCulture(location, true);
 
-                if (criteria.getDepartment() != null) {
-                    predicates.add(cb.equal(museumJoin.get("department"), criteria.getDepartment()));
-                }
+                // Create predicates for both direct and related matches
+                Predicate culturePredicate = cb.or(
+                        cb.equal(root.get("culture"), location),
+                        root.get("culture").in(relatedCultures),
+                        cb.equal(root.get("geographicLocation"), location)
+                );
+                predicates.add(culturePredicate);
             }
 
-            return cb.and(predicates.toArray(new Predicate[0]));
+            // Handle display status
+            if (criteria.getIsOnDisplay() != null && criteria.getIsOnDisplay()) {
+                predicates.add(cb.isTrue(root.get("isOnDisplay")));
+            }
+
+            // Title search with partial matching
+            if (StringUtils.hasText(criteria.getTitle())) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("title")),
+                                "%" + criteria.getTitle().toLowerCase() + "%"
+                        )
+                );
+            }
+
+            // Artist name search with partial matching
+            if (StringUtils.hasText(criteria.getArtistName())) {
+                predicates.add(
+                        cb.like(
+                                cb.lower(root.get("artist").get("artistName")),
+                                "%" + criteria.getArtistName().toLowerCase() + "%"
+                        )
+                );
+            }
+
+            // Combine all predicates with AND
+            return predicates.isEmpty() ? null :
+                    cb.and(predicates.toArray(new Predicate[0]));
         };
     }
 
@@ -82,8 +118,16 @@ public class ArtworkSpecifications {
             }
 
             if (preferences.getPreferredCultures() != null) {
-                predicates.add(root.get("culture").in(preferences.getPreferredCultures()));
-                //predicates.add(cb.equal(root.get("culture"), preferences.getPreferredCultures()));
+                Predicate culturePredicate = root.get("culture").in(preferences.getPreferredCultures());
+
+                Predicate locationPredicate = preferences.getPreferredCultures().stream()
+                        .flatMap(culture -> CulturalMapping.getCountriesForCulture(culture, true).stream())
+                        .map(country -> cb.equal(root.get("geographicLocation"), country))
+                        .reduce(cb::or)
+                        .orElse(cb.conjunction());
+
+                // Combine predicates with OR - match either culture directly or via location
+                return cb.or(culturePredicate, locationPredicate);
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -95,7 +139,7 @@ public class ArtworkSpecifications {
      * before detailed scoring
      */
     public static Specification<Artwork> getThemeSpecificPreFilter(Tour.TourTheme theme, Long museumId) {
-        return (root, query, cb) -> {
+        return (root, _, cb) -> {
             // First add the museum filter
             Join<Artwork, Museum> museumJoin = root.join("museum");
             Predicate museumPredicate = cb.equal(museumJoin.get("id"), museumId);
