@@ -35,6 +35,11 @@ public class TourGenerationProgress {
     }
 
     public void update(double progress, String currentTask) {
+        if (progress < 0.0 || progress > 1.0) {
+            throw new IllegalArgumentException(
+                    "Progress must be between 0.0 and 1.0"
+            );
+        }
         this.progress = progress;
         this.currentTask = currentTask;
     }
@@ -42,6 +47,6 @@ public class TourGenerationProgress {
     public void setError(String message) {
         this.hasError = true;
         this.errorMessage = message;
-        this.progress = 1.0;  // This will trigger removal from activeGenerations
+        this.progress = 1.0;
     }
 }
