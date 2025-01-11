@@ -13,7 +13,6 @@ public class TourStopDTO {
     private String description;
     private String standardDescription;  // Adding the standard artwork description
     private Boolean isRequired;
-    private Integer recommendedDuration;
 
     public static TourStopDTO fromEntity(TourStop stop) {
         TourStopDTO dto = new TourStopDTO();
@@ -23,7 +22,6 @@ public class TourStopDTO {
         dto.description = stop.getTourContextDescription();
         dto.standardDescription = stop.getStandardDescription();
         dto.isRequired = stop.isRequired();
-        dto.recommendedDuration = stop.getRecommendedDuration();
         return dto;
     }
 }
