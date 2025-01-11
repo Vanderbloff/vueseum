@@ -25,14 +25,15 @@ export interface Artwork {
 	artistRole?: string;
 	fullAttribution: string;
 	isConfidentAttribution: boolean;
-	medium: string;
-	culture: string;
-	imageUrl: string;
-	description: string | null;
-	geographicLocation: string;
-	galleryNumber: string | null;
+	medium?: string;
+	culture?: string;
+	imageUrl?: string;
+	description?: string | null;
+	geographicLocation?: string;
+	galleryNumber?: string | null;
+	department?: string;
 	isOnDisplay: boolean;
-	creationDate: string;
+	creationDate?: string;
 	museum: Museum | null;
 	tags: string[];
 }
