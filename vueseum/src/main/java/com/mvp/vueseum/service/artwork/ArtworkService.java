@@ -2,6 +2,7 @@ package com.mvp.vueseum.service.artwork;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.annotations.VisibleForTesting;
 import com.mvp.vueseum.domain.ArtworkDetails;
 import com.mvp.vueseum.dto.ArtworkSearchCriteria;
 import com.mvp.vueseum.domain.TourPreferences;
@@ -25,6 +26,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
@@ -75,16 +78,21 @@ public class ArtworkService {
             artwork.setProcessingStatus(Artwork.ProcessingStatus.COMPLETED);
             artwork.setLastSyncAttempt(LocalDateTime.now());
 
-            Artwork saved = artworkRepository.save(artwork);
-            artworkCache.put(artwork.getExternalId(), artwork);
+            Artwork savedArtwork = artworkRepository.save(artwork);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    artworkCache.put(savedArtwork.getExternalId(), savedArtwork);
+                }
+            });
 
         } catch (DataIntegrityViolationException e) {
-            throw new InvalidRequestException("Invalid artwork data: " +
-                    e.getMessage());
+            artworkCache.invalidate(details.getExternalId());
+            throw new InvalidRequestException("Invalid artwork data: " + e.getMessage());
         }
         catch (PersistenceException e) {
-            throw new PersistenceException("Database error while saving artwork: " +
-                    e.getMessage());
+            artworkCache.invalidate(details.getExternalId());
+            throw new PersistenceException("Database error while saving artwork: " + e.getMessage());
         }
     }
 
@@ -347,13 +355,11 @@ public class ArtworkService {
 
     @Transactional
     public void updateDisplayStatus(Long id, Boolean isOnView) {
-        artworkRepository.findById(id)
-                .ifPresent(artwork -> {
-                    artwork.setIsOnDisplay(isOnView);
-                    artwork.setDisplayStatusCheck(LocalDateTime.now());
-                    artworkRepository.save(artwork);
-                    log.debug("Updated display status for artwork {}: {}", id, isOnView);
-                });
+        Artwork artwork = artworkRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Artwork not found: " + id));
+        artwork.setIsOnDisplay(isOnView);
+        artwork.setDisplayStatusCheck(LocalDateTime.now());
+        artworkRepository.save(artwork);
     }
 
     @Transactional
@@ -370,5 +376,43 @@ public class ArtworkService {
                     artworkRepository.save(artwork);
                     log.debug("Recorded processing error for artwork {}: {}", externalId, errorMessage);
                 });
+    }
+
+    @VisibleForTesting
+    public void saveFromDetailsForTest(ArtworkDetails details) {
+        try {
+            Artist artist = null;
+            if (StringUtils.hasText(details.getArtistName())) {
+                artist = artistService.findOrCreateArtist(details);
+            }
+
+            Museum museum = museumService.findOrCreateMuseum(details.getApiSource());
+
+            Artwork artwork = artworkRepository.findByExternalIdAndMuseum(
+                    details.getExternalId(),
+                    museum
+            ).orElseGet(() -> {
+                Artwork newArtwork = new Artwork();
+                newArtwork.setExternalId(details.getExternalId());
+                return newArtwork;
+            });
+
+            artwork.setArtist(artist);
+            artwork.setMuseum(museum);
+            updateArtworkFromDetails(artwork, details);
+            artwork.setProcessingStatus(Artwork.ProcessingStatus.COMPLETED);
+            artwork.setLastSyncAttempt(LocalDateTime.now());
+
+            Artwork savedArtwork = artworkRepository.save(artwork);
+            // Direct cache update instead of using transaction synchronization
+            artworkCache.put(savedArtwork.getExternalId(), savedArtwork);
+
+        } catch (DataIntegrityViolationException e) {
+            artworkCache.invalidate(details.getExternalId());
+            throw new InvalidRequestException("Invalid artwork data: " + e.getMessage());
+        } catch (PersistenceException e) {
+            artworkCache.invalidate(details.getExternalId());
+            throw new PersistenceException("Database error while saving artwork: " + e.getMessage());
+        }
     }
 }
