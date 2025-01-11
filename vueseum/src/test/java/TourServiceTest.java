@@ -196,7 +196,7 @@ class TourServiceTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         TourUpdateRequest updateRequest = new TourUpdateRequest("New Name", "New Description");
-        Optional<Tour> result = tourService.updateTour(1L, updateRequest);
+        Optional<Tour> result = tourService.updateTourDetails(1L, updateRequest);
 
         assertThat(result)
                 .isPresent()
