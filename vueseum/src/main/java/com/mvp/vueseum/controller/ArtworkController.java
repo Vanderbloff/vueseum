@@ -22,7 +22,7 @@ import java.util.Map;
 @RestController
 @RequiredArgsConstructor
 @Validated
-@RequestMapping(path = "api/v1/artworks")
+@RequestMapping(path = "/api/v1/artworks")
 public class ArtworkController {
 
     private final ArtworkService artworkService;
