@@ -15,7 +15,6 @@ import java.util.Set;
 public class TourPreferences {
     private Long museumId;
     private Tour.TourTheme theme;
-    private Integer desiredDuration;
 
     @Builder.Default
     private Set<Long> requiredArtworkIds = new HashSet<>();
@@ -45,10 +44,6 @@ public class TourPreferences {
     public void validate() {
         if (museumId == null) {
             throw new InvalidRequestException("Museum ID is required");
-        }
-
-        if (desiredDuration != null && desiredDuration < 15) {
-            throw new InvalidRequestException("Tour duration must be at least 15 minutes");
         }
 
         if (maxStops < minStops) {
