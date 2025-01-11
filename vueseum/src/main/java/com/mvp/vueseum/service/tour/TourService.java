@@ -50,17 +50,6 @@ public class TourService {
             .maximumSize(1000)
             .build();
 
-    /**
-     * Generates a tour based on user preferences and scoring of artwork candidates.
-     * This method orchestrates the entire tour generation process.
-     * <p>
-     * Future Enhancement Considerations:
-     * - HIGHLIGHTS theme implementation:
-     *   - Would leverage Met Museum's isHighlight field
-     *   - Could include crowd management features
-     *   - Potential for hybrid themes (e.g., Cultural Highlights)
-     *   - Would need additional metadata for enhanced descriptions
-     */
     public Tour generateTour(TourGenerationRequest request, HttpServletRequest httpRequest) {
         String requestId = UUID.randomUUID().toString();
         String visitorId = request.getVisitorId();
@@ -134,15 +123,13 @@ public class TourService {
      */
     private void handleVisitorTracking(String visitorId, String fingerprint) {
         long totalTours = tourRepository.countByDeviceFingerprintAndDeletedFalse(fingerprint);
-        if (totalTours >= 10) {
-            throw new TourLimitExceededException(
-                    "Maximum tour limit reached. Please delete an existing tour before creating a new one."
-            );
-        }
-        if (!visitorTrackingService.recordTourGeneration(visitorId, fingerprint)) {
-            throw new GenerationLimitExceededException(
-                    "Daily tour generation limit reached. Please try again tomorrow."
-            );
+        if (totalTours >= 10 || !visitorTrackingService.recordTourGeneration(visitorId, fingerprint)) {
+            String message = totalTours >= 10
+                    ? "Maximum tour limit reached. Please delete an existing tour before creating a new one."
+                    : "Daily tour generation limit reached. Please try again tomorrow.";
+            throw totalTours >= 10
+                    ? new TourLimitExceededException(message)
+                    : new GenerationLimitExceededException(message);
         }
     }
 
@@ -184,7 +171,6 @@ public class TourService {
         tour.setDescription(description);
         tour.setMuseum(artworks.getFirst().getMuseum());
         tour.setTheme(prefs.getTheme());
-        tour.setEstimatedDuration(prefs.getDesiredDuration());
 
         // Add stops in sequence
         for (int i = 0; i < artworks.size(); i++) {
@@ -203,10 +189,9 @@ public class TourService {
     }
 
     @Transactional
-    public Optional<Tour> updateTour(Long id, TourUpdateRequest request) {
+    public Optional<Tour> updateTourDetails(Long id, TourUpdateRequest request) {
         return tourRepository.findByIdAndDeletedFalse(id)
                 .map(tour -> {
-                    // Update mutable fields only
                     if (StringUtils.hasText(request.name())) {
                         tour.setName(request.name());
                     }
@@ -221,8 +206,6 @@ public class TourService {
     public void cancelGeneration(String requestId) {
         // Mark generation as cancelled in progress tracking
         progressListener.updateProgress(requestId, 1.0, "Tour generation cancelled");
-
-        // Could add additional cleanup if needed
     }
 
     @Transactional
