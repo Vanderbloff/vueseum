@@ -70,7 +70,6 @@ public class ScoringService {
     }
 
     private double calculateArtistScore(Artwork artwork) {
-        // Reduced from 0.3 to 0.2 for known artist
         return artwork.hasKnownArtist() ? 0.2 : 0.1;
     }
 
@@ -86,7 +85,7 @@ public class ScoringService {
         );
 
         // Higher score for cultures with rich geographical context
-        return 0.2 + (Math.min(relatedCountries.size(), 5) * 0.02);  // Up to 0.3 total
+        return 0.2 + (Math.min(relatedCountries.size(), 3) * 0.01);
     }
 
     /**
@@ -95,18 +94,15 @@ public class ScoringService {
     private double calculatePreferenceScore(Artwork artwork, TourPreferences preferences) {
         double score = 0.0;
 
-        // Artist preference matching
         if (artwork.hasKnownArtist() &&
                 preferences.getPreferredArtists().contains(artwork.getArtistName())) {
             score += 0.15;
         }
 
-        // Period preference matching
         if (preferences.getPreferredPeriods().contains(artwork.getCreationDate())) {
             score += 0.2;
         }
 
-        // Medium preference matching
         if (artwork.getMedium() != null &&
                 preferences.getPreferredMediums().contains(artwork.getMedium())) {
             score += 0.3;
@@ -144,7 +140,6 @@ public class ScoringService {
             int currentYear = DateParsingUtil.extractYear(current.getCreationDate());
             int yearDiff = Math.abs(currentYear - prevYear);
 
-            // Reduced from 0.3/0.2 to 0.2/0.15
             if (yearDiff > 0 && yearDiff < 50) {
                 return 0.2;  // Good progression within half a century
             } else if (yearDiff > 0 && yearDiff < 100) {
@@ -192,17 +187,14 @@ public class ScoringService {
             return 0.1;
         }
 
-        // Reduced from 0.3 to 0.2 for same artist
         if (previous.getArtistName().equals(current.getArtistName())) {
             return 0.2;
         }
 
-        // Reduced from 0.25 to 0.15 for related artists
         if (areRelatedArtists(previous.getArtist(), current.getArtist())) {
             return 0.15;
         }
 
-        // Reduced from 0.2 to 0.15 for shared characteristics
         if (shareArtisticCharacteristic(previous.getArtist(), current.getArtist())) {
             return 0.15;
         }
@@ -262,7 +254,7 @@ public class ScoringService {
         String currCulture = current.getCulture();
 
         if (prevCulture == null || currCulture == null) {
-            return 0.1; // Keep base connection bonus
+            return 0.1;
         }
 
         return CulturalMapping.calculateCulturalRelationship(
