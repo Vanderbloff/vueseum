@@ -9,6 +9,7 @@
 </script>
 
 <Card
+	data-testid="artwork-card"
 	class="group overflow-hidden hover:shadow-lg transition-shadow duration-200 cursor-pointer"
 	onclick={() => onCardClick(artwork)}
 	role="button"
@@ -34,11 +35,14 @@
 	</CardHeader>
 
 	<CardContent class="p-4 pt-0">
-		<p class="text-sm text-muted-foreground">
+		<p class="text-sm text-muted-foreground flex items-center gap-1">
+			{#if !artwork.isConfidentAttribution}
+				<span class="text-muted-foreground/70 text-xs">(?)</span>
+			{/if}
 			{artwork.artist}
 		</p>
 		<p class="text-sm text-muted-foreground">
-			{artwork.year}
+			{artwork.creationDate}
 		</p>
 	</CardContent>
 
