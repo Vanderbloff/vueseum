@@ -36,14 +36,13 @@ public class MuseumConfig {
     public class MuseumProperties {
         private String name;
         private String location;
-        //private String address;
         private String websiteUrl;
 
         @Getter(AccessLevel.NONE)
-        private Map<String, Museum.museumHours> museumHours = new HashMap<>();
+        private Map<String, Museum.MuseumHours> museumHours = new HashMap<>();
         private int rateLimit;
 
-        public Map<String, Museum.museumHours> getMuseumHours() {
+        public Map<String, Museum.MuseumHours> getMuseumHours() {
             return new HashMap<>(museumHours);
         }
     }
@@ -60,7 +59,7 @@ public class MuseumConfig {
         if (hours != null) {
             try {
                 ObjectMapper mapper = new ObjectMapper();
-                TypeReference<Map<String, Museum.museumHours>> typeRef =
+                TypeReference<Map<String, Museum.MuseumHours>> typeRef =
                         new TypeReference<>() {};
                 museumProperties.setMuseumHours(mapper.readValue(hours, typeRef));
             } catch (JsonProcessingException e) {
