@@ -1,14 +1,7 @@
 <!-- src/lib/components/tour/TourStopCard.svelte -->
 <script lang="ts">
 	import type { TourStop } from '$lib/types/tour';
-
-	// The component accepts a single tour stop as a prop
 	export let stop: TourStop;
-
-	// Helper function to format duration in minutes
-	function formatDuration(minutes: number): string {
-		return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
-	}
 </script>
 
 <!-- The card layout uses a consistent structure for all stops -->
@@ -31,14 +24,6 @@
 				{stop.artwork.artist}
 			</p>
 		</div>
-
-		<!-- Duration displayed on the right -->
-		<div class="flex-shrink-0 ml-4">
-            <span class="text-sm text-gray-500">
-                {formatDuration(stop.recommendedDuration)}
-            </span>
-		</div>
-	</div>
 
 	<!-- Artwork image with proper aspect ratio -->
 	<div class="relative w-full pb-[56.25%]">
