@@ -24,6 +24,11 @@ import java.util.Set;
     })
 public class Artwork extends baseEntity {
 
+    private static final Set<String> UNCERTAINTY_PREFIXES = Set.of(
+            "Attributed to", "Workshop of", "Circle of",
+            "School of", "Style of", "After"
+    );
+
     @Column(nullable = false)
     private String title = "";
 
@@ -82,10 +87,11 @@ public class Artwork extends baseEntity {
     private String lastSyncError;
 
     @Column(name = "artist_prefix")
-    private String artistPrefix;      // From Met API "artistPrefix"
+    private String artistPrefix;
 
     @Column(name = "artist_role")
-    private String artistRole;        // From Met API "artistRole"
+    private String artistRole;
+
 
     public enum ProcessingStatus {
         PENDING,
@@ -145,33 +151,7 @@ public class Artwork extends baseEntity {
             return false;  // No artist assigned at all
         }
 
-        // Example prefixes indicating uncertainty
-        Set<String> uncertainPrefixes = Set.of(
-                "Attributed to",
-                "Workshop of",
-                "Circle of",
-                "School of",
-                "Style of",
-                "After"
-        );
-
-        return artistPrefix == null || !uncertainPrefixes.contains(artistPrefix);
-    }
-
-    public String getArtistAttribution() {
-        if (!hasKnownArtist()) {
-            return "Unknown Artist";
-        }
-
-        StringBuilder attribution = new StringBuilder();
-        if (artistPrefix != null) {
-            attribution.append(artistPrefix).append(" ");
-        }
-        attribution.append(artist.getArtistName());
-        if (artistRole != null) {
-            attribution.append(" (").append(artistRole).append(")");
-        }
-        return attribution.toString();
+        return artistPrefix == null || !UNCERTAINTY_PREFIXES.contains(artistPrefix);
     }
 
     public void setMuseum(Museum museum) {
