@@ -30,20 +30,18 @@ public class TourStop extends baseEntity {
     private Integer sequenceNumber;
 
     @Column(columnDefinition = "TEXT")
-    private String standardDescription;  // Cached from artwork
+    private String standardDescription;
 
     @Column(columnDefinition = "TEXT")
-    private String tourContextDescription;  // Generated for this specific tour
+    private String tourContextDescription;
 
-    // Estimated time to spend at this stop (in minutes)
-    private Integer recommendedDuration = 5;
 
     // Whether this is a required stop (e.g., for themed tours)
     private boolean isRequired = false;
 
     @PrePersist
     @PreUpdate
-    private void validateSequence() {
+    public void validateSequence() {
         if (sequenceNumber == null || sequenceNumber < 0) {
             throw new IllegalStateException("Sequence number must be non-negative");
         }
