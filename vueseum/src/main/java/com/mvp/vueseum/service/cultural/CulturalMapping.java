@@ -1,14 +1,15 @@
 package com.mvp.vueseum.service.cultural;
 
-import lombok.Getter;
+import java.util.*;
+import java.util.stream.Collectors;
 
-import java.util.*; /**
+/**
  * Centralized cultural mapping system that provides methods for cultural relationship analysis
  * and geographical context lookup.
  */
 public class CulturalMapping {
-    private static final Map<String, CulturalRegion> CULTURAL_REGIONS = initializeCulturalRegions();
-    private static final Map<String, String> COUNTRY_TO_REGION = buildCountryToRegionMap();
+    public static final Map<String, CulturalRegion> CULTURAL_REGIONS = initializeCulturalRegions();
+    public static final Map<String, String> COUNTRY_TO_REGION = buildCountryToRegionMap();
 
     private static Map<String, CulturalRegion> initializeCulturalRegions() {
         Map<String, CulturalRegion> regions = new HashMap<>();
@@ -106,8 +107,14 @@ public class CulturalMapping {
      * and shared characteristics.
      */
     public static double calculateCulturalRelationship(String culture1, String culture2) {
-        if (culture1 == null || culture2 == null) return 0.0;
-        if (culture1.equals(culture2)) return 1.0;
+        if (isInvalidCulture(culture1) || isInvalidCulture(culture2)) {
+            return 0.0;
+        }
+
+        // Now we know both cultures are non-null and non-empty
+        if (culture1.equals(culture2)) {
+            return 1.0;
+        }
 
         // Check if cultures share any countries - this is our strongest relationship after identity
         if (shareAnyCountries(culture1, culture2)) {
@@ -124,6 +131,12 @@ public class CulturalMapping {
         }
 
         return 0.1;  // Minimal relationship
+    }
+
+    private static boolean isInvalidCulture(String culture) {
+        return culture == null || culture.trim().isEmpty() ||
+                CULTURAL_REGIONS.values().stream()
+                        .noneMatch(region -> region.getCultureToCountries().containsKey(culture));
     }
 
     private static Optional<String> findSharedRegion(String culture1, String culture2) {
@@ -183,7 +196,6 @@ public class CulturalMapping {
         return allCountries;
     }
 
-    // In CulturalMapping.java
     public static Optional<CultureContext> getCultureContext(String culture) {
         for (Map.Entry<String, CulturalRegion> entry : CULTURAL_REGIONS.entrySet()) {
             for (CulturalRegion.SubRegion subRegion : entry.getValue().getSubRegions()) {
@@ -193,6 +205,32 @@ public class CulturalMapping {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Gets all top-level cultural regions.
+     * @return List of region names (e.g., "Africa", "Asia", "Europe")
+     */
+    public static List<String> getCulturalRegions() {
+        return new ArrayList<>(CULTURAL_REGIONS.keySet());
+    }
+
+    /**
+     * Gets all cultures associated with a specific region.
+     *
+     * @param region The name of the region (e.g., "Europe", "Asia")
+     * @return List of culture names within that region
+     * @throws IllegalArgumentException if the region doesn't exist
+     */
+    public static List<String> getCulturesForRegion(String region) {
+        CulturalRegion culturalRegion = CULTURAL_REGIONS.get(region);
+        if (culturalRegion == null) {
+            throw new IllegalArgumentException("Invalid region: " + region);
+        }
+
+        return culturalRegion.getSubRegions().stream()
+                .flatMap(subRegion -> subRegion.culturesAndCountries().keySet().stream())
+                .collect(Collectors.toList());
     }
 
     public record CultureContext(String region, String subRegion) {}
