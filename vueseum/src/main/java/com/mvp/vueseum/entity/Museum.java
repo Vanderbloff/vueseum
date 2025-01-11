@@ -31,7 +31,7 @@ public class Museum extends baseEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
-    private Map<String, museumHours> museumHours = new HashMap<>();
+    private Map<String, MuseumHours> museumHours = new HashMap<>();
 
     @Column(name = "artworks")
     @OneToMany(mappedBy = "museum", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -52,7 +52,7 @@ public class Museum extends baseEntity {
     }
 
     @Getter @Setter
-    public static class museumHours {
+    public static class MuseumHours {
         private String open;
         private String close;
         private Boolean closed;
@@ -60,16 +60,20 @@ public class Museum extends baseEntity {
     }
 
     public void addArtwork(Artwork artwork) {
-        collection.add(artwork);
-        if (artwork.getMuseum() != this) {
-            artwork.setMuseum(this);
+        if (artwork != null) {
+            collection.add(artwork);
+            if (artwork.getMuseum() != this) {
+                artwork.setMuseum(this);
+            }
         }
     }
 
     public void removeArtwork(Artwork artwork) {
-        collection.remove(artwork);
-        if (artwork.getMuseum() == this) {
-            artwork.setMuseum(null);
+        if (artwork != null && collection.contains(artwork)) {
+            collection.remove(artwork);
+            if (artwork.getMuseum() == this) {
+                artwork.setMuseum(null);
+            }
         }
     }
 
