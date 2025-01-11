@@ -17,8 +17,6 @@
 		tour: Tour,
 	}>();
 
-	// Note: Carousel transition performance may vary based on browser settings and hardware.
-	// Key factors include hardware acceleration and available GPU resources.
 	const state = $state({
 		currentStop: 0,
 		progress: 0,
