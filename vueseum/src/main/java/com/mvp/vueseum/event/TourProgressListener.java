@@ -4,6 +4,7 @@ import com.mvp.vueseum.domain.TourGenerationProgress;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,7 +17,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @Slf4j
 public class TourProgressListener {
-    // Store active generations with their progress
     private final Map<String, TourGenerationProgress> activeGenerations = new ConcurrentHashMap<>();
 
     public void initializeProgress(String requestId, String visitorId) {
@@ -28,16 +28,12 @@ public class TourProgressListener {
         if (tracking != null) {
             tracking.update(progress, currentTask);
 
-            // Simpler completion handling
             if (progress >= 1.0) {
                 activeGenerations.remove(requestId);
             }
         }
     }
 
-    /**
-     * Gets current progress of a tour generation
-     */
     public Optional<TourGenerationProgress> getProgress(String requestId) {
         return Optional.ofNullable(activeGenerations.get(requestId));
     }
