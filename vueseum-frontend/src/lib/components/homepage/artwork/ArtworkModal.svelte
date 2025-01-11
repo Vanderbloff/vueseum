@@ -58,9 +58,9 @@
 				</div>
 
 				{#if artwork.isOnDisplay}
-                    <span class="absolute top-4 right-4 px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
-                        On Display
-                    </span>
+					<span class="absolute top-4 right-4 px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
+							On Display
+					</span>
 				{/if}
 			</div>
 
@@ -72,7 +72,7 @@
 					</h2>
 					<p class="text-lg text-muted-foreground">
 						{artwork.fullAttribution}
-						{artwork.year ? ` • ${artwork.year}` : ''}
+						{artwork.creationDate ? ` • ${artwork.creationDate}` : ''}
 					</p>
 				</div>
 
@@ -91,10 +91,10 @@
 						</div>
 					{/if}
 
-					{#if artwork.culturalRegion}
+					{#if artwork.geographicLocation}
 						<div class="flex gap-2">
 							<span class="font-medium">Culture:</span>
-							<span>{artwork.culturalRegion}</span>
+							<span>{artwork.geographicLocation}</span>
 						</div>
 					{/if}
 
