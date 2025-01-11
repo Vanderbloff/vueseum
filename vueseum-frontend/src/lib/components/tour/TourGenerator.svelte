@@ -6,20 +6,14 @@
 		DialogHeader,
 		DialogTitle,
 		DialogTrigger
-	} from "$lib/components/ui/dialog";
-	import {
-		Select,
-		SelectContent,
-		SelectItem,
-		SelectTrigger
-	} from "$lib/components/ui/select";
-	import { Button } from "$lib/components/ui/button";
-	import { Label } from "$lib/components/ui/label";
-	import { RadioGroup, RadioGroupItem } from "$lib/components/ui/radio-group";
-	import { Input } from '$lib/components/ui/input';
-	import { ScrollArea } from "$lib/components/ui/scroll-area";
-	import { Slider } from "$lib/components/ui/slider";
-	import { Tooltip, TooltipContent, TooltipTrigger } from "$lib/components/ui/tooltip";
+	} from '$lib/components/ui/dialog';
+	import { Select, SelectContent, SelectItem, SelectTrigger } from '$lib/components/ui/select';
+	import { Button } from '$lib/components/ui/button';
+	import { Label } from '$lib/components/ui/label';
+	import { RadioGroup, RadioGroupItem } from '$lib/components/ui/radio-group';
+	import { ScrollArea } from '$lib/components/ui/scroll-area';
+	import { Slider } from '$lib/components/ui/slider';
+	import { Tooltip, TooltipContent, TooltipTrigger } from '$lib/components/ui/tooltip';
 	import {
 		AlertDialog,
 		AlertDialogAction,
@@ -28,41 +22,91 @@
 		AlertDialogFooter,
 		AlertDialogHeader,
 		AlertDialogTitle
-	} from "$lib/components/ui/alert-dialog";
+	} from '$lib/components/ui/alert-dialog';
+
 	import TourProgress from './TourProgress.svelte';
+	import type { TourInputState, StandardPeriod } from '$lib/types/tour-preferences';
+	import PreferenceInput from '$lib/components/shared/PreferenceInput.svelte';
+
+	interface PreferenceInputComponent {
+		getSelections: () => string[];
+		clearSelections: () => void;
+	}
+
+	const standardPeriods: StandardPeriod[] = [
+		"2000-1000 B.C.",
+		"1000 B.C.-A.D. 1",
+		"A.D. 1-500",
+		"A.D. 500-1000",
+		"A.D. 1000-1400",
+		"A.D. 1400-1600",
+		"A.D. 1600-1800",
+		"A.D. 1800-1900",
+		"A.D. 1900-present"
+	];
 
 	let { onTourGenerated } = $props<{
 		onTourGenerated: () => void;
 	}>();
 
-	const state = $state({
+	// eslint-disable-next-line svelte/valid-compile
+	let artworkInputRef: PreferenceInputComponent = {
+		getSelections: () => [],
+		clearSelections: () => {}
+	};
+	// eslint-disable-next-line svelte/valid-compile
+	let artistInputRef: PreferenceInputComponent = {
+		getSelections: () => [],
+		clearSelections: () => {}
+	};
+	// eslint-disable-next-line svelte/valid-compile
+	let mediumInputRef: PreferenceInputComponent = {
+		getSelections: () => [],
+		clearSelections: () => {}
+	};
+	// eslint-disable-next-line svelte/valid-compile
+	let cultureInputRef: PreferenceInputComponent = {
+		getSelections: () => [],
+		clearSelections: () => {}
+	};
+
+	const state = $state<TourInputState>({
 		isOpen: false,
 		selectedMuseum: '',
 		tourPreferences: {
-			theme: "CHRONOLOGICAL" as "CHRONOLOGICAL" | "ARTIST_FOCUSED" | "CULTURAL",
+			theme: "CHRONOLOGICAL",
 			numStops: 5,
-			requiredArtworks: [] as string[],
-			preferredArtists: [] as string[],
-			preferredPeriods: [] as string[],
-			preferredMediums: [] as string[],
-			preferredCultures: [] as string[]
+			preferredArtworks: [],
+			preferredPeriods: [],
 		},
 		showAdditionalOptions: false,
 		generatedToursToday: 0,
-		error: null as { type: 'DAILY_LIMIT' | 'TOTAL_LIMIT' | null, message: string } | null,
+		error: null,
 		isGenerating: false,
-		requestId: null as string | null,
+		requestId: null
 	});
 
 	const canGenerateTour = $derived(state.generatedToursToday < 3);
-
-	// Mock museum data - replace with actual API call
 	const museums = [
 		{ id: 1, name: "Metropolitan Museum of Art" },
 		{ id: 2, name: "Louvre Museum" }
 	];
 
 	function handleMuseumSelect(value: string) {
+		if (value !== state.selectedMuseum) {
+			state.tourPreferences = {
+				theme: "CHRONOLOGICAL",
+				numStops: 5,
+				preferredArtworks: [], // renamed from requiredArtworks
+				preferredPeriods: []
+			};
+
+			// Clear all PreferenceInput components
+			artistInputRef?.clearSelections();
+			mediumInputRef?.clearSelections();
+			cultureInputRef?.clearSelections();
+		}
+
 		state.selectedMuseum = value;
 		state.showAdditionalOptions = value.length > 0;
 	}
@@ -81,6 +125,20 @@
 			const controller = new AbortController();
 			const timeoutId = setTimeout(() => controller.abort(), 30000);
 
+			// Collect preferences from all inputs at generation time
+			const preferences = {
+				museumId: parseInt(state.selectedMuseum),
+				theme: state.tourPreferences.theme,
+				desiredDuration: state.tourPreferences.numStops * 15,
+				maxStops: state.tourPreferences.numStops,
+				minStops: Math.max(3, state.tourPreferences.numStops - 2),
+				preferredArtworks: artworkInputRef?.getSelections() ?? [],
+				preferredArtists: artistInputRef?.getSelections() ?? [],
+				preferredMediums: mediumInputRef?.getSelections() ?? [],
+				preferredCultures: cultureInputRef?.getSelections() ?? [],
+				preferredPeriods: state.tourPreferences.preferredPeriods,
+			};
+
 			const response = await fetch('/api/v1/tours/generate', {
 				method: 'POST',
 				headers: {
@@ -88,17 +146,7 @@
 				},
 				body: JSON.stringify({
 					visitorId: 'temp-id',
-					preferences: {
-						museumId: parseInt(state.selectedMuseum),
-						theme: state.tourPreferences.theme,
-						desiredDuration: state.tourPreferences.numStops * 15,
-						maxStops: state.tourPreferences.numStops,
-						minStops: Math.max(3, state.tourPreferences.numStops - 2),
-						requiredArtworkIds: state.tourPreferences.requiredArtworks,
-						preferredArtists: state.tourPreferences.preferredArtists,
-						preferredMediums: state.tourPreferences.preferredMediums,
-						preferredCultures: state.tourPreferences.preferredCultures,
-					}
+					preferences
 				}),
 				signal: controller.signal
 			});
@@ -138,9 +186,20 @@
 					message: error instanceof Error ? error.message : 'An unexpected error occurred'
 				};
 			}
-			state.isGenerating = false; // Reset generating state on error
-			state.requestId = null; // Clear requestId if any
+			state.isGenerating = false;
+			state.requestId = null;
 		}
+	}
+
+	function handleTourComplete() {
+		// Clear all inputs on successful completion
+		artistInputRef?.clearSelections();
+		mediumInputRef?.clearSelections();
+		cultureInputRef?.clearSelections();
+
+		onTourGenerated();
+		state.isOpen = false;
+		state.isGenerating = false;
 	}
 </script>
 
@@ -154,21 +213,14 @@
 		<Dialog bind:open={state.isOpen}>
 			{#if canGenerateTour}
 				<DialogTrigger>
-					<Button
-						size="lg"
-						class="bg-primary text-primary-foreground hover:bg-primary/90"
-					>
+					<Button size="lg" class="bg-primary text-primary-foreground hover:bg-primary/90">
 						Generate My Own Tour
 					</Button>
 				</DialogTrigger>
 			{:else}
 				<Tooltip>
 					<TooltipTrigger>
-						<Button
-							size="lg"
-							disabled
-							class="opacity-50"
-						>
+						<Button size="lg" disabled class="opacity-50">
 							Generate My Own Tour
 						</Button>
 					</TooltipTrigger>
@@ -249,49 +301,66 @@
 									</p>
 								</div>
 
-								<div class="space-y-2">
-									<Label for="required-artworks">Required Artworks</Label>
-									<Input
-										id="required-artworks"
-										placeholder="Enter artwork titles, separated by commas"
-									/>
-									<p class="text-sm text-muted-foreground">
-										These artworks will be included in your tour if available
-									</p>
-								</div>
+								<PreferenceInput
+									bind:this={artworkInputRef}
+									label="Preferred Artworks"
+									type="ARTWORK"
+									placeholder="Search artworks..."
+									museumId={state.selectedMuseum}
+								/>
+
+								<PreferenceInput
+									bind:this={artistInputRef}
+									label="Preferred Artists"
+									type="ARTIST"
+									placeholder="Search artists..."
+									museumId={state.selectedMuseum}
+								/>
+
+								<PreferenceInput
+									bind:this={mediumInputRef}
+									label="Preferred Mediums"
+									type="MEDIUM"
+									placeholder="Search mediums..."
+									museumId={state.selectedMuseum}
+								/>
+
+								<PreferenceInput
+									bind:this={cultureInputRef}
+									label="Preferred Cultures"
+									type="CULTURE"
+									placeholder="Search cultures..."
+									museumId={state.selectedMuseum}
+								/>
 
 								<div class="space-y-2">
-									<Label for="preferred-artists">Preferred Artists</Label>
-									<Input
-										id="preferred-artists"
-										placeholder="Enter artist names, separated by commas"
-									/>
-								</div>
-
-								<div class="space-y-2">
-									<Label for="preferred-mediums">Preferred Mediums</Label>
-									<Input
-										id="preferred-mediums"
-										placeholder="e.g., Oil painting, sculpture, photograph"
-									/>
-								</div>
-
-								<div class="space-y-2">
-									<Label for="preferred-cultures">Preferred Cultures</Label>
-									<Input
-										id="preferred-cultures"
-										placeholder="e.g., Italian, French, Japanese"
-									/>
+									<Label for="preferred-periods">Preferred Periods</Label>
+									<Select
+										type="multiple"
+										value={state.tourPreferences.preferredPeriods}
+										onValueChange={(value) => state.tourPreferences.preferredPeriods = value}
+									>
+										<SelectTrigger id="preferred-periods">
+											<span>
+													{state.tourPreferences.preferredPeriods.length > 0
+														? `${state.tourPreferences.preferredPeriods.length} selected`
+														: "Select one or more time periods to focus your tour"}
+											</span>
+										</SelectTrigger>
+										<SelectContent>
+											{#each standardPeriods as period}
+												<SelectItem value={period}>
+													{period}
+												</SelectItem>
+											{/each}
+										</SelectContent>
+									</Select>
 								</div>
 
 								{#if state.isGenerating && state.requestId}
 									<TourProgress
 										requestId={state.requestId}
-										onComplete={() => {
-												onTourGenerated();
-												state.isOpen = false;
-												state.isGenerating = false;
-										}}
+										onComplete={handleTourComplete}
 									/>
 								{:else}
 									<Button
@@ -301,7 +370,7 @@
 									>
 										{state.isGenerating ? 'Generating...' : 'Generate Tour'}
 									</Button>
-									{/if}
+								{/if}
 							</div>
 						</ScrollArea>
 					{/if}
@@ -326,7 +395,7 @@
 						<AlertDialogAction
 							onclick={() => {
 								if (state.error?.type === 'TOTAL_LIMIT') {
-									state.isOpen = false;
+										state.isOpen = false;
 								}
 								state.error = null;
 						}}
