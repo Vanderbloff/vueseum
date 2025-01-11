@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface TourRepository extends JpaRepository<Tour, Long> {
     Optional<Tour> findByIdAndDeletedFalse(Long id);
+    long countByDeviceFingerprintAndDeletedFalse(String deviceFingerprint);
 }
