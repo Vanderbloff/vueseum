@@ -38,7 +38,7 @@
 		currentFilters: {
 			filters: {
 				searchTerm: [] as string[],
-				searchField: 'all' as 'all' | 'title' | 'artist' | 'medium',
+				searchField: 'all' as 'all' | 'title' | 'artist' | 'culture',
 				objectType: [] as string[],
 				culturalRegion: [] as string[],
 				era: [] as string[],
