@@ -50,10 +50,10 @@ public class TourController {
      * Does not modify tour stops or structure.
      */
     @PatchMapping("/{id}")
-    public ResponseEntity<TourDTO> updateTour(
+    public ResponseEntity<TourDTO> updateTourDetails(
             @PathVariable Long id,
             @Valid @RequestBody TourUpdateRequest request) {
-        return tourService.updateTour(id, request)
+        return tourService.updateTourDetails(id, request)
                 .map(TourDTO::fromEntity)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
