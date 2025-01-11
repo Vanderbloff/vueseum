@@ -47,27 +47,29 @@ public class Artist extends baseEntity {
 
     public Artist(String artistName,
                   String nationality,
-//                  String biography,
                   String birthDate,
                   String deathDate) {
         this.artistName = artistName;
         this.nationality = nationality;
-//        this.biography = biography;
         this.birthDate = birthDate;
         this.deathDate = deathDate;
     }
 
     public void addArtwork(Artwork artwork) {
-        works.add(artwork);
-        if (artwork.getArtist() != this) {
-            artwork.setArtist(this);
+        if (artwork != null) {
+            works.add(artwork);
+            if (artwork.getArtist() != this) {
+                artwork.setArtist(this);
+            }
         }
     }
 
     public void removeArtwork(Artwork artwork) {
-        works.remove(artwork);
-        if (artwork.getArtist() == this) {
-            artwork.setArtist(null);
+        if (artwork != null && works.contains(artwork)) {
+            works.remove(artwork);
+            if (artwork.getArtist() == this) {
+                artwork.setArtist(null);
+            }
         }
     }
 
