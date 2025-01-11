@@ -78,7 +78,6 @@ CREATE TABLE tours (
                        id BIGINT PRIMARY KEY REFERENCES base_entity(id),
                        name VARCHAR(255) NOT NULL,
                        description TEXT,
-                       estimated_duration INTEGER,
                        difficulty VARCHAR(20) NOT NULL DEFAULT 'MODERATE',
                        metadata JSONB DEFAULT '{}',
                        museum_id BIGINT NOT NULL REFERENCES museums(id),
@@ -94,7 +93,6 @@ CREATE TABLE tour_stops (
                             sequence_number INTEGER NOT NULL,
                             standard_description TEXT,
                             tour_context_description TEXT,
-                            recommended_duration INTEGER DEFAULT 5,
                             is_required BOOLEAN DEFAULT false,
                             CONSTRAINT unique_tour_sequence UNIQUE (tour_id, sequence_number)
 );
