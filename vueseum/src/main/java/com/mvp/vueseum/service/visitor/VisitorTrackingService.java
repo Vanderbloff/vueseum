@@ -93,13 +93,8 @@ public class VisitorTrackingService {
 
     public boolean recordTourGeneration(String visitorId, String deviceFingerprint) {
         VisitorData data = visitorCache.get(visitorId,
-                key -> new VisitorData(deviceFingerprint, clock));
+                _ -> new VisitorData(deviceFingerprint, clock));
 
         return data.incrementCount(dailyGenerationLimit, clock);
-    }
-
-    public boolean isReturningVisitor(String visitorId) {
-        VisitorData data = visitorCache.getIfPresent(visitorId);
-        return data != null && data.getNumOfGeneratedTours() > 0;
     }
 }
