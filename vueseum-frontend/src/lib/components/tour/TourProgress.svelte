@@ -2,6 +2,7 @@
 	import { Progress } from "$lib/components/ui/progress";
 	import { Alert, AlertDescription } from "$lib/components/ui/alert";
 	import { XCircle } from "lucide-svelte";
+	import { tourApi } from '$lib/api/tour';
 
 	let {
 		requestId,
@@ -20,46 +21,22 @@
 	});
 
 	$effect(() => {
-		let intervalId: number;
+		tourApi.monitorTourProgress(
+			requestId,
+			(progress, task) => {
+				state.progress = progress;
+				state.currentTask = task;
 
-		const checkProgress = async () => {
-			try {
-				const response = await fetch(`/api/v1/tours/generation/${requestId}/status`);
-
-				if (!response.ok) {
-					throw new Error('Failed to check generation progress');
-				}
-
-				const data = await response.json();
-
-				state.progress = Math.round(data.progress * 100);
-				state.currentTask = data.currentTask;
-				state.hasError = data.hasError;
-				state.errorMessage = data.errorMessage || 'An error occurred during tour generation';
-
-				// If complete or error, stop polling
-				if (data.progress >= 1 || data.hasError) {
+				if (progress >= 1) {
 					state.isComplete = true;
-					clearInterval(intervalId);
 					onComplete();
-
-					if (!state.hasError) {
-						onComplete();
-					}
 				}
-			} catch (error) {
-				state.hasError = true;
-				state.errorMessage = error instanceof Error ? error.message : 'Failed to check generation progress';
-				clearInterval(intervalId);
 			}
-		};
-
-		// Start polling immediately
-		checkProgress();
-		intervalId = setInterval(checkProgress, 1000);
-
-		// Cleanup interval on unmount
-		return () => clearInterval(intervalId);
+		).catch(error => {
+			state.hasError = true;
+			state.errorMessage = error.message;
+			state.isComplete = true;
+		});
 	});
 </script>
 
