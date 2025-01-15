@@ -27,6 +27,8 @@
 	import TourProgress from './TourProgress.svelte';
 	import type { TourInputState, StandardPeriod } from '$lib/types/tour-preferences';
 	import PreferenceInput from '$lib/components/shared/PreferenceInput.svelte';
+	import { tourApi } from '$lib/api/tour';
+	import { getOrCreateFingerprint } from '$lib/api/device';
 
 	interface PreferenceInputComponent {
 		getSelections: () => string[];
@@ -122,14 +124,12 @@
 		state.error = null;
 
 		try {
-			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), 30000);
+			const visitorId = await getOrCreateFingerprint();
 
 			// Collect preferences from all inputs at generation time
 			const preferences = {
 				museumId: parseInt(state.selectedMuseum),
 				theme: state.tourPreferences.theme,
-				desiredDuration: state.tourPreferences.numStops * 15,
 				maxStops: state.tourPreferences.numStops,
 				minStops: Math.max(3, state.tourPreferences.numStops - 2),
 				preferredArtworks: artworkInputRef?.getSelections() ?? [],
@@ -139,51 +139,30 @@
 				preferredPeriods: state.tourPreferences.preferredPeriods,
 			};
 
-			const response = await fetch('/api/v1/tours/generate', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					visitorId: 'temp-id',
-					preferences
-				}),
-				signal: controller.signal
-			});
-
-			clearTimeout(timeoutId);
-
-			if (!response.ok) {
-				if (response.status === 507) {
+			const data = await tourApi.generateTour(visitorId, preferences);
+			state.requestId = data.requestId;
+		} catch (error) {
+			if (error instanceof Error) {
+				if (error.message === 'TOTAL_LIMIT') {
 					state.error = {
 						type: 'TOTAL_LIMIT',
 						message: 'You\'ve reached the maximum number of tours. Please delete an existing tour before creating a new one.'
 					};
-				} else if (response.status === 429) {
+				} else if (error.message === 'DAILY_LIMIT') {
 					state.error = {
 						type: 'DAILY_LIMIT',
 						message: 'You\'ve reached your daily tour generation limit. Please try again tomorrow.'
 					};
 				} else {
-					const errorData = await response.json();
-					throw new Error(errorData.message || 'Failed to generate tour');
+					state.error = {
+						type: null,
+						message: error.message
+					};
 				}
-				return;
-			}
-
-			const data = await response.json();
-			state.requestId = data.requestId;
-
-		} catch (error: unknown) {
-			if (error instanceof DOMException && error.name === 'AbortError') {
-				state.error = {
-					type: null,
-					message: 'Tour generation timed out. Please try again.'
-				};
 			} else {
 				state.error = {
 					type: null,
-					message: error instanceof Error ? error.message : 'An unexpected error occurred'
+					message: 'An unexpected error occurred'
 				};
 			}
 			state.isGenerating = false;
