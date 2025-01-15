@@ -4,7 +4,7 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "concurrently \"npm run mock-api\" \"vite dev\"",
 		"build": "vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -13,7 +13,8 @@
 		"lint": "prettier --check . && eslint .",
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
-		"test:e2e": "playwright test"
+		"test:e2e": "playwright test",
+		"mock-api": "json-server --watch db.json --port 3001"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.3",
@@ -27,12 +28,14 @@
 		"autoprefixer": "^10.4.20",
 		"bits-ui": "^1.0.0-next.77",
 		"clsx": "^2.1.1",
+		"concurrently": "^9.1.2",
 		"embla-carousel-svelte": "^8.5.1",
 		"eslint": "^9.7.0",
 		"eslint-config-prettier": "^9.1.0",
 		"eslint-plugin-svelte": "^2.36.0",
 		"globals": "^15.0.0",
 		"jsdom": "^26.0.0",
+		"json-server": "^1.0.0-beta.3",
 		"lucide-svelte": "^0.469.0",
 		"prettier": "^3.3.2",
 		"prettier-plugin-svelte": "^3.2.6",
