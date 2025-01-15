@@ -12,7 +12,6 @@ export interface TourStop {
 		year: string;
 	};
 	description: string;
-	recommendedDuration: number;
 	isRequired: boolean;
 }
 
@@ -21,7 +20,6 @@ export interface Tour {
 	name: string;
 	description: string;
 	theme: 'CHRONOLOGICAL' | 'ARTIST_FOCUSED' | 'CULTURAL';
-	estimatedDuration: number;
 	stops: TourStop[];
 	museum: {
 		id: number;
