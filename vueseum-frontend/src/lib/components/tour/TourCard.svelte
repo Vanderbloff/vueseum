@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Clock, MapPin, Edit, Trash2 } from 'lucide-svelte';
+	import { MapPin, Edit, Trash2 } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import {
 		AlertDialog,
@@ -20,7 +20,6 @@
 		name: string;
 		description: string;
 		theme: 'CHRONOLOGICAL' | 'ARTIST_FOCUSED' | 'CULTURAL';
-		estimatedDuration: number;
 		museum: {
 			name: string;
 			location: string;
@@ -36,7 +35,7 @@
 	} = $props<{
 		tour: Tour;
 		onSelect?: (tour: Tour) => void;
-		onDelete?: (tourId: string) => void;
+		onDelete?: (tourId: number) => void;
 		onEdit?: (tourId: number, updates: { name: string; description: string }) => Promise<boolean>;
 		isUpdating?: boolean;
 	}>();
@@ -75,14 +74,6 @@
 		}
 	}
 
-	function formatDuration(minutes: number): string {
-		const hours = Math.floor(minutes / 60);
-		const remainingMinutes = minutes % 60;
-		return hours > 0
-			? `${hours}h ${remainingMinutes}m`
-			: `${remainingMinutes}m`;
-	}
-
 	function formatTheme(theme: Tour['theme']): string {
 		return theme.split('_')
 			.map(word => word.charAt(0) + word.slice(1).toLowerCase())
@@ -103,10 +94,6 @@
 			</p>
 
 			<div class="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-				<div class="flex items-center gap-1">
-					<Clock class="w-4 h-4" />
-					<span>{formatDuration(tour.estimatedDuration)}</span>
-				</div>
 				<div class="flex items-center gap-1">
 					<MapPin class="w-4 h-4" />
 					<span>{formatTheme(tour.theme)}</span>
@@ -185,6 +172,7 @@
                                     description: state.editDescription
                                 });
                                 state.isDialogOpen = false;
+                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
                             } catch (error) {
                                 // Error will be handled by parent component
                             }
