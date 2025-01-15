@@ -10,6 +10,8 @@ import com.mvp.vueseum.service.tour.TourService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +22,14 @@ import org.springframework.web.bind.annotation.*;
 public class TourController {
     private final TourService tourService;
     private final TourProgressListener progressListener;
+
+    @GetMapping
+    public ResponseEntity<Page<TourDTO>> getTours(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Page<Tour> tours = tourService.getTourPage(PageRequest.of(page, size));
+        return ResponseEntity.ok(tours.map(TourDTO::fromEntity));
+    }
 
     /**
      * Generates a new tour based on user preferences and museum context.
@@ -69,15 +79,6 @@ public class TourController {
         return progressListener.getProgress(requestId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
-    }
-
-    /**
-     * Cancels an in-progress tour generation.
-     */
-    @DeleteMapping("/generation/{requestId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void cancelGeneration(@PathVariable String requestId) {
-        tourService.cancelGeneration(requestId);
     }
 
     /**
