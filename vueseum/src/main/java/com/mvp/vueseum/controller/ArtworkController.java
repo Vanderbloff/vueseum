@@ -10,7 +10,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -18,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+
+import static com.mvp.vueseum.dto.ArtworkSearchCriteria.mapSortField;
 
 @RestController
 @RequiredArgsConstructor
@@ -32,6 +36,11 @@ public class ArtworkController {
     public ResponseEntity<Page<ArtworkDetailsDTO>> searchArtworks(
             @ModelAttribute @Valid ArtworkSearchCriteria criteria,
             @PageableDefault(size = 20) Pageable pageable) {
+
+        if (!criteria.getSortField().equals("relevance")) {
+            Sort sort = Sort.by(criteria.getSortDirection(), mapSortField(criteria.getSortField()));
+            pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+        }
 
         Page<ArtworkDetails> artworkPage = artworkService.searchArtworks(criteria, pageable);
         Page<ArtworkDetailsDTO> dtoPage = artworkPage.map(ArtworkDetailsDTO::fromArtworkDetails);
