@@ -17,9 +17,8 @@ public class TourDTO {
     private String name;
     private String description;
     private List<TourStopDTO> stops;
-    private MuseumDTO museum;  // Instead of just museumName
+    private MuseumDTO museum;
     private Tour.TourTheme theme;
-    private Integer estimatedDuration;
     private Tour.TourDifficulty difficulty;
 
     public static TourDTO fromEntity(Tour tour) {
@@ -29,12 +28,9 @@ public class TourDTO {
         dto.name = tour.getName();
         dto.description = tour.getDescription();
         dto.museum = MuseumDTO.fromEntity(tour.getMuseum());
-        dto.theme = tour.getTheme();
-        dto.estimatedDuration = tour.getEstimatedDuration();
+        dto.theme = tour.getTheme();;
         dto.difficulty = tour.getDifficulty();
-        // Sort stops by sequence number before converting
-        dto.stops = tour.getStops().stream()
-                .sorted(Comparator.comparing(TourStop::getSequenceNumber))
+        dto.stops = tour.getOrderedStops().stream()
                 .map(TourStopDTO::fromEntity)
                 .collect(Collectors.toList());
         return dto;
