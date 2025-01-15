@@ -102,11 +102,6 @@
 									{stop.description}
 								</p>
 
-								{#if stop.recommendedDuration}
-									<div class="text-sm text-gray-500">
-										Recommended viewing time: {stop.recommendedDuration} minutes
-									</div>
-								{/if}
 							</CardContent>
 						</Card>
 					</div>
