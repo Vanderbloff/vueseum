@@ -15,7 +15,6 @@ export interface Museum {
 	name: string;
 }
 
-
 export interface Artwork {
 	id: number;
 	externalId: string;
@@ -26,6 +25,7 @@ export interface Artwork {
 	fullAttribution: string;
 	isConfidentAttribution: boolean;
 	medium?: string;
+	classification?: string;
 	culture?: string;
 	imageUrl?: string;
 	description?: string | null;
@@ -37,12 +37,6 @@ export interface Artwork {
 	museum: Museum | null;
 	tags: string[];
 }
-
-export interface ArtworkSort {
-	field: 'relevance' | 'title' | 'artist' | 'date';
-	direction: 'asc' | 'desc';
-}
-
 export interface PaginatedResponse<T> {
 	content: T[];
 	totalElements: number;
