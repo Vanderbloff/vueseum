@@ -8,6 +8,7 @@ import com.mvp.vueseum.entity.Museum;
 import com.mvp.vueseum.entity.Tour;
 import com.mvp.vueseum.service.cultural.CulturalMapping;
 import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
@@ -45,18 +46,31 @@ public class ArtworkSpecifications {
             }
 
             // Handle geographic and cultural relationships
-            if (criteria.getGeographicLocation() != null) {
-                String location = criteria.getGeographicLocation();
-                Set<String> relatedCultures = CulturalMapping
-                        .getCountriesForCulture(location, true);
+            if (criteria.getCulture() != null) {
+                // Direct culture match takes priority
+                predicates.add(cb.equal(
+                        cb.lower(root.get("culture")),
+                        criteria.getCulture().toLowerCase()
+                ));
+            } else if (criteria.getGeographicLocation() != null) {
+                // If no direct culture specified, use geographic location with mapping
+                List<String> cultures = CulturalMapping
+                        .getCulturesForRegion(criteria.getGeographicLocation());
 
-                // Create predicates for both direct and related matches
-                Predicate culturePredicate = cb.or(
-                        cb.equal(root.get("culture"), location),
-                        root.get("culture").in(relatedCultures),
-                        cb.equal(root.get("geographicLocation"), location)
-                );
-                predicates.add(culturePredicate);
+                predicates.add(cb.or(
+                        // Direct geographic location match
+                        cb.equal(
+                                cb.lower(root.get("culture")),
+                                criteria.getGeographicLocation().toLowerCase()
+                        ),
+                        // Related cultures from mapping
+                        root.get("culture").in(cultures)
+                ));
+            }
+
+            if (criteria.getSortField() != null &&
+                    criteria.getSortField().equals("artist")) {
+                root.fetch("artist", JoinType.LEFT);
             }
 
             // Handle display status
@@ -191,10 +205,6 @@ public class ArtworkSpecifications {
         }
 
         return spec;
-    }
-
-    public static Specification<Artwork> forReturningVisitor() {
-        return (_, _, cb) -> cb.isTrue(cb.literal(true));  // Always return true for now
     }
 
     /**
