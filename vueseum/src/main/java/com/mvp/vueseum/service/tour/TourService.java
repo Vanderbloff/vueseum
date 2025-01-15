@@ -19,6 +19,10 @@ import com.mvp.vueseum.service.visitor.DeviceFingerprintService;
 import com.mvp.vueseum.service.visitor.VisitorTrackingService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -62,8 +66,7 @@ public class TourService {
 
         progressListener.updateProgress(requestId, 0.2, "Selecting artworks...");
         List<Artwork> selectedArtworks = selectArtworks(
-                request.getPreferences(),
-                visitorTrackingService.isReturningVisitor(request.getVisitorId())
+                request.getPreferences()
         );
 
         progressListener.updateProgress(requestId, 0.6, "Filling in descriptions...");
@@ -71,13 +74,19 @@ public class TourService {
         return createTour(selectedArtworks, description, request.getPreferences(), requestId, deviceFingerprint);
     }
 
+    @Transactional(readOnly = true)
+    public Page<Tour> getTourPage(Pageable pageable) {
+        Pageable allContent = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "createdAt"));
+        return tourRepository.findByDeletedFalse(allContent);
+    }
+
     /**
      * Selects artworks for the tour using a scoring-based approach.
      * This method handles both required artworks and scored selection.
      */
-    private List<Artwork> selectArtworks(TourPreferences prefs, boolean isReturningVisitor) {
+    private List<Artwork> selectArtworks(TourPreferences prefs) {
         // Get initial candidate pool
-        List<Artwork> candidates = new ArrayList<>(artworkService.findArtworkCandidates(prefs, isReturningVisitor));
+        List<Artwork> candidates = new ArrayList<>(artworkService.findArtworkCandidates(prefs));
         List<Artwork> selectedArtworks = new ArrayList<>();
 
         // First, handle required artworks
@@ -200,12 +209,6 @@ public class TourService {
                     }
                     return tourRepository.save(tour);
                 });
-    }
-
-    @Transactional
-    public void cancelGeneration(String requestId) {
-        // Mark generation as cancelled in progress tracking
-        progressListener.updateProgress(requestId, 1.0, "Tour generation cancelled");
     }
 
     @Transactional
