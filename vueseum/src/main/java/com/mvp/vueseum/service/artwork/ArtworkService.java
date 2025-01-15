@@ -175,7 +175,14 @@ public class ArtworkService {
 
 
     public Page<ArtworkDetails> searchArtworks(ArtworkSearchCriteria criteria, Pageable pageable) {
-        Page<Artwork> localResults = artworkRepository.findAll(ArtworkSpecifications.withSearchCriteria(criteria), pageable);
+        if (criteria.getSortField().equals("relevance")) {
+            pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+        }
+
+        Page<Artwork> localResults = artworkRepository.findAll(
+                ArtworkSpecifications.withSearchCriteria(criteria),
+                pageable
+        );
 
         return new PageImpl<>(
                 localResults.getContent().stream()
@@ -192,10 +199,9 @@ public class ArtworkService {
      * pool of artworks that meet basic requirements before scoring and selection.
      *
      * @param preferences User's tour preferences including required artworks and filters
-     * @param isReturningVisitor Whether this is a returning visitor (affects artwork selection)
      * @return List of artwork candidates that meet basic criteria
      */
-    public List<Artwork> findArtworkCandidates(TourPreferences preferences, boolean isReturningVisitor) {
+    public List<Artwork> findArtworkCandidates(TourPreferences preferences) {
         Specification<Artwork> spec = Objects.requireNonNull(
                 ArtworkSpecifications.getThemeSpecificPreFilter(
                         preferences.getTheme(),
@@ -211,13 +217,8 @@ public class ArtworkService {
                     ArtworkSpecifications.forTourPreferences(preferences));
         }
 
-        // Add returning visitor criteria if needed
-        if (isReturningVisitor) {
-            spec = spec.and(ArtworkSpecifications.forReturningVisitor());
-        }
-
         // Add display status requirement - artwork must be on display
-        spec = spec.and((root, query, cb) -> cb.isTrue(root.get("isOnDisplay")));
+        spec = spec.and((root, _, cb) -> cb.isTrue(root.get("isOnDisplay")));
 
         // First, get required artworks if any exist
         List<Artwork> candidates = new ArrayList<>();
