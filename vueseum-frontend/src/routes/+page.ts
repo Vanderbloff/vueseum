@@ -1,44 +1,50 @@
+// src/routes/+page.ts
+import { artworkApi } from '$lib/api/artwork';
 import { getMockPaginatedTours } from '$lib/mocks/TourData';
 import type { Load } from '@sveltejs/kit';
-
-// Helper function to simulate API call with delay
-async function mockApiCall<T>(getData: () => T, delay: number): Promise<T> {
-	await new Promise(resolve => setTimeout(resolve, delay));
-	return getData();
-}
+import { error } from '@sveltejs/kit';
+import { ArtworkUtils } from '$lib/utils/artwork/artworkUtils';
 
 export const load: Load = async ({ url }) => {
 	const artworkPage = Number(url.searchParams.get('artworkPage')) || 0;
 	const tourPage = Number(url.searchParams.get('tourPage')) || 0;
 	const initialTab = url.searchParams.get('tab') || 'artworks';
 
-	// Only load tours data initially
-	const artworks = await mockApiCall(() => getMockPaginatedTours(artworkPage), 1500)
-	const tours = await mockApiCall(() => getMockPaginatedTours(tourPage), 1000);
+	try {
+		// Create and await both promises
+		const artworksPromise = initialTab === 'artworks'
+			? await artworkApi.searchArtworks(
+				ArtworkUtils.getDefaultFilters(),
+				artworkPage
+			)
+			: null;
 
-	return {
-		artworks,
-		tours,
-		initialTab
-	};
+		const toursPromise = getMockPaginatedTours(tourPage);
+
+		// Wait for both promises to resolve
+		const [artworks, tours] = await Promise.all([
+			artworksPromise,
+			toursPromise
+		]);
+
+		return {
+			artworks,
+			tours,
+			initialTab
+		};
+	} catch (e) {
+		// Log the error for debugging
+		console.error('Error loading initial data:', e);
+
+		// Throw appropriate error
+		if (e instanceof Error) {
+			throw error(500, {
+				message: 'Failed to load initial data'
+			});
+		}
+
+		throw error(500, {
+			message: 'An unexpected error occurred'
+		});
+	}
 };
-
-
-/*
-export const load: Load = async ({ url }) => {
-	// Get page parameters for both tours and artworks
-	// Each tab can maintain its own pagination state
-	const tourPage = Number(url.searchParams.get('tourPage')) || 0;
-	const artworkPage = Number(url.searchParams.get('artworkPage')) || 0;
-	const initialTab = url.searchParams.get('tab') || 'artworks';
-
-
-	// Simulate API delay (in real app, these would be parallel API calls)
-	await new Promise(resolve => setTimeout(resolve, 1000));
-
-	return {
-		tours: getMockPaginatedTours(tourPage),
-		artworks: getMockPaginatedArtworks(artworkPage),
-		initialTab: initialTab
-	};
-};*/
