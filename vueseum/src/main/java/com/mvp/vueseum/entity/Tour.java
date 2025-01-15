@@ -10,11 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Entity
 @Getter
@@ -32,9 +29,6 @@ public class Tour extends baseEntity {
 
     @Column(columnDefinition = "TEXT")
     private String description;
-
-    // Estimated duration in minutes
-    private Integer estimatedDuration;
 
     // The difficulty level of the tour (e.g., easy, moderate, challenging)
     @Enumerated(EnumType.STRING)
@@ -92,11 +86,33 @@ public class Tour extends baseEntity {
 
     // Helper method to add a stop to the tour
     public void addStop(Artwork artwork, Integer sequenceNumber) {
+        if (sequenceNumber < 0) {
+            throw new IllegalArgumentException("Sequence number must be non-negative");
+        }
+
         TourStop stop = new TourStop();
         stop.setTour(this);
         stop.setArtwork(artwork);
         stop.setSequenceNumber(sequenceNumber);
         stops.add(stop);
+
+        // Convert to List for sorting
+        List<TourStop> sortedStops = new ArrayList<>(stops);
+        sortedStops.sort(Comparator.comparing(TourStop::getSequenceNumber));
+
+        for (int i = 0; i < sortedStops.size(); i++) {
+            sortedStops.get(i).setSequenceNumber(i);
+        }
+
+        // Clear and add back in sorted order
+        stops.clear();
+        stops.addAll(sortedStops);
+    }
+
+    public List<TourStop> getOrderedStops() {
+        return stops.stream()
+                .sorted(Comparator.comparing(TourStop::getSequenceNumber))
+                .collect(Collectors.toList());
     }
 
     public void generateDescriptionsForAllStops(DescriptionGenerationService descriptionGenerationService) {
@@ -121,43 +137,5 @@ public class Tour extends baseEntity {
                 stop.setTourContextDescription("Description temporarily unavailable");
             }
         }
-    }
-
-    // Calculate total duration based on stops and walking time
-    public Duration calculateEstimatedDuration() {
-        int totalMinutes = 0;
-        TourStop previousStop = null;
-
-        for (TourStop currentStop : stops) {
-            // Base viewing time per artwork
-            totalMinutes += currentStop.getRecommendedDuration();
-
-            if (previousStop != null) {
-                // Simple transition time based on general location
-                totalMinutes += estimateTransitionTime(previousStop, currentStop);
-            }
-
-            previousStop = currentStop;
-        }
-
-        // Add buffer time for orientation, breaks, etc.
-        totalMinutes += (int)(totalMinutes * 0.2); // 20% buffer
-
-        return Duration.ofMinutes(totalMinutes);
-    }
-
-    private int estimateTransitionTime(TourStop from, TourStop to) {
-        // If we have gallery numbers, we can do basic comparison
-        String fromGallery = from.getArtwork().getGalleryNumber();
-        String toGallery = to.getArtwork().getGalleryNumber();
-
-        if (fromGallery != null && toGallery != null) {
-            if (fromGallery.equals(toGallery)) {
-                return 1; // Same gallery
-            }
-        }
-
-        // Default transition time when we don't have detailed information
-        return 3; // Conservative estimate
     }
 }
