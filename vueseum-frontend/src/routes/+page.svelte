@@ -6,9 +6,8 @@
 	import ArtworkModal from '$lib/components/homepage/artwork/ArtworkModal.svelte';
 	import TourList from '$lib/components/tour/TourList.svelte';
 	import { getMockPaginatedTours } from '$lib/mocks/TourData';
-	import type { Artwork, PaginatedResponse } from '$lib/types/artwork';
+	import type { Artwork, PaginatedResponse, StandardPeriod } from '$lib/types/artwork';
 	import { goto } from '$app/navigation';
-	import { getMockPaginatedArtworks } from '$lib/mocks/ArtworkData';
 	import {
 		Pagination,
 		PaginationContent,
@@ -21,6 +20,8 @@
 	import ErrorDisplay from '$lib/components/homepage/artwork/ErrorDisplay.svelte';
 	import SortControls from '$lib/components/homepage/artwork/SortControls.svelte';
 	import GridSkeleton from '$lib/components/shared/GridSkeleton.svelte';
+	import { artworkApi } from '$lib/api/artwork';
+	import { ArtworkUtils } from '$lib/utils/artwork/artworkUtils';
 
 	let { data } = $props();
 
@@ -40,9 +41,10 @@
 				searchTerm: [] as string[],
 				searchField: 'all' as 'all' | 'title' | 'artist' | 'culture',
 				objectType: [] as string[],
-				culturalRegion: [] as string[],
-				era: [] as string[],
-				department: [] as string[],
+				materials: [] as string[],
+				geographicLocation: [] as string[],
+				culture: [] as string[],
+				era: [] as StandardPeriod[],
 				onDisplay: false,
 				hasImage: true
 			},
@@ -53,35 +55,67 @@
 		}
 	});
 
-	async function handlePageChange(page: number) {
-		state.artworksLoading = true;
-		state.error = null;
-		state.currentPage = page;
-
+	async function handlePageChange(newPage: number) {
 		try {
-			const newData = getMockPaginatedArtworks(
-				page - 1,
+			state.artworksLoading = true;
+			state.error = null;
+
+			// Get all results if we're sorting
+			const isSorting = state.currentFilters.sort.field !== 'relevance';
+			let allResults = await artworkApi.searchArtworks(
 				state.currentFilters.filters,
-				state.pageSize,
-				state.currentFilters.sort
+				isSorting ? 0 : newPage - 1,  // If sorting, get all results
+				isSorting ? 999 : state.pageSize
 			);
 
-			if (newData.content.length === 0) {
-				state.error = {
-					type: 'search',
-					message: 'No artworks found for the current page',
-					retryFn: () => handlePageChange(1) // Reset to first page as recovery
-				};
-				return;
+			if (!allResults || !allResults.content) {
+				throw new Error('Invalid response data');
 			}
 
-			state.artworksData = newData;
+			// Apply sorting if needed
+			if (isSorting) {
+				allResults.content = ArtworkUtils.sortArtworks(
+					allResults.content,
+					state.currentFilters.sort.field,
+					state.currentFilters.sort.direction
+				);
+
+				// Manual pagination after sorting
+				const startIndex = (newPage - 1) * state.pageSize;
+				const paginatedContent = allResults.content.slice(
+					startIndex,
+					startIndex + state.pageSize
+				);
+
+				// Handle empty results with context
+				if (paginatedContent.length === 0) {
+					state.error = {
+						type: 'search',
+						message: newPage > 1
+							? 'This page does not exist. Try returning to the first page.'
+							: 'No artworks found matching your criteria. Try adjusting your filters.',
+						retryFn: newPage > 1
+							? () => handlePageChange(1)
+							: undefined
+					};
+					return;
+				}
+
+				allResults = {
+					...allResults,
+					content: paginatedContent,
+					totalElements: allResults.content.length,
+					totalPages: Math.ceil(allResults.content.length / state.pageSize)
+				};
+			}
+
+			state.artworksData = allResults;
+			state.currentPage = newPage;
 		} catch (error) {
-			console.error('Error fetching artworks:', error);
 			state.error = {
 				type: 'pagination',
-				message: 'Failed to load the requested page. Please try again.',
-				retryFn: () => handlePageChange(page)
+				message: 'An error occurred while loading the page. Please try again.',
+				retryFn: () => handlePageChange(newPage)
 			};
 		} finally {
 			state.artworksLoading = false;
@@ -135,42 +169,34 @@
 								state.currentFilters.filters = filters;
 								state.currentPage = 1;
 
-								setTimeout(async () => {
-										try {
-												const results = getMockPaginatedArtworks(
-														0,
-														filters,
-														state.pageSize,
-														state.currentFilters.sort
-												);
-
-												if (results.totalElements === 0) {
-														state.error = {
-																type: 'search',
-																message: 'No artworks match your search criteria. Try adjusting your filters.'
-														};
-														return;
-												}
-
-												state.artworksData = results;
-
-										} catch (error) {
-												console.error('Error performing search:', error);
+								artworkApi.searchArtworks(
+										state.currentFilters.filters,
+										0,  // first page
+										state.pageSize
+								).then(results => {
+										if (results.totalElements === 0) {
 												state.error = {
 														type: 'search',
-														message: 'An error occurred while searching. Please try again.',
-														retryFn: () => {
-																state.artworksLoading = true;
-																state.error = null;
-																state.currentPage = 1;
-																getMockPaginatedArtworks(0, filters, state.pageSize, state.currentFilters.sort);
-																state.artworksLoading = false;
-														}
+														message: 'No artworks match your search criteria. Try adjusting your filters.'
 												};
-										} finally {
-												state.artworksLoading = false;
+												return;
 										}
-								}, 1500);
+										state.artworksData = results;
+								}).catch(error => {
+										console.error('Error performing search:', error);
+										state.error = {
+												type: 'search',
+												message: 'An error occurred while searching. Please try again.',
+												retryFn: () => {
+														state.artworksLoading = true;
+														state.error = null;
+														state.currentPage = 1;
+														artworkApi.searchArtworks(filters, 0, state.pageSize);
+												}
+										};
+								}).finally(() => {
+										state.artworksLoading = false;
+								});
 						}}
 							>
 							<SortControls
