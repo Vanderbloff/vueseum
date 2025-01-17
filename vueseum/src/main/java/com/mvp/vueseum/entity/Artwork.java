@@ -41,6 +41,18 @@ public class Artwork extends baseEntity {
 
     private String culture;
 
+    @Column(name = "country")
+    private String country;
+
+    @Column(name = "region")
+    private String region;
+
+    @Column(name = "sub_region")
+    private String subRegion;
+
+    @Column(name = "geography_type")
+    private String geographyType;
+
     @Column(name = "image_url")
     private String imageUrl;
 
