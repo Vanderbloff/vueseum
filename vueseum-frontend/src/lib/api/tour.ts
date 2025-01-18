@@ -1,6 +1,9 @@
 // src/lib/api/tour.ts
 import { API_BASE_URL } from '../config';
 import { ApiError, BaseApiClient } from '$lib/api/base';
+import type { Artwork, PaginatedResponse } from '$lib/types/artwork';
+import type { Tour } from '$lib/types/tour';
+import { goto } from '$app/navigation';
 
 interface TourPreferences {
 	museumId: number;
@@ -14,48 +17,135 @@ interface TourPreferences {
 	preferredPeriods: string[];
 }
 
-interface TourGenerationResponse {
-	requestId: string;
-}
-
 export class TourApiClient extends BaseApiClient {
 	private readonly baseUrl = `${API_BASE_URL}/tours`;
 
-	async generateTour(visitorId: string, preferences: TourPreferences) {
+	async getTours(page: number = 0, size: number = 10): Promise<PaginatedResponse<Tour>> {
 		if (import.meta.env.DEV) {
-			// Create a new tour in JSON Server
-			const newTour = {
-				id: Date.now(), // Generate a unique ID
-				name: "Generated Tour",
-				description: "Auto-generated tour based on preferences",
-				theme: preferences.theme,
-				museum: {
-					id: preferences.museumId,
-					name: preferences.museumId === 1 ? "Metropolitan Museum of Art" : "Louvre Museum"
-				},
-				stops: []
-			};
+			// Check if we're in a browser environment
+			if (typeof window !== 'undefined') {
+				// Get tours from localStorage
+				const storedTours = JSON.parse(localStorage.getItem('devTours') || '[]');
 
-			const response = await this.fetchWithError<TourGenerationResponse>(
-				`${this.baseUrl}`,
-				{
-					method: 'POST',
-					body: JSON.stringify(newTour)
-				}
-			);
+				const start = page * size;
+				const end = start + size;
+				const paginatedTours = storedTours.slice(start, end);
 
-			// Return mock generation response
+				return {
+					content: paginatedTours,
+					totalElements: storedTours.length,
+					totalPages: Math.ceil(storedTours.length / size),
+					size: size,
+					number: page
+				};
+			}
+
+			// Return empty response for SSR
 			return {
-				requestId: response.toString()
+				content: [],
+				totalElements: 0,
+				totalPages: 0,
+				size: size,
+				number: page
 			};
+		}
+		return this.fetchWithError<PaginatedResponse<Tour>>(
+			`${this.baseUrl}?page=${page}&size=${size}`
+		);
+	}
+
+	async getTourById(id: number): Promise<Tour> {
+		if (import.meta.env.DEV) {
+			if (typeof window !== 'undefined') {
+				const storedTours = JSON.parse(localStorage.getItem('devTours') || '[]');
+				const tour = storedTours.find((t: Tour) => t.id === id);
+				if (!tour) {
+					throw new Error('Tour not found');
+				}
+				return tour;
+			}
+			throw new Error('Tour not found');
+		}
+		const response = await this.fetchWithError<Tour>(`${this.baseUrl}/${id}`);
+		if (!response) {
+			throw new Error('Tour not found');
+		}
+		return response;
+	}
+
+	async deleteTour(id: number): Promise<void> {
+		if (import.meta.env.DEV) {
+			if (typeof window !== 'undefined') {
+				const storedTours = JSON.parse(localStorage.getItem('devTours') || '[]');
+				const updatedTours = storedTours.filter((t: Tour) => t.id !== id);
+				localStorage.setItem('devTours', JSON.stringify(updatedTours));
+				return;
+			}
+			throw new Error('Tour not found');
+		}
+		await this.fetchWithError(
+			`${this.baseUrl}/${id}`,
+			{ method: 'DELETE' }
+		);
+	}
+	async updateTour(
+		id: number,
+		updates: { name?: string; description?: string }
+	): Promise<Tour> {
+		if (import.meta.env.DEV) {
+			if (typeof window !== 'undefined') {
+				const storedTours = JSON.parse(localStorage.getItem('devTours') || '[]');
+				const tourIndex = storedTours.findIndex((t: Tour) => t.id === id);
+
+				if (tourIndex === -1) {
+					throw new Error('Tour not found');
+				}
+
+				const updatedTour = {
+					...storedTours[tourIndex],
+					...updates
+				};
+
+				storedTours[tourIndex] = updatedTour;
+				localStorage.setItem('devTours', JSON.stringify(storedTours));
+
+				return updatedTour;
+			}
+			throw new Error('Tour not found');
+		}
+		return this.fetchWithError<Tour>(
+			`${this.baseUrl}/${id}`,
+			{
+				method: 'PATCH',
+				body: JSON.stringify(updates)
+			}
+		);
+	}
+
+	async generateTour(visitorId: string, preferences: TourPreferences): Promise<Tour> {
+		if (import.meta.env.DEV) {
+			return this.generateDevTour(preferences);
 		}
 
 		try {
-			return await this.fetchWithError<TourGenerationResponse>(
+			return await this.fetchWithError<Tour>(
 				`${this.baseUrl}/generate`,
 				{
 					method: 'POST',
-					body: JSON.stringify({ visitorId, preferences })
+					body: JSON.stringify({
+						visitorId,
+						preferences: {
+							museumId: preferences.museumId,
+							theme: preferences.theme,
+							maxStops: preferences.maxStops,
+							minStops: preferences.minStops,
+							requiredArtworkIds: preferences.preferredArtworks,
+							preferredArtistIds: preferences.preferredArtists,
+							preferredMediums: preferences.preferredMediums,
+							preferredCultures: preferences.preferredCultures,
+							preferredPeriods: preferences.preferredPeriods
+						}
+					})
 				}
 			);
 		} catch (error) {
@@ -64,101 +154,117 @@ export class TourApiClient extends BaseApiClient {
 					throw new Error('TOTAL_LIMIT');
 				} else if (error.status === 429) {
 					throw new Error('DAILY_LIMIT');
+				} else if (error.status === 400) {
+					throw new Error('INVALID_REQUEST');
 				}
 			}
 			throw error;
 		}
 	}
 
-	async getTourProgress(requestId: string): Promise<{
-		progress: number;
-		currentTask: string;
-		hasError: boolean;
-		errorMessage?: string;
-	}> {
-		if (import.meta.env.DEV) {
-			// Simulate progress
-			return {
-				progress: 1, // Always return complete for development
-				currentTask: "Tour generated",
-				hasError: false
-			};
+	private async generateDevTour(preferences: TourPreferences): Promise<Tour> {
+		// Simulate network delay
+		await new Promise(resolve => setTimeout(resolve, 1000));
+
+		// Check limits using localStorage
+		const totalTours = parseInt(localStorage.getItem('devTotalTours') || '0');
+		const dailyTours = parseInt(localStorage.getItem('devDailyTours') || '0');
+
+		if (totalTours >= 10) {
+			throw new Error('TOTAL_LIMIT');
+		}
+		if (dailyTours >= 3) {
+			throw new Error('DAILY_LIMIT');
 		}
 
-		return this.fetchWithError(
-			`${this.baseUrl}/generation/${requestId}/status`
+		// Get artworks for the selected museum
+		const response = await fetch(`${API_BASE_URL}/artworks`);
+		const allArtworks = await response.json();
+		const museumArtworks = allArtworks.filter(
+            (a: { museum: { id: number; }; }) => a.museum.id === preferences.museumId
 		);
-	}
 
-	async monitorTourProgress(
-		requestId: string,
-		onProgress: (progress: number, task: string) => void
-	): Promise<void> {
-		const progressTimeout = new ProgressTimeout(() => {
-			throw new Error('Tour generation appears to be stuck. No progress updates received.');
-		});
+		// Select artworks based on preferences
+		const selectedArtworks = this.selectArtworksForDevTour(
+			museumArtworks,
+			preferences
+		);
 
-		try {
-			progressTimeout.start();
+		// Update limits
+		localStorage.setItem('devTotalTours', (totalTours + 1).toString());
+		localStorage.setItem('devDailyTours', (dailyTours + 1).toString());
 
-			while (true) {
-				const status = await this.getTourProgress(requestId);
-				progressTimeout.updateProgress(); // Reset timeout on any status update
+		const tourId = parseInt(localStorage.getItem('devTourCounter') || '0') + 1;
+		localStorage.setItem('devTourCounter', tourId.toString());
 
-				onProgress(status.progress, status.currentTask);
+		// Create tour response
+		const newTour = {
+			id: tourId,
+			name: `${preferences.theme} Tour`,
+			description: 'A personalized tour based on your preferences.',
+			stops: selectedArtworks.map((artwork, index) => ({
+				id: index + 1,
+				sequenceNumber: index + 1,
+				artwork: {
+					id: artwork.id,
+					title: artwork.title,
+					artist: artwork.artist,
+					artistPrefix: artwork.artistPrefix,
+					artistRole: artwork.artistRole,
+					fullAttribution: artwork.fullAttribution,
+					medium: artwork.medium,
+					classification: artwork.classification,
+					country: artwork.country,
+					region: artwork.region,
+					culture: artwork.culture,
+					imageUrl: artwork.imageUrl,
+					description: artwork.description,
+					galleryNumber: artwork.galleryNumber,
+					department: artwork.department,
+					creationDate: artwork.creationDate,
+					isOnDisplay: artwork.isOnDisplay
+				},
+				tourContextDescription: `${artwork.description}`,
+				isRequired: index < preferences.minStops
+			})),
+			museum: {
+				id: preferences.museumId,
+				name: museumArtworks[0]?.museum.name || 'Metropolitan Museum of Art'
+			},
+			theme: preferences.theme
+		};
 
-				if (status.hasError) {
-					throw new Error(status.errorMessage || 'Tour generation failed');
-				}
-
-				if (status.progress >= 1) {
-					break;
-				}
-
-				// Wait before next check
-				await new Promise(resolve => setTimeout(resolve, 1000));
-			}
-		} finally {
-			progressTimeout.stop();
-		}
-	}
-}
-
-class ProgressTimeout {
-	private lastProgressUpdate: number;
-	private timeoutId: number | null = null;
-
-	constructor(
-		private readonly onTimeout: () => void,
-		private readonly maxStaleTime: number = 30000
-	) {
-		this.lastProgressUpdate = Date.now();
-	}
-
-	updateProgress() {
-		this.lastProgressUpdate = Date.now();
-	}
-
-	start() {
-		this.check();
-	}
-
-	private check() {
-		const timeSinceUpdate = Date.now() - this.lastProgressUpdate;
-
-		if (timeSinceUpdate > this.maxStaleTime) {
-			this.onTimeout();
-			return;
+		if (typeof window !== 'undefined') {
+			// Save to localStorage
+			const existingTours = JSON.parse(localStorage.getItem('devTours') || '[]');
+			localStorage.setItem('devTours', JSON.stringify([...existingTours, newTour]));
 		}
 
-		this.timeoutId = window.setTimeout(() => this.check(), 5000);
+		await goto(`/tours/${newTour.id}`);
+		return newTour;
 	}
 
-	stop() {
-		if (this.timeoutId !== null) {
-			window.clearTimeout(this.timeoutId);
-			this.timeoutId = null;
+	private selectArtworksForDevTour(artworks: Artwork[], preferences: TourPreferences) {
+		const selected: Artwork[] = [];
+
+		// First, add preferred artworks if they exist
+		if (preferences.preferredArtworks.length > 0) {
+			const preferred = artworks.filter(
+				a => preferences.preferredArtworks.includes(a.id.toString())
+			);
+			selected.push(...preferred);
 		}
+
+		// Then fill remaining slots randomly
+		while (selected.length < preferences.maxStops) {
+			const remaining = artworks.filter(a => !selected.includes(a));
+			if (remaining.length === 0) break;
+
+			const randomIndex = Math.floor(Math.random() * remaining.length);
+			selected.push(remaining[randomIndex]);
+		}
+
+		return selected;
 	}
 }
 
