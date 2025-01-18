@@ -162,34 +162,44 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                     .externalId(rootNode.path("objectID").asText())
                     .title(rootNode.path("title").asText())
 
-                    .artistName(rootNode.path("artistDisplayName").asText())
+                    // Artist information
+                    .artistName(rootNode.path("artistDisplayName").asText())  // Remove duplicate
                     .artistNationality(rootNode.path("artistNationality").asText())
                     .artistBirthYear(rootNode.path("artistBeginDate").asText())
                     .artistDeathYear(rootNode.path("artistEndDate").asText())
-                    .artistName(rootNode.path("artistDisplayName").asText())
                     .artistPrefix(rootNode.path("artistPrefix").asText())
                     .artistRole(rootNode.path("artistRole").asText())
 
+                    // Artwork specifics
                     .medium(rootNode.path("medium").asText())
                     .artworkType(rootNode.path("objectName").asText())
                     .dimensions(rootNode.path("dimensions").asText())
 
+                    // Museum location
                     .department(rootNode.path("department").asText())
                     .isOnView(isOnDisplay)
-                    .currentLocation(rootNode.path("country").asText())
                     .galleryNumber(galleryNumber)
 
-                    .tags(rootNode.findValuesAsText("tags"))
-                    .creditLine(rootNode.path("creditLine").asText())
+                    // Geographic details - Met-specific richness
+                    .country(rootNode.path("country").asText())
+                    .region(rootNode.path("region").asText())
+                    .subRegion(rootNode.path("subRegion").asText())
+                    .geographyType(rootNode.path("geographyType").asText())
 
+                    // Cultural and contextual information
                     .culture(rootNode.path("culture").asText())
                     .period(rootNode.path("period").asText())
 
+                    // Images and metadata
                     .primaryImageUrl(rootNode.path("primaryImage").asText())
                     .additionalImageUrls(rootNode.findValuesAsText("additionalImageUrls"))
+                    .tags(rootNode.findValuesAsText("tags"))
+                    .creditLine(rootNode.path("creditLine").asText())
 
+                    // Dates and rights
                     .creationYear(rootNode.path("objectDate").asText())
                     .acquisitionDate(rootNode.path("accessionYear").asText())
+                    .copyrightStatus(rootNode.path("rightsAndReproduction").asText())  // Added this
                     .build();
         } catch (JsonProcessingException e) {
             throw new ApiClientException("Failed to parse response from Met Museum API", e);
