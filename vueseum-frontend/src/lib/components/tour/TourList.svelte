@@ -3,6 +3,7 @@
 	import type { Tour, PaginatedResponse } from '$lib/types/tour';
 	import { Button } from "$lib/components/ui/button";
 	import GridSkeleton from '$lib/components/shared/GridSkeleton.svelte';
+	import { tourApi } from '$lib/api/tour';
 
 	let { initialData } = $props<{
 		initialData: PaginatedResponse<Tour>;
@@ -21,12 +22,8 @@
 		state.error = null;
 
 		try {
-			const response = await fetch('/api/v1/tours');
-			if (!response.ok) {
-				throw new Error('Failed to load tours');
-			}
-			const data = await response.json();
-			state.tours = data.content;
+			const response = await tourApi.getTours();
+			state.tours = response.content;
 		} catch (e) {
 			state.error = e instanceof Error ? e.message : 'An error occurred';
 			state.tours = [];
@@ -37,14 +34,7 @@
 
 	async function handleDelete(tourId: number) {
 		try {
-			const response = await fetch(`/api/v1/tours/${tourId}`, {
-				method: 'DELETE'
-			});
-
-			if (!response.ok) {
-				throw new Error('Failed to delete tour');
-			}
-
+			await tourApi.deleteTour(tourId);
 			// Remove from local state
 			state.tours = state.tours.filter((tour: Tour) => tour.id !== tourId);
 		} catch (error) {
@@ -57,19 +47,7 @@
 		state.updatingTourId = tourId;
 
 		try {
-			const response = await fetch(`/api/v1/tours/${tourId}`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(updates)
-			});
-
-			if (!response.ok) {
-				throw new Error('Failed to update tour');
-			}
-
-			const updatedTour = await response.json();
+			const updatedTour = await tourApi.updateTour(tourId, updates);
 
 			// Update local state
 			state.tours = state.tours.map((tour: Tour) =>
