@@ -4,18 +4,20 @@ import com.mvp.vueseum.entity.base.baseEntity;
 import com.mvp.vueseum.exception.AiProviderException;
 import com.mvp.vueseum.service.DescriptionGenerationService;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Entity
 @Getter
 @Setter
+@NoArgsConstructor
 @Slf4j
 @Table(name = "tours",
         indexes = @Index(name = "idx_device_fingerprint", columnList = "device_fingerprint"))
@@ -30,14 +32,13 @@ public class Tour extends baseEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    // The difficulty level of the tour (e.g., easy, moderate, challenging)
-    @Enumerated(EnumType.STRING)
-    private TourDifficulty difficulty = TourDifficulty.MODERATE;
-
     // The tour stops, ordered by sequence
     @OneToMany(mappedBy = "tour", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sequenceNumber ASC")
-    private Set<TourStop> stops = new LinkedHashSet<>();
+    @Getter(AccessLevel.NONE)
+    private Set<TourStop> stops = new TreeSet<>(
+            Comparator.comparing(TourStop::getSequenceNumber)
+    );
 
     // Additional metadata stored as JSON
     @JdbcTypeCode(SqlTypes.JSON)
@@ -49,14 +50,8 @@ public class Tour extends baseEntity {
     @JoinColumn(name = "museum_id", nullable = false)
     private Museum museum;
 
-    public enum TourDifficulty {
-        EASY,        // Minimal walking, suitable for all visitors
-        MODERATE,    // Average walking distance, some stairs
-        CHALLENGING  // Longer distances, multiple floors
-    }
-
     @Column(name = "generation_prompt")
-    private String generationPrompt; // Stores the prompt used to generate the description
+    private String generationPrompt;
 
     @Column(name = "tour_theme")
     @Enumerated(EnumType.STRING)
@@ -66,14 +61,6 @@ public class Tour extends baseEntity {
         CHRONOLOGICAL("Art through the ages", "Experience art's evolution across time"),
         ARTIST_FOCUSED("Featured artist spotlight", "Deep dive into an artist's work"),
         CULTURAL("Cultural perspectives", "Explore art across cultures");
-        // Future Enhancement Consideration: HIGHLIGHTS
-        // A highlights tour could showcase the museum's masterpieces and most significant works
-        // Implementation would use isHighlight field from Met Museum API
-        // Considerations for future implementation:
-        // - Traffic flow management around popular pieces
-        // - Time of day recommendations for viewing
-        // - Integration with crowd density data
-        // - Possible combination with other themes for "Highlight Artists" or "Cultural Highlights"
 
         public final String title;
         public final String description;
@@ -84,35 +71,27 @@ public class Tour extends baseEntity {
         }
     }
 
-    // Helper method to add a stop to the tour
-    public void addStop(Artwork artwork, Integer sequenceNumber) {
-        if (sequenceNumber < 0) {
-            throw new IllegalArgumentException("Sequence number must be non-negative");
-        }
-
-        TourStop stop = new TourStop();
-        stop.setTour(this);
-        stop.setArtwork(artwork);
-        stop.setSequenceNumber(sequenceNumber);
+    /*
+     * TODO: Future Tour Stop Management
+     * The current implementation using TreeSet maintains first-added stops when sequence numbers conflict.
+     * Future functionality will need methods to:
+     * 1. Replace stops - For when users want to modify specific stops
+     * 2. Insert stops - For adding new stops between existing ones
+     * 3. Resequence stops - For reordering tour stops
+     *
+     * Consider implementing:
+     * - replaceStop(Artwork, sequenceNumber)
+     * - insertStop(Artwork, desiredSequence)
+     * - resequenceStops()
+     */
+    public void addStop(Artwork artwork, int sequenceNumber) {
+        TourStop stop = new TourStop(this, artwork, sequenceNumber);
+        stop.validateSequenceNumber(); // Validate before adding to set
         stops.add(stop);
-
-        // Convert to List for sorting
-        List<TourStop> sortedStops = new ArrayList<>(stops);
-        sortedStops.sort(Comparator.comparing(TourStop::getSequenceNumber));
-
-        for (int i = 0; i < sortedStops.size(); i++) {
-            sortedStops.get(i).setSequenceNumber(i);
-        }
-
-        // Clear and add back in sorted order
-        stops.clear();
-        stops.addAll(sortedStops);
     }
 
-    public List<TourStop> getOrderedStops() {
-        return stops.stream()
-                .sorted(Comparator.comparing(TourStop::getSequenceNumber))
-                .collect(Collectors.toList());
+    public List<TourStop> getStops() {
+        return new ArrayList<>(stops);
     }
 
     public void generateDescriptionsForAllStops(DescriptionGenerationService descriptionGenerationService) {
@@ -121,10 +100,10 @@ public class Tour extends baseEntity {
                 stop.setTourContextDescription(
                         descriptionGenerationService.generateStopDescription(stop)
                 );
-                if (stop.getStandardDescription() == null) {
+                if (stop.getStandardDescription() == null || stop.getStandardDescription().isBlank()) {
                     Artwork artwork = stop.getArtwork();
 
-                    if (artwork.getDescription() != null) {
+                    if (artwork.getDescription() != null && !artwork.getDescription().isBlank()) {
                         stop.setStandardDescription(artwork.getDescription());
                     } else {
                         stop.setStandardDescription(descriptionGenerationService.generateArtworkDescription(artwork)
