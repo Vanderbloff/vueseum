@@ -18,15 +18,17 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class TourStopValidationTest {
     private Validator validator;
     private TourStop tourStop;
+    private Tour tour;
+    private Artwork artwork;
 
     @BeforeEach
     void setUp() {
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
-        tourStop = new TourStop();
-        tourStop.setTour(new Tour());
-        tourStop.setArtwork(new Artwork());
-        tourStop.setSequenceNumber(0);
+        tour = new Tour();
+        artwork = new Artwork();
+        // Use constructor instead of setter methods
+        tourStop = new TourStop(tour, artwork, 0);
     }
 
     @Nested
@@ -35,18 +37,19 @@ class TourStopValidationTest {
         @Test
         @DisplayName("should reject negative sequence numbers")
         void negativeSequence() {
-            tourStop.setSequenceNumber(-1);
+            TourStop stop = new TourStop(tour, artwork, -1);
 
-            assertThrows(IllegalStateException.class, () -> {
-                tourStop.validateSequence();
-            });
+            // Validation should happen during persist/update
+            assertThrows(IllegalStateException.class, () ->
+                    stop.validateSequenceNumber()
+            );
         }
 
         @Test
         @DisplayName("should accept zero sequence number")
         void zeroSequence() {
-            tourStop.setSequenceNumber(0);
-            Set<ConstraintViolation<TourStop>> violations = validator.validate(tourStop);
+            TourStop stop = new TourStop(tour, artwork, 0);
+            Set<ConstraintViolation<TourStop>> violations = validator.validate(stop);
             assertThat(violations).isEmpty();
         }
     }

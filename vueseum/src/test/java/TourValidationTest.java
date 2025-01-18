@@ -43,14 +43,33 @@ class TourValidationTest {
             Artwork art2 = new Artwork();
             Artwork art3 = new Artwork();
 
+            // Add stops in random order
             tour.addStop(art2, 1);
             tour.addStop(art3, 2);
             tour.addStop(art1, 0);
 
-            List<TourStop> orderedStops = new ArrayList<>(tour.getStops());
-            assertThat(orderedStops)
+            // Verify TreeSet maintains order
+            List<TourStop> stops = tour.getStops();
+            assertThat(stops)
                     .extracting(TourStop::getSequenceNumber)
                     .containsExactly(0, 1, 2);
+        }
+
+        @Test
+        @DisplayName("should handle duplicate sequence numbers")
+        void duplicateSequenceNumbers() {
+            Artwork art1 = new Artwork();
+            art1.setTitle("First Artwork");
+            Artwork art2 = new Artwork();
+            art2.setTitle("Second Artwork");
+
+            tour.addStop(art1, 1);
+            tour.addStop(art2, 1);
+
+            List<TourStop> stops = tour.getStops();
+            assertThat(stops).hasSize(1);
+            assertThat(stops.getFirst().getArtwork().getTitle())
+                    .isEqualTo("First Artwork");
         }
 
         @Test
@@ -58,28 +77,8 @@ class TourValidationTest {
         void invalidSequenceNumber() {
             Artwork artwork = new Artwork();
             assertThatThrownBy(() -> tour.addStop(artwork, -1))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("Sequence number must be non-negative");
-        }
-
-        @Test
-        @DisplayName("should maintain order after multiple additions")
-        void maintainOrderAfterMultipleAdditions() {
-            Artwork art1 = new Artwork();
-            Artwork art2 = new Artwork();
-            Artwork art3 = new Artwork();
-
-            tour.addStop(art3, 2);
-            tour.addStop(art2, 1);
-            tour.addStop(art1, 0);
-
-            Artwork art4 = new Artwork();
-            tour.addStop(art4, 1);
-
-            List<TourStop> orderedStops = tour.getOrderedStops();
-            assertThat(orderedStops)
-                    .extracting(TourStop::getSequenceNumber)
-                    .containsExactly(0, 1, 2, 3);
         }
     }
 
@@ -99,25 +98,22 @@ class TourValidationTest {
         }
     }
 
-    @Nested
-    @DisplayName("Description Generation Tests")
-    class DescriptionGenerationTests {
-        @Test
-        @DisplayName("should handle AI generation failure gracefully")
-        void aiGenerationFailure() {
-            DescriptionGenerationService failingService = mock(DescriptionGenerationService.class);
-            when(failingService.generateStopDescription(any()))
-                    .thenThrow(new AiProviderException("API error"));
+    @Test
+    @DisplayName("should handle AI generation failure gracefully")
+    void aiGenerationFailure() {
+        DescriptionGenerationService failingService = mock(DescriptionGenerationService.class);
+        when(failingService.generateStopDescription(any()))
+                .thenThrow(new AiProviderException("API error"));
 
-            TourStop stop = new TourStop();
-            stop.setArtwork(new Artwork());
-            stop.setSequenceNumber(0);
-            tour.getStops().add(stop);
+        // Use proper constructor instead of no-args
+        Artwork artwork = new Artwork();
+        tour.addStop(artwork, 0);  // This will create the TourStop properly
 
-            tour.generateDescriptionsForAllStops(failingService);
+        tour.generateDescriptionsForAllStops(failingService);
 
-            assertThat(stop.getTourContextDescription())
-                    .isEqualTo("Description temporarily unavailable");
-        }
+        // Get the first (and only) stop to verify
+        TourStop stop = tour.getStops().getFirst();
+        assertThat(stop.getTourContextDescription())
+                .isEqualTo("Description temporarily unavailable");
     }
 }

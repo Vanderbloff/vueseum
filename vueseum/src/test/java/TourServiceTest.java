@@ -94,7 +94,7 @@ class TourServiceTest {
 
     @Test
     void whenGeneratingTour_thenSuccessful() {
-        when(artworkService.findArtworkCandidates(any(), anyBoolean()))
+        when(artworkService.findArtworkCandidates(any()))
                 .thenReturn(testArtworks);
         when(scoringService.scoreArtwork(any(), any(), any()))
                 .thenReturn(1.0);
@@ -162,7 +162,7 @@ class TourServiceTest {
         request.getPreferences().setRequiredArtworkIds(
                 Set.of(testArtworks.getFirst().getId())
         );
-        when(artworkService.findArtworkCandidates(any(), anyBoolean()))
+        when(artworkService.findArtworkCandidates(any()))
                 .thenReturn(testArtworks);
         when(scoringService.scoreArtwork(any(), any(), any()))
                 .thenReturn(1.0);
@@ -226,7 +226,7 @@ class TourServiceTest {
 
     @Test
     void whenGeneratingDescription_thenUsesCaching() {
-        when(artworkService.findArtworkCandidates(any(), anyBoolean()))
+        when(artworkService.findArtworkCandidates(any()))
                 .thenReturn(testArtworks);
         when(scoringService.scoreArtwork(any(), any(), any()))
                 .thenReturn(1.0);
