@@ -29,7 +29,8 @@ export interface Artwork {
 	culture?: string;
 	imageUrl?: string;
 	description?: string | null;
-	geographicLocation?: string;
+	country?: string;
+	region?: string;
 	galleryNumber?: string | null;
 	department?: string;
 	isOnDisplay: boolean;
