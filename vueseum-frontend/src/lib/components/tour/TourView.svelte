@@ -37,11 +37,9 @@
 		}
 	});
 
-	// Calculate progress based on currentStop changes
 	$effect(() => {
 		state.progress = ((state.currentStop + 1) / tour.stops.length) * 100;
 	});
-
 </script>
 
 <div class="w-full max-w-4xl mx-auto space-y-4">
@@ -79,29 +77,59 @@
 									decoding="sync"
 								/>
 							</AspectRatio>
-							<CardContent class="p-3 sm:p-4 space-y-2">
-								<div>
-									<h2 class="text-xl sm:text-2xl font-semibold break-words">
+							<CardContent class="p-4 sm:p-6 space-y-4">
+								<div class="space-y-2">
+									<h2 class="text-2xl font-semibold break-words text-foreground">
 										{stop.artwork.title}
 									</h2>
-									<p class="text-gray-600 text-sm sm:text-base break-words">
-										{stop.artwork.artist}
-									</p>
+									<div class="space-y-1">
+										<p class="text-lg text-foreground">
+											{stop.artwork.fullAttribution}
+										</p>
+										<div class="text-muted-foreground space-y-1">
+											{#if stop.artwork.creationDate}
+												<p>{stop.artwork.creationDate}</p>
+											{/if}
+											{#if stop.artwork.medium}
+												<p>{stop.artwork.medium}</p>
+											{/if}
+											<div class="flex items-center gap-2 text-muted-foreground">
+												{#if stop.artwork.culture}
+													<span>{stop.artwork.culture}</span>
+												{/if}
+												{#if stop.artwork.country}
+													<span>{stop.artwork.culture ? '•' : ''} {stop.artwork.country}</span>
+												{/if}
+												{#if stop.artwork.region}
+													<span>{stop.artwork.country ? '•' : ''} {stop.artwork.region}</span>
+												{/if}
+											</div>
+										</div>
+									</div>
 								</div>
 
-								{#if stop.artwork.galleryNumber}
-									<div class="text-sm text-gray-600">
-										<strong>Gallery {stop.artwork.galleryNumber}</strong>
-										{#if stop.artwork.department}
-											<em class="block mt-1">({stop.artwork.department})</em>
-										{/if}
+								{#if stop.artwork.galleryNumber || stop.artwork.department}
+									<div class="text-sm space-y-1">
+										<div class="flex flex-wrap gap-x-3 gap-y-1">
+											{#if stop.artwork.galleryNumber}
+												<p>
+													<strong>Gallery {stop.artwork.galleryNumber}</strong>
+												</p>
+											{/if}
+											{#if stop.artwork.department}
+												<p class="text-muted-foreground">
+													{stop.artwork.galleryNumber ? '•' : ''} {stop.artwork.department}
+												</p>
+											{/if}
+										</div>
 									</div>
 								{/if}
 
-								<p class="text-gray-700 text-sm sm:text-base whitespace-pre-wrap">
-									{stop.description}
-								</p>
-
+								<div class="space-y-3 border-t border-border pt-4">
+									<p class="text-foreground whitespace-pre-wrap">
+										{stop.tourContextDescription.replace(/^Stop \d+:\s*/, '')}
+									</p>
+								</div>
 							</CardContent>
 						</Card>
 					</div>
@@ -109,10 +137,10 @@
 			{/each}
 		</CarouselContent>
 		<div class="absolute inset-y-0 left-0 right-0 flex items-center justify-between z-10">
-			<div class="pointer-events-auto">
+			<div class="pointer-events-auto text-foreground">
 				<CarouselPrevious />
 			</div>
-			<div class="pointer-events-auto">
+			<div class="pointer-events-auto text-foreground">
 				<CarouselNext />
 			</div>
 		</div>
