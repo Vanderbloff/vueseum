@@ -20,7 +20,6 @@
 	import SortControls from '$lib/components/homepage/artwork/SortControls.svelte';
 	import GridSkeleton from '$lib/components/shared/GridSkeleton.svelte';
 	import { artworkApi } from '$lib/api/artwork';
-	import { tourApi } from '$lib/api/tour';
 
 	let { data } = $props();
 
@@ -72,7 +71,12 @@
 			);
 
 			if (!results || !results.content) {
-				throw new Error('Invalid response data');
+				state.error = {
+					type: 'pagination',
+					message: 'Invalid response data received. Please try again.',
+					retryFn: () => handlePageChange(newPage)
+				};
+				return;
 			}
 
 			if (results.content.length === 0) {
@@ -286,11 +290,7 @@
 								You haven't generated any tours yet. Create your first personalized tour experience!
 							</p>
 						{/if}
-						<TourGenerator
-							onTourGenerated={async () => {
-            		data.tours = await tourApi.getTours();
-        		}}
-						/>
+						<TourGenerator />
 					</CardContent>
 				</Card>
 			</div>

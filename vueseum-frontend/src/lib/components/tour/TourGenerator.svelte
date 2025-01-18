@@ -24,11 +24,11 @@
 		AlertDialogTitle
 	} from '$lib/components/ui/alert-dialog';
 
-	import TourProgress from './TourProgress.svelte';
 	import type { TourInputState, StandardPeriod } from '$lib/types/tour-preferences';
 	import PreferenceInput from '$lib/components/shared/PreferenceInput.svelte';
 	import { tourApi } from '$lib/api/tour';
 	import { getOrCreateFingerprint } from '$lib/api/device';
+	import { goto } from '$app/navigation';
 
 	interface PreferenceInputComponent {
 		getSelections: () => string[];
@@ -46,10 +46,6 @@
 		"A.D. 1800-1900",
 		"A.D. 1900-present"
 	];
-
-	let { onTourGenerated } = $props<{
-		onTourGenerated: () => void;
-	}>();
 
 	// eslint-disable-next-line svelte/valid-compile
 	let artworkInputRef: PreferenceInputComponent = {
@@ -79,13 +75,15 @@
 			theme: "CHRONOLOGICAL",
 			numStops: 5,
 			preferredArtworks: [],
-			preferredPeriods: [],
+			preferredArtists: [],
+			preferredMediums: [],
+			preferredCultures: [],
+			preferredPeriods: []
 		},
 		showAdditionalOptions: false,
 		generatedToursToday: 0,
 		error: null,
 		isGenerating: false,
-		requestId: null
 	});
 
 	const canGenerateTour = $derived(state.generatedToursToday < 3);
@@ -99,7 +97,10 @@
 			state.tourPreferences = {
 				theme: "CHRONOLOGICAL",
 				numStops: 5,
-				preferredArtworks: [], // renamed from requiredArtworks
+				preferredArtworks: [],
+				preferredArtists: [],
+				preferredMediums: [],
+				preferredCultures: [],
 				preferredPeriods: []
 			};
 
@@ -125,8 +126,6 @@
 
 		try {
 			const visitorId = await getOrCreateFingerprint();
-
-			// Collect preferences from all inputs at generation time
 			const preferences = {
 				museumId: parseInt(state.selectedMuseum),
 				theme: state.tourPreferences.theme,
@@ -139,8 +138,18 @@
 				preferredPeriods: state.tourPreferences.preferredPeriods,
 			};
 
-			const data = await tourApi.generateTour(visitorId, preferences);
-			state.requestId = data.requestId;
+			const newTour = await tourApi.generateTour(visitorId, preferences);
+
+			// Clean up
+			artistInputRef?.clearSelections();
+			mediumInputRef?.clearSelections();
+			cultureInputRef?.clearSelections();
+			state.isOpen = false;
+
+			if (!import.meta.env.DEV) {
+				await goto(`/tours/${newTour.id}`);
+			}
+			state.isOpen = false;
 		} catch (error) {
 			if (error instanceof Error) {
 				if (error.message === 'TOTAL_LIMIT') {
@@ -152,6 +161,11 @@
 					state.error = {
 						type: 'DAILY_LIMIT',
 						message: 'You\'ve reached your daily tour generation limit. Please try again tomorrow.'
+					};
+				} else if (error.message === 'INVALID_REQUEST') {
+					state.error = {
+						type: null,
+						message: 'Invalid tour preferences. Please check your selections and try again.'
 					};
 				} else {
 					state.error = {
@@ -166,19 +180,7 @@
 				};
 			}
 			state.isGenerating = false;
-			state.requestId = null;
 		}
-	}
-
-	function handleTourComplete() {
-		// Clear all inputs on successful completion
-		artistInputRef?.clearSelections();
-		mediumInputRef?.clearSelections();
-		cultureInputRef?.clearSelections();
-
-		onTourGenerated();
-		state.isOpen = false;
-		state.isGenerating = false;
 	}
 </script>
 
@@ -286,6 +288,7 @@
 									type="ARTWORK"
 									placeholder="Search artworks..."
 									museumId={state.selectedMuseum}
+									currentPreferences={state.tourPreferences}
 								/>
 
 								<PreferenceInput
@@ -294,6 +297,7 @@
 									type="ARTIST"
 									placeholder="Search artists..."
 									museumId={state.selectedMuseum}
+									currentPreferences={state.tourPreferences}
 								/>
 
 								<PreferenceInput
@@ -302,6 +306,7 @@
 									type="MEDIUM"
 									placeholder="Search mediums..."
 									museumId={state.selectedMuseum}
+									currentPreferences={state.tourPreferences}
 								/>
 
 								<PreferenceInput
@@ -310,6 +315,7 @@
 									type="CULTURE"
 									placeholder="Search cultures..."
 									museumId={state.selectedMuseum}
+									currentPreferences={state.tourPreferences}
 								/>
 
 								<div class="space-y-2">
@@ -336,11 +342,13 @@
 									</Select>
 								</div>
 
-								{#if state.isGenerating && state.requestId}
-									<TourProgress
-										requestId={state.requestId}
-										onComplete={handleTourComplete}
-									/>
+								{#if state.isGenerating}
+									<div class="text-center py-4">
+										<p class="text-lg font-medium">Your tour is on the way!</p>
+										<p class="text-sm text-muted-foreground mt-2">
+											We're crafting a personalized experience just for you.
+										</p>
+									</div>
 								{:else}
 									<Button
 										class="w-full"
