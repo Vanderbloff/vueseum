@@ -19,7 +19,6 @@ public class TourDTO {
     private List<TourStopDTO> stops;
     private MuseumDTO museum;
     private Tour.TourTheme theme;
-    private Tour.TourDifficulty difficulty;
 
     public static TourDTO fromEntity(Tour tour) {
         TourDTO dto = new TourDTO();
@@ -28,9 +27,8 @@ public class TourDTO {
         dto.name = tour.getName();
         dto.description = tour.getDescription();
         dto.museum = MuseumDTO.fromEntity(tour.getMuseum());
-        dto.theme = tour.getTheme();;
-        dto.difficulty = tour.getDifficulty();
-        dto.stops = tour.getOrderedStops().stream()
+        dto.theme = tour.getTheme();
+        dto.stops = tour.getStops().stream()
                 .map(TourStopDTO::fromEntity)
                 .collect(Collectors.toList());
         return dto;
