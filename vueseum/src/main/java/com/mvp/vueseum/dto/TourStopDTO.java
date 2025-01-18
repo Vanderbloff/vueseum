@@ -10,8 +10,8 @@ public class TourStopDTO {
     private Long id;
     private Integer sequenceNumber;
     private ArtworkSummaryDTO artwork;  // A simplified view of artwork
-    private String description;
-    private String standardDescription;  // Adding the standard artwork description
+    private String tourContextDescription;
+    private String standardDescription;
     private Boolean isRequired;
 
     public static TourStopDTO fromEntity(TourStop stop) {
@@ -19,7 +19,7 @@ public class TourStopDTO {
         dto.id = stop.getId();
         dto.sequenceNumber = stop.getSequenceNumber();
         dto.artwork = ArtworkSummaryDTO.fromEntity(stop.getArtwork());
-        dto.description = stop.getTourContextDescription();
+        dto.tourContextDescription = stop.getTourContextDescription();
         dto.standardDescription = stop.getStandardDescription();
         dto.isRequired = stop.isRequired();
         return dto;
