@@ -6,12 +6,22 @@ export interface TourStop {
 		id: number;
 		title: string;
 		artist: string;
-		imageUrl: string;
-		department: string;
-		galleryNumber: string;
-		year: string;
+		artistPrefix?: string;
+		artistRole?: string;
+		fullAttribution: string;
+		medium?: string;
+		classification?: string;
+		culture?: string;
+		country?: string;
+		region?: string;
+		imageUrl?: string;
+		description?: string | null;
+		galleryNumber?: string | null;
+		department?: string;
+		creationDate?: string;
+		isOnDisplay: boolean;
 	};
-	description: string;
+	tourContextDescription: string;
 	isRequired: boolean;
 }
 
@@ -24,7 +34,6 @@ export interface Tour {
 	museum: {
 		id: number;
 		name: string;
-		location: string;
 	};
 }
 
