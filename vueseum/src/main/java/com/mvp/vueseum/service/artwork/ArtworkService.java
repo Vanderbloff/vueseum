@@ -278,17 +278,34 @@ public class ArtworkService {
         return ArtworkDetails.builder()
                 .externalId(artwork.getExternalId())
                 .title(artwork.getTitle())
+
+                // Artist information
                 .artistName(artwork.getArtist().getArtistName())
                 .artistNationality(artwork.getArtist().getNationality())
                 .artistBirthYear(artwork.getArtist().getBirthDate())
                 .artistDeathYear(artwork.getArtist().getDeathDate())
+                .artistPrefix(artwork.getArtistPrefix())
+                .artistRole(artwork.getArtistRole())
+
+                // Basic artwork information
                 .medium(artwork.getMedium())
                 .artworkType(artwork.getClassification())
-                .currentLocation(artwork.getCurrentLocation())
                 .culture(artwork.getCulture())
-                .primaryImageUrl(artwork.getImageUrl())
+                .country(artwork.getCountry())
+
+                // Location and display
+                .galleryNumber(artwork.getGalleryNumber())
+                .department(artwork.getDepartment())
                 .isOnView(artwork.getIsOnDisplay())
+
+                // Description and image
+                .description(artwork.getDescription())
+                .primaryImageUrl(artwork.getImageUrl())
+
+                // Museum source
                 .apiSource(artwork.getMuseum() != null ? artwork.getMuseum().getName() : null)
+
+                // Additional metadata
                 .tags((List<String>) artwork.getAdditionalMetadata().getOrDefault("tags", new ArrayList<>()))
                 .build();
     }
@@ -310,22 +327,32 @@ public class ArtworkService {
     }
 
     private void updateArtworkFromDetails(Artwork artwork, ArtworkDetails details) {
+        // Basic Information
         artwork.setTitle(details.getTitle());
+        artwork.setClassification(details.getArtworkType());
         artwork.setMedium(details.getMedium());
-        artwork.setImageUrl(details.getPrimaryImageUrl());
-        artwork.setDescription(details.getDescription());
-        artwork.setCurrentLocation(details.getCurrentLocation());
-        artwork.setGalleryNumber(details.getGalleryNumber());
-        artwork.setCreationDate(details.getCreationYear());
-        artwork.setIsOnDisplay(details.getIsOnView());
+
+        // Artist Attribution
         artwork.setArtistPrefix(details.getArtistPrefix());
         artwork.setArtistRole(details.getArtistRole());
 
+        // Cultural and Geographic Context
+        artwork.setCulture(details.getCulture());
+        artwork.setCountry(details.getCountry());
+
+        // Location and Display
+        artwork.setGalleryNumber(details.getGalleryNumber());
+        artwork.setDepartment(details.getDepartment());
+        artwork.setIsOnDisplay(details.getIsOnView());
+
+        // Description and Image
+        artwork.setDescription(details.getDescription());
+        artwork.setImageUrl(details.getPrimaryImageUrl());
+        artwork.setCreationDate(details.getCreationYear());
+
+        // Additional Metadata
         Map<String, Object> additionalMetadata = new HashMap<>();
         additionalMetadata.put("tags", new ArrayList<>(details.getTags()));
-        additionalMetadata.put("creditLine", details.getCreditLine());
-        additionalMetadata.put("additionalImageUrls", new ArrayList<>(details.getAdditionalImageUrls()));
-
         artwork.setAdditionalMetadata(additionalMetadata);
     }
 
