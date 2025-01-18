@@ -19,7 +19,7 @@ export function mapFiltersToSearchCriteria(
 				case 'artist':
 					criteria.artistName = searchTerm;
 					break;
-				case 'culture':  // New search field option
+				case 'culture':
 					criteria.culture = searchTerm;
 					break;
 				case 'all':
@@ -29,14 +29,26 @@ export function mapFiltersToSearchCriteria(
 		}
 	}
 
-	// Map location filter
-	if (filters.geographicLocation.length > 0) {
-		criteria.geographicLocation = filters.geographicLocation[0];
+	// Map geographic filters hierarchically
+	if (filters.country.length > 0) {
+		criteria.country = filters.country[0];
+
+		if (filters.region.length > 0) {
+			criteria.region = filters.region[0];
+		}
 	}
 
-	// Map object type/medium filter
+	// Map cultural filter
+	if (filters.culture.length > 0) {
+		criteria.culture = filters.culture[0];
+	}
+
+	// Map artwork type and medium
 	if (filters.objectType.length > 0) {
 		criteria.artworkType = filters.objectType[0];
+	}
+	if (filters.materials.length > 0) {
+		criteria.medium = filters.materials[0];
 	}
 
 	// Map period/era filter
@@ -56,7 +68,8 @@ export function mapFiltersToSearchCriteria(
 export function criteriaToUrlParams(
 	criteria: ArtworkSearchCriteria,
 	page: number = 0,
-	size: number = 20
+	size: number = 20,
+	sort?: { field: string; direction: 'asc' | 'desc' }
 ): URLSearchParams {
 	const params = new URLSearchParams();
 
@@ -66,6 +79,11 @@ export function criteriaToUrlParams(
 			params.append(key, value.toString());
 		}
 	});
+
+	if (sort && sort.field !== 'relevance') {
+		params.append('sortField', sort.field);
+		params.append('sortDirection', sort.direction);
+	}
 
 	// Add pagination
 	params.append('page', page.toString());
