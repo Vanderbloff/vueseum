@@ -1,12 +1,38 @@
 // src/routes/tours/[id]/+page.ts
-import { mockTour } from '$lib/mocks/TourData';
-import type { Load } from '@sveltejs/kit';
+import { error, type Load } from '@sveltejs/kit';
+import { tourApi } from '$lib/api/tour';
 
 export const load: Load = async ({ params }) => {
-	await new Promise((resolve) => setTimeout(resolve, 1000));
-	return {
-		tourId: params.id,
-		tour: mockTour,
-		loadError: null as string | null
-	};
+	try {
+		const tourId = parseInt(<string>params.id);
+		if (isNaN(tourId)) {
+			throw error(400, {
+				message: 'Invalid tour ID'
+			});
+		}
+
+		const tour = await tourApi.getTourById(tourId);
+
+		return {
+			tourId,
+			tour,
+			loadError: null as string | null
+		};
+	} catch (e) {
+		console.error('Error loading tour:', e);
+
+		if (e instanceof Error) {
+			return {
+				tourId: params.id,
+				tour: null,
+				loadError: e.message
+			};
+		}
+
+		return {
+			tourId: params.id,
+			tour: null,
+			loadError: 'An unexpected error occurred while loading the tour'
+		};
+	}
 };
