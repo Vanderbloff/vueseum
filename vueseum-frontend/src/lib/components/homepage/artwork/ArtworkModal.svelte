@@ -56,13 +56,15 @@
 						class="w-full h-full object-contain"
 					/>
 				</div>
+			</div>
 
-				{#if artwork.isOnDisplay}
-					<span class="absolute top-4 right-4 px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
+			{#if artwork.isOnDisplay}
+				<div class="px-6 pt-4">
+					<span class="inline-block px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
 							On Display
 					</span>
-				{/if}
-			</div>
+				</div>
+			{/if}
 
 			<!-- Details section -->
 			<div class="p-6 space-y-4">
@@ -77,6 +79,13 @@
 				</div>
 
 				<div class="grid gap-2">
+					{#if artwork.classification}
+						<div class="flex gap-2">
+							<span class="font-medium">Type:</span>
+							<span>{artwork.classification}</span>
+						</div>
+					{/if}
+
 					{#if artwork.medium}
 						<div class="flex gap-2">
 							<span class="font-medium">Medium:</span>
@@ -84,29 +93,46 @@
 						</div>
 					{/if}
 
-					{#if artwork.department}
-						<div class="flex gap-2">
-							<span class="font-medium">Department:</span>
-							<span>{artwork.department}</span>
+					{#if artwork.culture || artwork.country || artwork.region}
+						<div class="flex gap-2 items-center">
+        			<span class="font-medium">
+								{#if artwork.culture && (artwork.country || artwork.region)}
+										Culture and Region:
+								{:else if artwork.culture}
+										Culture:
+								{:else}
+										Region:
+								{/if}
+        			</span>
+							<span>
+            		{#if artwork.culture}
+                	{artwork.culture}
+            		{/if}
+									{#if artwork.culture && (artwork.country || artwork.region)}
+                		{' • '}
+            			{/if}
+								{#if artwork.country || artwork.region}
+                	{[artwork.region, artwork.country]
+										.filter(Boolean)
+										.join(", ")}
+            		{/if}
+        			</span>
 						</div>
 					{/if}
 
-					{#if artwork.geographicLocation}
-						<div class="flex gap-2">
-							<span class="font-medium">Culture:</span>
-							<span>{artwork.geographicLocation}</span>
-						</div>
-					{/if}
-
-					{#if artwork.galleryNumber}
+					{#if artwork.isOnDisplay}
 						<div class="flex gap-2">
 							<span class="font-medium">Location:</span>
-							<span>Gallery {artwork.galleryNumber}</span>
+							<span>
+            		{artwork.museum?.name}
+								{#if artwork.galleryNumber}
+                {' • Gallery ' + artwork.galleryNumber}
+								{/if}
+        			</span>
 						</div>
 					{/if}
 				</div>
 
-				<!-- Using shadcn Button component -->
 				<Button
 					variant="secondary"
 					class="mt-6"
