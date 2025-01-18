@@ -18,22 +18,21 @@ public class ArtworkDetails {
     private String title;            // Artwork title
 
     // Artist Information
-    private String artistName;       // Primary artist name
-    private String artistNationality;// Artist's country of origin
+    private String artistName;
+    private String artistNationality;
     private String artistBirthYear;
     private String artistDeathYear;
     private String artistPrefix;
     private String artistRole;
 
     // Artwork Specifics
-    private String medium;           // Painting, sculpture, etc.
-    private String artworkType;      // Classification of artwork
-    private String dimensions;       // Physical size description
+    private String medium;
+    private String artworkType;
+    private String dimensions;
 
     // Museum-Specific Metadata
     private String department;       // Museum department
     private Boolean isOnView;        // Current exhibition status
-    private String currentLocation;  // Museum/gallery location
     private String galleryNumber;
 
     // Additional Descriptive Information
@@ -41,12 +40,16 @@ public class ArtworkDetails {
 
     @Getter(AccessLevel.NONE)
     @Builder.Default
-    private final List<String> tags = new ArrayList<>();       // Searchable keywords
-    private String creditLine;       // Museum attribution
+    private final List<String> tags = new ArrayList<>();
+    private String creditLine;
 
     // Geographical and Cultural Context
-    private String culture;          // Cultural origin
-    private String period;           // Historical period
+    private String culture;
+    private String period;
+    private String country;
+    private String region;
+    private String subRegion;
+    private String geographyType;
 
     // Image and Multimedia References
     private String primaryImageUrl;  // Main artwork image
@@ -117,18 +120,23 @@ public class ArtworkDetails {
                 ", artistNationality='" + artistNationality + '\'' +
                 ", artistBirthYear='" + artistBirthYear + '\'' +
                 ", artistDeathYear='" + artistDeathYear + '\'' +
+                ", artistPrefix='" + artistPrefix + '\'' +
+                ", artistRole='" + artistRole + '\'' +
                 ", medium='" + medium + '\'' +
                 ", artworkType='" + artworkType + '\'' +
                 ", dimensions='" + dimensions + '\'' +
                 ", department='" + department + '\'' +
                 ", isOnView=" + isOnView +
-                ", currentLocation='" + currentLocation + '\'' +
                 ", galleryNumber='" + galleryNumber + '\'' +
                 ", description='" + description + '\'' +
                 ", tags=" + tags +
                 ", creditLine='" + creditLine + '\'' +
                 ", culture='" + culture + '\'' +
                 ", period='" + period + '\'' +
+                ", country='" + country + '\'' +
+                ", region='" + region + '\'' +
+                ", subRegion='" + subRegion + '\'' +
+                ", geographyType='" + geographyType + '\'' +
                 ", primaryImageUrl='" + primaryImageUrl + '\'' +
                 ", additionalImageUrls=" + additionalImageUrls +
                 ", creationYear='" + creationYear + '\'' +
