@@ -26,7 +26,8 @@
 		searchField: SearchField;
 		objectType: string[];
 		materials: string[];
-		geographicLocation: string[];
+		country: string[];
+		region: string[];
 		culture: string[];
 		era: StandardPeriod[];
 		onDisplay: boolean;
@@ -45,24 +46,21 @@
 			searchTerm: [] as string[],
 			searchField: "all" as SearchField,
 			objectType: [] as string[],
-			materials: [] as string[],      // Added materials array
+			materials: [] as string[],
 			culture: [] as string[],
-			geographicLocation: [] as string[],
+			country: [] as string[],
+			region: [] as string[],
 			era: [] as StandardPeriod[],
 			onDisplay: false,
 			hasImage: true
 		},
 		filterOptions: {
 			objectType: [] as string[],
-			subtypes: [] as string[],
 			materials: [] as string[],
-			culturalRegions: [] as string[],
+			countries: [] as string[],
+			regions: [] as string[],
 			cultures: [] as string[]
 		},
-		selectedType: undefined as string | undefined,
-		selectedSubtype: undefined as string | undefined,
-		selectedRegion: undefined as string | undefined,
-		selectedCulture: undefined as string | undefined,
 		loading: {
 			options: false
 		},
@@ -129,22 +127,37 @@
 		onSearch(state.filters);
 	}
 
+	async function handleCountryChange(country: string | undefined) {
+		state.filters.country = country ? [country] : [];
+		state.filters.region = [];
+		state.filters.culture = [];
+
+		if (country) {
+			try {
+				const response = await artworkApi.getFilterOptions({ country });
+				state.filterOptions.regions = response.regions || [];
+			} catch (error) {
+				state.error = error instanceof Error ? error.message : 'Failed to load regions';
+			}
+		}
+
+		onSearch(state.filters);
+	}
+
 	// Handle region selection and load cultures
 	async function handleRegionChange(region: string | undefined) {
-		state.selectedRegion = region;
-		state.selectedCulture = undefined;  // Reset culture when region changes
-		state.filters.geographicLocation = region ? [region] : [];  // Reset geographic filter
+		state.filters.region = region ? [region] : [];
 		state.filters.culture = [];
 
 		if (region) {
-			state.loading.options = true;
 			try {
-				const response = await artworkApi.getFilterOptions({ geographicLocation: region });
+				const response = await artworkApi.getFilterOptions({
+					country: state.filters.country[0],
+					region
+				});
 				state.filterOptions.cultures = response.cultures || [];
 			} catch (error) {
-				state.error = error instanceof Error ? error.message : 'Failed to load options';
-			} finally {
-				state.loading.options = false;
+				state.error = error instanceof Error ? error.message : 'Failed to load cultures';
 			}
 		}
 
@@ -153,10 +166,7 @@
 
 	// Handle culture selection
 	function handleCultureChange(culture: string | undefined) {
-		console.log('Selected culture:', culture); // Debug
-		state.selectedCulture = culture;
 		state.filters.culture = culture ? [culture] : [];
-		console.log('Updated filters:', state.filters); // Debug
 		onSearch(state.filters);
 	}
 
@@ -312,56 +322,79 @@
 			<!-- Cultural Region Filter -->
 			<div class="space-y-2">
 				<div class="flex items-center justify-between h-6">
-					<Label>Geographic Location</Label>
-					{#if state.selectedRegion || state.selectedCulture}
+					<Label>Geographical Location</Label>
+					{#if state.filters.country.length || state.filters.region.length || state.filters.culture.length}
 						<Button
 							variant="ghost"
 							size="sm"
-							onclick={() => handleRegionChange(undefined)}
+							onclick={() => {
+                    state.filters.country = [];
+                    state.filters.region = [];
+                    state.filters.culture = [];
+                    onSearch(state.filters);
+                }}
 						>
 							Reset
 						</Button>
 					{/if}
 				</div>
 
+				<!-- Country Selection -->
 				<Select
 					type="single"
-					value={state.selectedRegion}
-					onValueChange={handleRegionChange}
+					value={state.filters.country[0]}
+					onValueChange={handleCountryChange}
 				>
 					<SelectTrigger>
-						<span class={!state.selectedRegion ? "text-muted-foreground" : ""}>
-            	{state.selectedRegion || 'Cultural region'}
-        		</span>
+            <span class={!state.filters.country[0] ? "text-muted-foreground" : ""}>
+                {state.filters.country[0] || 'Select country'}
+            </span>
 					</SelectTrigger>
 					<SelectContent>
-						{#if state.filterOptions.culturalRegions?.length}
-							{#each state.filterOptions.culturalRegions as region}
-								<SelectItem value={region}>{region}</SelectItem>
-							{/each}
-						{:else}
-							<div class="p-2 text-sm text-muted-foreground">No locations available</div>
-						{/if}
+						{#each state.filterOptions.countries as country}
+							<SelectItem value={country}>{country}</SelectItem>
+						{/each}
 					</SelectContent>
 				</Select>
 
-				{#if state.selectedRegion && state.filterOptions.cultures?.length}
-					<div class="mt-2">
-						<Select
-							type="single"
-							value={state.selectedCulture}
-							onValueChange={handleCultureChange}
-						>
-							<SelectTrigger>
-								{state.selectedCulture || 'Culture'}
-							</SelectTrigger>
-							<SelectContent>
-								{#each state.filterOptions.cultures as culture}
-									<SelectItem value={culture}>{culture}</SelectItem>
-								{/each}
-							</SelectContent>
-						</Select>
-					</div>
+				<!-- Region Selection - Only show if country is selected -->
+				{#if state.filters.country.length > 0 && state.filterOptions.regions.length > 0}
+					<Select
+						type="single"
+						value={state.filters.region[0]}
+						onValueChange={handleRegionChange}
+					>
+						<SelectTrigger>
+                <span class={!state.filters.region[0] ? "text-muted-foreground" : ""}>
+                    {state.filters.region[0] || 'Select region'}
+                </span>
+						</SelectTrigger>
+						<SelectContent>
+							{#each state.filterOptions.regions as region}
+								<SelectItem value={region}>{region}</SelectItem>
+							{/each}
+						</SelectContent>
+					</Select>
+				{/if}
+
+				<!-- Culture Selection - Show based on selected region -->
+				{#if state.filters.region.length > 0 && state.filterOptions.cultures.length > 0}
+					<Select
+						type="single"
+						value={state.filters.culture[0]}
+						onValueChange={handleCultureChange}
+					>
+						<SelectTrigger>
+                <span class={!state.filters.culture[0] ? "text-muted-foreground" : ""}>
+                    {state.filters.culture[0] || 'Select culture'}
+                </span>
+						</SelectTrigger>
+						<SelectContent>
+							{#each state.filterOptions.cultures as culture}
+								<SelectItem value={culture}>{culture}</SelectItem>
+							{/each}
+						</SelectContent>
+					</Select>
 				{/if}
 			</div>
 
