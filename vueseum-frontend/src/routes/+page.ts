@@ -1,9 +1,9 @@
 // src/routes/+page.ts
 import { artworkApi } from '$lib/api/artwork';
-import { getMockPaginatedTours } from '$lib/mocks/TourData';
 import type { Load } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import { ArtworkUtils } from '$lib/utils/artwork/artworkUtils';
+import { tourApi } from '$lib/api/tour';
 
 export const load: Load = async ({ url }) => {
 	const artworkPage = Number(url.searchParams.get('artworkPage')) || 0;
@@ -11,7 +11,6 @@ export const load: Load = async ({ url }) => {
 	const initialTab = url.searchParams.get('tab') || 'artworks';
 
 	try {
-		// Create and await both promises
 		const artworksPromise = initialTab === 'artworks'
 			? await artworkApi.searchArtworks(
 				ArtworkUtils.getDefaultFilters(),
@@ -19,9 +18,8 @@ export const load: Load = async ({ url }) => {
 			)
 			: null;
 
-		const toursPromise = getMockPaginatedTours(tourPage);
+		const toursPromise = tourApi.getTours(tourPage);
 
-		// Wait for both promises to resolve
 		const [artworks, tours] = await Promise.all([
 			artworksPromise,
 			toursPromise
@@ -33,10 +31,7 @@ export const load: Load = async ({ url }) => {
 			initialTab
 		};
 	} catch (e) {
-		// Log the error for debugging
 		console.error('Error loading initial data:', e);
-
-		// Throw appropriate error
 		if (e instanceof Error) {
 			throw error(500, {
 				message: 'Failed to load initial data'
