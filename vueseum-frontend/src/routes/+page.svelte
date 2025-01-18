@@ -1,11 +1,10 @@
 <script lang="ts">
-	import { Tabs, TabsList, TabsTrigger, TabsContent } from "$lib/components/ui/tabs";
-	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card";
+	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
+	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import ArtworkCard from '$lib/components/homepage/artwork/ArtworkCard.svelte';
 	import ArtworkFilters from '$lib/components/homepage/artwork/ArtworkFilters.svelte';
 	import ArtworkModal from '$lib/components/homepage/artwork/ArtworkModal.svelte';
 	import TourList from '$lib/components/tour/TourList.svelte';
-	import { getMockPaginatedTours } from '$lib/mocks/TourData';
 	import type { Artwork, PaginatedResponse, StandardPeriod } from '$lib/types/artwork';
 	import { goto } from '$app/navigation';
 	import {
@@ -21,7 +20,7 @@
 	import SortControls from '$lib/components/homepage/artwork/SortControls.svelte';
 	import GridSkeleton from '$lib/components/shared/GridSkeleton.svelte';
 	import { artworkApi } from '$lib/api/artwork';
-	import { ArtworkUtils } from '$lib/utils/artwork/artworkUtils';
+	import { tourApi } from '$lib/api/tour';
 
 	let { data } = $props();
 
@@ -31,7 +30,7 @@
 		artworksLoading: false,
 		artworksData: null as PaginatedResponse<Artwork> | null,
 		currentPage: 1,
-		pageSize: 3,
+		pageSize: 12,
 		error: null as {
 			type: 'search' | 'load' | 'pagination',
 			message: string,
@@ -42,7 +41,8 @@
 				searchField: 'all' as 'all' | 'title' | 'artist' | 'culture',
 				objectType: [] as string[],
 				materials: [] as string[],
-				geographicLocation: [] as string[],
+				country: [] as string[],
+				region: [] as string[],
 				culture: [] as string[],
 				era: [] as StandardPeriod[],
 				onDisplay: false,
@@ -61,56 +61,36 @@
 			state.error = null;
 
 			// Get all results if we're sorting
-			const isSorting = state.currentFilters.sort.field !== 'relevance';
-			let allResults = await artworkApi.searchArtworks(
+			const results = await artworkApi.searchArtworks(
 				state.currentFilters.filters,
-				isSorting ? 0 : newPage - 1,  // If sorting, get all results
-				isSorting ? 999 : state.pageSize
+				newPage - 1,
+				state.pageSize,
+				state.currentFilters.sort.field !== 'relevance' ? {
+					field: state.currentFilters.sort.field,
+					direction: state.currentFilters.sort.direction,
+				} : undefined,
 			);
 
-			if (!allResults || !allResults.content) {
+			if (!results || !results.content) {
 				throw new Error('Invalid response data');
 			}
 
-			// Apply sorting if needed
-			if (isSorting) {
-				allResults.content = ArtworkUtils.sortArtworks(
-					allResults.content,
-					state.currentFilters.sort.field,
-					state.currentFilters.sort.direction
-				);
-
-				// Manual pagination after sorting
-				const startIndex = (newPage - 1) * state.pageSize;
-				const paginatedContent = allResults.content.slice(
-					startIndex,
-					startIndex + state.pageSize
-				);
-
-				// Handle empty results with context
-				if (paginatedContent.length === 0) {
-					state.error = {
-						type: 'search',
-						message: newPage > 1
-							? 'This page does not exist. Try returning to the first page.'
-							: 'No artworks found matching your criteria. Try adjusting your filters.',
-						retryFn: newPage > 1
-							? () => handlePageChange(1)
-							: undefined
-					};
-					return;
-				}
-
-				allResults = {
-					...allResults,
-					content: paginatedContent,
-					totalElements: allResults.content.length,
-					totalPages: Math.ceil(allResults.content.length / state.pageSize)
+			if (results.content.length === 0) {
+				state.error = {
+					type: 'search',
+					message: newPage > 1
+						? 'This page does not exist. Try returning to the first page.'
+						: 'No artworks found matching your criteria. Try adjusting your filters.',
+					retryFn: newPage > 1
+						? () => handlePageChange(1)
+						: undefined
 				};
+				return;
 			}
 
-			state.artworksData = allResults;
+			state.artworksData = results;
 			state.currentPage = newPage;
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		} catch (error) {
 			state.error = {
 				type: 'pagination',
@@ -139,13 +119,31 @@
 	}
 
 	const hasExistingTours = $derived(
-	    (data?.tours ?? getMockPaginatedTours(0)).content.length > 0
-	 );
+		(data?.tours?.content?.length ?? 0) > 0
+	);
+
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+
+		function updatePageSize() {
+			if (window.innerWidth >= 1024) {
+				state.pageSize = 12;     // Desktop
+			} else if (window.innerWidth >= 768) {
+				state.pageSize = 9;      // Tablet
+			} else {
+				state.pageSize = 6;      // Mobile
+			}
+		}
+		updatePageSize();
+		window.addEventListener('resize', updatePageSize);
+
+		return () => {
+			window.removeEventListener('resize', updatePageSize);
+		};
+	});
 </script>
 
 <main class="container mx-auto p-4">
-	<h1 class="text-2xl font-bold mb-4">Vueseum</h1>
-
 	<Tabs value={data.initialTab} onValueChange={handleTabChange}>
 		<!-- Make tabs more compact by adjusting the width -->
 		<div class="flex justify-center mb-4">
@@ -158,9 +156,6 @@
 		<TabsContent value="artworks">
 			<div class="w-full max-w-4xl mx-auto">
 				<Card>
-					<!--<CardHeader>
-						<CardTitle>Search & Filter Artworks</CardTitle>
-					</CardHeader>-->
 					<CardContent>
 						<ArtworkFilters
 							onSearch={(filters) => {
@@ -172,7 +167,11 @@
 								artworkApi.searchArtworks(
 										state.currentFilters.filters,
 										0,  // first page
-										state.pageSize
+										state.pageSize,
+										state.currentFilters.sort.field !== 'relevance' ? {
+											field: state.currentFilters.sort.field,
+											direction: state.currentFilters.sort.direction
+            				} : undefined
 								).then(results => {
 										if (results.totalElements === 0) {
 												state.error = {
@@ -191,7 +190,15 @@
 														state.artworksLoading = true;
 														state.error = null;
 														state.currentPage = 1;
-														artworkApi.searchArtworks(filters, 0, state.pageSize);
+														artworkApi.searchArtworks(
+															filters,
+															0,
+															state.pageSize,
+															state.currentFilters.sort.field !== 'relevance' ? {
+																	field: state.currentFilters.sort.field,
+																	direction: state.currentFilters.sort.direction
+															} : undefined
+													);
 												}
 										};
 								}).finally(() => {
@@ -273,16 +280,16 @@
 					</CardHeader>
 					<CardContent class="space-y-6">
 						{#if hasExistingTours}
-							<TourList initialData={data?.tours ?? getMockPaginatedTours(0)} />
+							<TourList initialData={data?.tours ?? { content: [], totalElements: 0, totalPages: 1, size: 10, number: 0 }} />
 						{:else}
 							<p class="text-muted-foreground text-center">
 								You haven't generated any tours yet. Create your first personalized tour experience!
 							</p>
 						{/if}
 						<TourGenerator
-								onTourGenerated={() => {
-									data.tours = getMockPaginatedTours(0);
-							}}
+							onTourGenerated={async () => {
+            		data.tours = await tourApi.getTours();
+        		}}
 						/>
 					</CardContent>
 				</Card>
