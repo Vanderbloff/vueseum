@@ -6,7 +6,8 @@ export interface ArtworkSearchCriteria {
 	medium?: string;
 	period?: string;
 	culture?: string;
-	geographicLocation?: string;
+	country?: string;
+	region?: string;
 	artworkType?: string;
 	isOnDisplay?: boolean;
 	museums?: string[];
