@@ -24,6 +24,9 @@ export interface TourPreferences {
 	theme: TourTheme;
 	numStops: number;
 	preferredArtworks: string[];
+	preferredArtists: string[];
+	preferredMediums: string[];
+	preferredCultures: string[];
 	preferredPeriods: string[];
 }
 
@@ -35,5 +38,4 @@ export interface TourInputState {
 	generatedToursToday: number;
 	error: { type: 'DAILY_LIMIT' | 'TOTAL_LIMIT' | null; message: string; } | null;
 	isGenerating: boolean;
-	requestId: string | null;
 }
