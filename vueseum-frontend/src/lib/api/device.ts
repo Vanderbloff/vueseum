@@ -2,7 +2,10 @@
 import { API_BASE_URL } from '$lib/config';
 
 async function getDeviceFingerprint(): Promise<string> {
-	// Collect the same data the backend uses
+	if (import.meta.env.DEV) {
+		return 'dev-device-fingerprint-123';
+	}
+
 	const headers = new Headers({
 		'User-Agent': navigator.userAgent,
 		'X-Screen-Resolution': `${window.screen.width}x${window.screen.height}`,
