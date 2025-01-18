@@ -35,13 +35,19 @@ public class TourStop extends baseEntity {
     @Column(columnDefinition = "TEXT")
     private String tourContextDescription;
 
-
-    // Whether this is a required stop (e.g., for themed tours)
     private boolean isRequired = false;
+
+    protected TourStop() {}
+
+    public TourStop(Tour tour, Artwork artwork, int sequenceNumber) {
+        this.tour = tour;
+        this.artwork = artwork;
+        this.sequenceNumber = sequenceNumber;
+    }
 
     @PrePersist
     @PreUpdate
-    public void validateSequence() {
+    public void validateSequenceNumber() {
         if (sequenceNumber == null || sequenceNumber < 0) {
             throw new IllegalStateException("Sequence number must be non-negative");
         }
