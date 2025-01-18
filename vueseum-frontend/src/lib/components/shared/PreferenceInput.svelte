@@ -3,7 +3,9 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Input } from '$lib/components/ui/input';
-	import { mockFetchSuggestions } from '$lib/mocks/MockSuggestions';
+	import type { TourPreferences } from '$lib/types/tour-preferences';
+	import { suggestionApi } from '$lib/api/suggestion';
+	import { ApiError } from '$lib/api/base';
 
 	type SuggestionType = 'ARTWORK' | 'ARTIST' | 'MEDIUM' | 'CULTURE' | 'PERIOD';
 
@@ -18,12 +20,14 @@
 		label,
 		type,
 		placeholder,
-		museumId
+		museumId,
+		currentPreferences
 	} = $props<{
 		label: string;
 		type: SuggestionType;
 		placeholder: string;
 		museumId: string;
+		currentPreferences: Partial<TourPreferences>;
 	}>();
 
 	const state = $state({
@@ -32,7 +36,8 @@
 		isLoading: false,
 		showSuggestions: false,
 		selectedValues: [] as string[],
-		isFocused: false
+		isFocused: false,
+		error: null as string | null
 	});
 
 	async function fetchSuggestions(prefix: string) {
@@ -41,31 +46,25 @@
 			return;
 		}
 
-		if (import.meta.env.DEV) {
-			const suggestions = await mockFetchSuggestions(prefix, type);
-			state.suggestions = suggestions;
-			state.showSuggestions = suggestions.length > 0;
-			return;
-		}
-
 		state.isLoading = true;
+		state.error = null;
+
 		try {
-			const params = new URLSearchParams({
+			const suggestions = await suggestionApi.getSuggestions(
 				prefix,
 				type,
 				museumId,
-				...(state.selectedValues.length > 0 && {
-					[`preferred${type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()}s`]: state.selectedValues.join(',')
-				})
-			});
+				currentPreferences
+			);
 
-			const response = await fetch(`/api/v1/suggestions?${params}`);
-			if (!response.ok) throw new Error('Failed to fetch suggestions');
-
-			state.suggestions = await response.json() as Suggestion[];
-			state.showSuggestions = state.suggestions.length > 0;
+			state.suggestions = suggestions;
+			state.showSuggestions = suggestions.length > 0;
 		} catch (error) {
-			console.error('Error fetching suggestions:', error);
+			if (error instanceof ApiError) {
+				state.error = 'Failed to load suggestions. Please try again.';
+			} else {
+				state.error = 'An unexpected error occurred';
+			}
 			state.suggestions = [];
 		} finally {
 			state.isLoading = false;
@@ -130,7 +129,11 @@
 		handleInputChange(state.inputValue);
 	});
 </script>
-
+{#if state.error}
+	<div class="text-sm text-destructive mt-1">
+		{state.error}
+	</div>
+{/if}
 <div class="space-y-2">
 	<Label>{label}</Label>
 	<div class="relative">
