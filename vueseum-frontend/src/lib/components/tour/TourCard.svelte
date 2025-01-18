@@ -84,11 +84,11 @@
 <div class="relative group">
 	<Button
 		variant="outline"
-		class="w-full h-auto p-4 justify-start hover:no-underline bg-white"
+		class="w-full h-auto p-4 justify-start hover:no-underline bg-card text-card-foreground"
 		onclick={() => onSelect(tour)}
 	>
 		<div class="flex flex-col gap-2 text-left w-full">
-			<h3 class="text-lg font-semibold truncate pr-16">{tour.name}</h3>
+			<h3 class="text-lg font-semibold truncate pr-16 text-muted-foreground">{tour.name}</h3>
 			<p class="text-sm text-muted-foreground overflow-hidden whitespace-nowrap text-ellipsis">
 				{tour.description}
 			</p>
@@ -98,6 +98,8 @@
 					<MapPin class="w-4 h-4" />
 					<span>{formatTheme(tour.theme)}</span>
 				</div>
+				<span>•</span>
+				<span>{tour.stops.length} stops</span>
 			</div>
 
 			<div class="text-sm text-muted-foreground mt-1">
@@ -155,28 +157,28 @@
 				</div>
 				<AlertDialogFooter>
 					<AlertDialogCancel onclick={() => {
-                        state.editName = tour.name;
-                        state.editDescription = tour.description;
-                        state.errors.name = '';
-                        state.errors.description = '';
-                    }}>
+							state.editName = tour.name;
+							state.editDescription = tour.description;
+							state.errors.name = '';
+							state.errors.description = '';
+					}}>
 						Cancel
 					</AlertDialogCancel>
 					<AlertDialogAction
 						onclick={async () => {
-                            if (!validateForm() || !onEdit) return;
+							if (!validateForm() || !onEdit) return;
 
-                            try {
-                                await onEdit(tour.id, {
-                                    name: state.editName,
-                                    description: state.editDescription
-                                });
-                                state.isDialogOpen = false;
-                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                            } catch (error) {
-                                // Error will be handled by parent component
-                            }
-                        }}
+							try {
+									await onEdit(tour.id, {
+											name: state.editName,
+											description: state.editDescription
+									});
+									state.isDialogOpen = false;
+							// eslint-disable-next-line @typescript-eslint/no-unused-vars
+							} catch (error) {
+									// Error will be handled by parent component
+							}
+					}}
 						disabled={isUpdating}
 					>
 						{isUpdating ? 'Saving...' : 'Save Changes'}
