@@ -1,0 +1,148 @@
+{
+  "artworks": [
+    {
+      "id": 1,
+      "externalId": "obj-1",
+      "title": "The Starry Night",
+      "artist": "Vincent van Gogh",
+      "artistPrefix": null,
+      "artistRole": null,
+      "fullAttribution": "Vincent van Gogh",
+      "isConfidentAttribution": true,
+      "medium": "Oil on canvas",
+      "classification": "Paintings",
+      "culture": "Dutch",
+      "imageUrl": "/api/placeholder/400/300",
+      "description": "A night scene showing a Dutch village with a prominent church spire outlined against a night sky.",
+      "country": "Netherlands",
+      "region": "North Holland",
+      "geographicLocation": "Amsterdam",
+      "galleryNumber": "1",
+      "isOnDisplay": true,
+      "creationDate": "1889",
+      "museum": {
+        "id": 1,
+        "name": "Metropolitan Museum of Art"
+      },
+      "tags": ["Post-Impressionism", "Landscape", "Night Scene"]
+    },
+    {
+      "id": 2,
+      "externalId": "obj-2",
+      "title": "Mona Lisa",
+      "artist": "Leonardo da Vinci",
+      "artistPrefix": null,
+      "artistRole": null,
+      "fullAttribution": "Leonardo da Vinci",
+      "isConfidentAttribution": true,
+      "medium": "Oil on poplar panel",
+      "classification": "Paintings",
+      "culture": "Italian",
+      "imageUrl": "/api/placeholder/400/301",
+      "description": "A portrait of a woman with a mysterious smile, featuring a backdrop of an imaginary landscape.",
+      "country": "Italy",
+      "region": "Tuscany",
+      "geographicLocation": "Florence",
+      "galleryNumber": "2",
+      "isOnDisplay": true,
+      "creationDate": "1503",
+      "museum": {
+        "id": 2,
+        "name": "Louvre Museum"
+      },
+      "tags": ["Renaissance", "Portrait", "Iconic"]
+    },
+    {
+      "id": 3,
+      "externalId": "obj-3",
+      "title": "The Persistence of Memory",
+      "artist": "Salvador Dalí",
+      "artistPrefix": null,
+      "artistRole": null,
+      "fullAttribution": "Salvador Dalí",
+      "isConfidentAttribution": true,
+      "medium": "Oil on canvas",
+      "classification": "Paintings",
+      "culture": "Spanish",
+      "imageUrl": "/api/placeholder/400/302",
+      "description": "A surreal landscape featuring melting clocks draped over various objects.",
+      "country": "Spain",
+      "region": "Catalonia",
+      "geographicLocation": "Barcelona",
+      "galleryNumber": "3",
+      "isOnDisplay": true,
+      "creationDate": "1931",
+      "museum": {
+        "id": 1,
+        "name": "Metropolitan Museum of Art"
+      },
+      "tags": ["Surrealism", "Iconic", "Time"]
+    },
+    {
+      "id": 4,
+      "externalId": "obj-4",
+      "title": "The Kiss",
+      "artist": "Gustav Klimt",
+      "artistPrefix": null,
+      "artistRole": null,
+      "fullAttribution": "Gustav Klimt",
+      "isConfidentAttribution": true,
+      "medium": "Oil and gold leaf on canvas",
+      "classification": "Watercolor",
+      "culture": "Austrian",
+      "imageUrl": "/api/placeholder/400/303",
+      "description": "A couple embracing, wrapped in elaborate gold and floral patterns.",
+      "country": "Austria",
+      "region": "Vienna Region",
+      "geographicLocation": "Vienna",
+      "galleryNumber": "4",
+      "isOnDisplay": true,
+      "creationDate": "1907",
+      "museum": {
+        "id": 1,
+        "name": "Metropolitan Museum of Art"
+      },
+      "tags": ["Symbolism", "Romantic", "Gold"]
+    },
+    {
+      "id": 5,
+      "externalId": "obj-5",
+      "title": "Girl with a Pearl Earring",
+      "artist": "Johannes Vermeer",
+      "artistPrefix": null,
+      "artistRole": null,
+      "fullAttribution": "Johannes Vermeer",
+      "isConfidentAttribution": true,
+      "medium": "Oil on canvas",
+      "classification": "Acrylic",
+      "culture": "Dutch",
+      "imageUrl": "/api/placeholder/400/304",
+      "description": "A portrait of a young girl wearing a blue and yellow turban with a pearl earring.",
+      "country": "Netherlands",
+      "region": "North Holland",
+      "geographicLocation": "Amsterdam",
+      "galleryNumber": "5",
+      "isOnDisplay": true,
+      "creationDate": "1665",
+      "museum": {
+        "id": 1,
+        "name": "Metropolitan Museum of Art"
+      },
+      "tags": ["Baroque", "Portrait", "Dutch Golden Age"]
+    }
+  ],
+  "tours": [
+    {
+      "id": 1,
+      "name": "Impressionist Masterpieces",
+      "description": "A journey through the most influential Impressionist artworks",
+      "theme": "CHRONOLOGICAL",
+      "museum": {
+        "id": 1,
+        "name": "Metropolitan Museum of Art",
+        "location": "New York"
+      },
+      "stops": []
+    }
+  ]
+}
