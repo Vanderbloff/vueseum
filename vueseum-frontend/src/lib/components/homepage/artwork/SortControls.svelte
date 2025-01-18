@@ -60,10 +60,22 @@
 		// Validate that the new value is a valid sort field
 		if (SORT_OPTIONS.some(opt => opt.value === newValue)) {
 			const newField = newValue as SortField;
+			const defaultDirection = getDefaultDirection(newField);
 			state.sort.field = newField;
-			// Reset direction to default for the field
-			state.sort.direction = newField === 'date' ? 'desc' : 'asc';
-			onSortChange(state.sort.field, state.sort.direction);
+			state.sort.direction = defaultDirection;
+			onSortChange(newField, defaultDirection);
+		}
+	}
+
+	function getDefaultDirection(field: SortField): 'asc' | 'desc' {
+		switch (field) {
+			case 'date':
+				return 'desc';  // Newest first
+			case 'title':
+			case 'artist':
+				return 'asc';   // A-Z
+			default:
+				return 'asc';   // Default ascending
 		}
 	}
 </script>
@@ -90,15 +102,15 @@
 		variant="ghost"
 		size="icon"
 		class={cn(
-            "transition-opacity",
-            state.sort.field === 'relevance' ? "opacity-50 cursor-not-allowed" : "hover:opacity-70"
-        )}
+			"transition-opacity",
+			state.sort.field === 'relevance' ? "opacity-50 cursor-not-allowed" : "hover:opacity-70"
+		)}
 		disabled={state.sort.field === 'relevance'}
 		onclick={toggleDirection}
 	>
 		<ArrowUpDown class={cn(
-            "h-4 w-4 transition-transform",
-            state.sort.direction === 'desc' && "rotate-180"
-        )} />
+			"h-4 w-4 transition-transform",
+			state.sort.direction === 'desc' && "rotate-180"
+	)} />
 	</Button>
 </div>
