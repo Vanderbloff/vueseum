@@ -10,20 +10,33 @@ public class ArtworkSummaryDTO {
     private Long id;
     private String title;
     private String artistName;
+    private String artistPrefix;
+    private String artistRole;
+    private String fullAttribution;
     private String medium;
+    private String classification;
+    private String culture;
+    private String country;
     private String imageUrl;
-    private String currentLocation;
+    private String galleryNumber;
+    private String department;
     private Boolean isOnDisplay;
 
-    // A simplified artwork view for tour stops
     public static ArtworkSummaryDTO fromEntity(Artwork artwork) {
         ArtworkSummaryDTO dto = new ArtworkSummaryDTO();
         dto.id = artwork.getId();
         dto.title = artwork.getTitle();
-        dto.artistName = artwork.getArtistName();  // Using existing helper method
+        dto.artistName = artwork.getArtistName();
+        dto.artistPrefix = artwork.getArtistPrefix();
+        dto.artistRole = artwork.getArtistRole();
+        dto.fullAttribution = artwork.getFullAttribution();
         dto.medium = artwork.getMedium();
+        dto.classification = artwork.getClassification();
+        dto.culture = artwork.getCulture();
+        dto.country = artwork.getCountry();
         dto.imageUrl = artwork.getImageUrl();
-        dto.currentLocation = artwork.getCurrentLocation();
+        dto.galleryNumber = artwork.getGalleryNumber();
+        dto.department = artwork.getDepartment();
         dto.isOnDisplay = artwork.getIsOnDisplay();
         return dto;
     }
