@@ -23,6 +23,13 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
+/**
+ * Base class for museum API clients. Each museum implementation should:
+ * 1. Handle standard fields (title, artist, etc.) as required fields
+ * 2. Map museum-specific formats to our standard structure
+ * 3. Leave Met-specific fields (subRegion, geographyType) empty if not applicable
+ * 4. Map rights/copyright information to copyrightStatus in a sensible way for that museum
+ */
 @SuppressWarnings("UnstableApiUsage")
 @Slf4j
 @Getter
