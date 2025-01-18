@@ -41,17 +41,21 @@ public class Artwork extends baseEntity {
 
     private String culture;
 
+    // Geographic Information - May be partially or fully empty depending on museum
     @Column(name = "country")
-    private String country;
+    private String country;  // Standard geographic info, commonly available
 
     @Column(name = "region")
-    private String region;
+    private String region;   // More detailed geographic info, may be empty
 
     @Column(name = "sub_region")
-    private String subRegion;
+    private String subRegion;  // Met-specific geographic detail
 
     @Column(name = "geography_type")
-    private String geographyType;
+    private String geographyType;  // Met-specific geographic categorization
+
+    // Rights Management - Handling varies by museum
+    private String copyrightStatus;  // Rights information, format varies by museum
 
     @Column(name = "image_url")
     private String imageUrl;
@@ -60,9 +64,9 @@ public class Artwork extends baseEntity {
     private String description;
 
     @Column(name = "gallery_number")
-    private String GalleryNumber;
+    private String galleryNumber;
 
-    private String currentLocation;
+    private String department;
 
     @Column(name = "creation_date")
     private String creationDate;
@@ -113,22 +117,20 @@ public class Artwork extends baseEntity {
 
     public Artwork(String title,
                    Artist artist,
+                   Museum museum,
+                   String externalId,
+                   String classification,
                    String medium,
                    String imageUrl,
-                   String description,
-                   String GalleryNumber,
-                   String currentLocation,
-                   String creationDate,
                    Boolean isOnDisplay,
                    LocalDateTime displayStatusCheck) {
         this.title = title;
         this.artist = artist;
+        this.museum = museum;
+        this.externalId = externalId;
+        this.classification = classification;
         this.medium = medium;
         this.imageUrl = imageUrl;
-        this.description = description;
-        this.GalleryNumber = GalleryNumber;
-        this.currentLocation = currentLocation;
-        this.creationDate = creationDate;
         this.isOnDisplay = isOnDisplay;
         this.displayStatusCheck = displayStatusCheck;
     }
@@ -201,10 +203,16 @@ public class Artwork extends baseEntity {
                 ", artist=" + (artist != null ? "Artist{name='" + artist.getArtistName() + "'}" : "Unknown") +
                 ", medium='" + medium + '\'' +
                 ", culture='" + culture + '\'' +
+                ", country='" + country + '\'' +  // Add geographic fields
+                ", region='" + region + '\'' +
+                ", subRegion='" + subRegion + '\'' +
+                ", geographyType='" + geographyType + '\'' +
                 ", imageUrl='" + imageUrl + '\'' +
                 ", description='" + description + '\'' +
-                ", GalleryNumber='" + GalleryNumber + '\'' +
-                ", currentLocation='" + currentLocation + '\'' +
+                ", galleryNumber='" + galleryNumber + '\'' +
+                ", department='" + department + '\'' +
+                ", classification='" + classification + '\'' +
+                ", copyrightStatus='" + copyrightStatus + '\'' +
                 ", creationDate='" + creationDate + '\'' +
                 ", isOnDisplay=" + isOnDisplay +
                 ", externalId='" + externalId + '\'' +
