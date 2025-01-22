@@ -146,10 +146,7 @@
 			cultureInputRef?.clearSelections();
 			state.isOpen = false;
 
-			if (!import.meta.env.DEV) {
-				await goto(`/tours/${newTour.id}`);
-			}
-			state.isOpen = false;
+			await goto(`/tours/${newTour.id}`);
 		} catch (error) {
 			if (error instanceof Error) {
 				if (error.message === 'TOTAL_LIMIT') {
@@ -179,6 +176,7 @@
 					message: 'An unexpected error occurred'
 				};
 			}
+		} finally {
 			state.isGenerating = false;
 		}
 	}
