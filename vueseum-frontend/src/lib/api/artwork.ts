@@ -17,8 +17,18 @@ export interface FilterOptions {
 	cultures: string[];        // Available when region is selected
 }
 
+/**
+ * Cache artwork data in development mode only.
+ * This improves filter performance by preventing repeated fetches.
+ * In production, the backend handles filtering with proper database queries.
+ *
+ * Note: This is specifically for development convenience and would not be
+ * an appropriate pattern for production where we rely on backend pagination
+ * and filtering.
+ */
 export class ArtworkApiClient extends BaseApiClient {
 	private readonly baseUrl = `${API_BASE_URL}/artworks`;
+	private cachedArtworks: Artwork[] | null = null;
 
 	async searchArtworks(
 		filters: ArtworkFilters,
@@ -131,88 +141,83 @@ export class ArtworkApiClient extends BaseApiClient {
 		criteria: Partial<ArtworkSearchCriteria>
 	): Promise<FilterOptions> {
 		if (import.meta.env.DEV) {
-			const artworks = await this.fetchWithError<Artwork[]>(`${this.baseUrl}`);
-
-			// Extract unique non-null values
-			const classifications = [...new Set(
-				artworks
-					.map(a => a.classification)
-					.filter((c): c is string => c !== undefined)
-			)];
-
-			// Extract unique countries and regions
-			const countries = [...new Set(
-				artworks
-					.map(a => a.country)
-					.filter((c): c is string =>
-						c !== undefined && c !== null && c !== '')
-			)];
-
-			// If artwork type is specified, return relevant materials
-			if (criteria.artworkType) {
-				const relevantMedia = artworks
-					.filter(a => a.classification === criteria.artworkType)
-					.map(a => a.medium)
-					.filter((m): m is string => m !== undefined);
-
-				return {
-					objectType: classifications,
-					materials: [...new Set(relevantMedia)],
-					countries,
-					regions: [],
-					cultures: []
-				};
+			// Cache artworks to prevent multiple fetches during initialization
+			if (!this.cachedArtworks) {
+				this.cachedArtworks = await this.fetchWithError<Artwork[]>(`${this.baseUrl}`);
 			}
+			const artworks = this.cachedArtworks;
 
-			// If country is specified, return relevant regions
-			if (criteria.country) {
-				const relevantRegions = artworks
-					.filter(a => a.country === criteria.country)
-					.map(a => a.region)
-					.filter((r): r is string => r !== undefined);
+			// Helper function to get unique non-null values
+			const getUniqueValues = <T>(
+				items: Array<T | undefined | null>,
+				filter?: (item: T) => boolean
+			): T[] => {
+				return [...new Set(
+					items.filter((item): item is T =>
+						item !== undefined && item !== null &&
+						(!filter || filter(item)))
+				)].sort();
+			};
 
-				// Get cultures for the selected country
-				const relevantCultures = artworks
-					.filter(a => a.country === criteria.country)
-					.map(a => a.culture)
-					.filter((c): c is string => c !== undefined);
-
-				return {
-					objectType: classifications,
-					materials: [],
-					countries,
-					regions: [...new Set(relevantRegions)],
-					cultures: [...new Set(relevantCultures)]
-				};
-			}
-
-			// If region is specified (and implicitly country is specified)
-			if (criteria.region) {
-				const relevantCultures = artworks
-					.filter(a =>
-						a.country === criteria.country &&
-						a.region === criteria.region
-					)
-					.map(a => a.culture)
-					.filter((c): c is string => c !== undefined);
-
-				return {
-					objectType: classifications,
-					materials: [],
-					countries,
-					regions: [], // Regions already loaded from country selection
-					cultures: [...new Set(relevantCultures)]
-				};
-			}
-
-			// Default: return top-level options
-			return {
-				objectType: classifications,
+			// Base object for response
+			const options: FilterOptions = {
+				objectType: [],
 				materials: [],
-				countries,
+				countries: [],
 				regions: [],
 				cultures: []
 			};
+
+			// Always include object types and countries as base options
+			options.objectType = getUniqueValues(
+				artworks.map((a : Artwork) => a.classification)
+			);
+			options.countries = getUniqueValues(
+				artworks.map((a : Artwork) => a.country),
+				country => country.trim().length > 0
+			);
+
+			// Filter artworks based on criteria
+			let filteredArtworks = artworks;
+
+			// Apply artwork type filter
+			if (criteria.artworkType) {
+				filteredArtworks = filteredArtworks.filter(
+					(a : Artwork) => a.classification === criteria.artworkType
+				);
+				options.materials = getUniqueValues(
+					filteredArtworks.map((a : Artwork) => a.medium)
+				);
+			}
+
+			// Apply country filter
+			if (criteria.country) {
+				filteredArtworks = filteredArtworks.filter(
+					(a : Artwork) => a.country === criteria.country
+				);
+				options.regions = getUniqueValues(
+					filteredArtworks.map((a : Artwork) => a.region)
+				);
+
+				// If no region specified, get all cultures for country
+				if (!criteria.region) {
+					options.cultures = getUniqueValues(
+						filteredArtworks.map((a : Artwork) => a.culture)
+					);
+				}
+			}
+
+			// Apply region filter
+			if (criteria.region) {
+				filteredArtworks = filteredArtworks.filter(
+					(a : Artwork) => a.region === criteria.region
+				);
+				options.cultures = getUniqueValues(
+					filteredArtworks.map((a : Artwork) => a.culture)
+				);
+			}
+
+			return options;
 		}
 
 		// Production endpoint
