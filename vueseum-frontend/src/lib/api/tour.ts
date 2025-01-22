@@ -3,7 +3,6 @@ import { API_BASE_URL } from '../config';
 import { ApiError, BaseApiClient } from '$lib/api/base';
 import type { Artwork, PaginatedResponse } from '$lib/types/artwork';
 import type { Tour } from '$lib/types/tour';
-import { goto } from '$app/navigation';
 
 interface TourPreferences {
 	museumId: number;
@@ -177,12 +176,10 @@ export class TourApiClient extends BaseApiClient {
 			throw new Error('DAILY_LIMIT');
 		}
 
-		// Get artworks for the selected museum
-		const response = await fetch(`${API_BASE_URL}/artworks`);
-		const allArtworks = await response.json();
-		const museumArtworks = allArtworks.filter(
-            (a: { museum: { id: number; }; }) => a.museum.id === preferences.museumId
+		const response = await fetch(
+			`${API_BASE_URL}/artworks?museum=${preferences.museumId}&size=100`
 		);
+		const museumArtworks = await response.json();
 
 		// Select artworks based on preferences
 		const selectedArtworks = this.selectArtworksForDevTour(
@@ -240,7 +237,6 @@ export class TourApiClient extends BaseApiClient {
 			localStorage.setItem('devTours', JSON.stringify([...existingTours, newTour]));
 		}
 
-		await goto(`/tours/${newTour.id}`);
 		return newTour;
 	}
 
