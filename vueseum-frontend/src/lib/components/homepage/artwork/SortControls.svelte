@@ -1,31 +1,43 @@
-<script lang="ts">
-	import { Select, SelectContent, SelectItem, SelectTrigger } from "$lib/components/ui/select";
-	import { Button } from "$lib/components/ui/button";
-	import { ArrowUpDown } from "lucide-svelte";
-	import { cn } from "$lib/utils";
 
-	const SORT_OPTIONS = [
+<script module lang="ts">
+	export const SORT_OPTIONS = [
 		{ value: 'relevance', label: 'Relevance' },
 		{ value: 'title', label: 'Title (A-Z)' },
 		{ value: 'artist', label: 'Artist Name (A-Z)' },
 		{ value: 'date', label: 'Date (Newest)' }
 	] as const;
 
-	type SortField = (typeof SORT_OPTIONS)[number]['value'];
+	export type SortField = (typeof SORT_OPTIONS)[number]['value'];
+	export type SortDirection = 'asc' | 'desc';
+	export type SortConfig = {
+		field: SortField;
+		direction: SortDirection;
+	};
+</script>
+
+<script lang="ts">
+	import { Select, SelectContent, SelectItem, SelectTrigger } from "$lib/components/ui/select";
+	import { Button } from "$lib/components/ui/button";
+	import { ArrowUpDown } from "lucide-svelte";
+	import { cn } from "$lib/utils";
 
 	let { onSortChange } = $props<{
-		onSortChange: (field: SortField, direction: 'asc' | 'desc') => void;
+		onSortChange: (field: SortField, direction: SortDirection) => void;
 	}>();
 
 	const state = $state({
 		sort: {
 			field: 'relevance' as SortField,
-			direction: 'asc' as 'asc' | 'desc'
+			direction: 'asc' as SortDirection
 		}
 	});
 
+	function isSortField(value: string): value is SortField {
+		return SORT_OPTIONS.some(opt => opt.value === value);
+	}
+
 	// Function to get display text based on current sort
-	function getSortDisplay(field: SortField, direction: 'asc' | 'desc') {
+	function getSortDisplay(field: SortField, direction: SortDirection) {
 		const option = SORT_OPTIONS.find(opt => opt.value === field);
 		if (!option) return '';
 
@@ -48,26 +60,7 @@
 		}
 	}
 
-	// Toggle direction and notify parent
-	function toggleDirection() {
-		if (state.sort.field === 'relevance') return;
-		state.sort.direction = state.sort.direction === 'asc' ? 'desc' : 'asc';
-		onSortChange(state.sort.field, state.sort.direction);
-	}
-
-	// Handle field change and notify parent
-	function handleFieldChange(newValue: string) {
-		// Validate that the new value is a valid sort field
-		if (SORT_OPTIONS.some(opt => opt.value === newValue)) {
-			const newField = newValue as SortField;
-			const defaultDirection = getDefaultDirection(newField);
-			state.sort.field = newField;
-			state.sort.direction = defaultDirection;
-			onSortChange(newField, defaultDirection);
-		}
-	}
-
-	function getDefaultDirection(field: SortField): 'asc' | 'desc' {
+	function getDefaultDirection(field: SortField): SortDirection {
 		switch (field) {
 			case 'date':
 				return 'desc';  // Newest first
@@ -77,6 +70,21 @@
 			default:
 				return 'asc';   // Default ascending
 		}
+	}
+
+	function handleFieldChange(newValue: string) {
+		if (isSortField(newValue)) {
+			const defaultDirection = getDefaultDirection(newValue);
+			state.sort.field = newValue;
+			state.sort.direction = defaultDirection;
+			onSortChange(newValue, defaultDirection);
+		}
+	}
+
+	function toggleDirection() {
+		if (state.sort.field === 'relevance') return;
+		state.sort.direction = state.sort.direction === 'asc' ? 'desc' : 'asc';
+		onSortChange(state.sort.field, state.sort.direction);
 	}
 </script>
 
