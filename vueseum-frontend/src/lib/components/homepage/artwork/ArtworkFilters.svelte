@@ -1,7 +1,23 @@
+<script module lang="ts">
+	export interface ArtworkFilters {
+		searchTerm: string[];
+		searchField: SearchField;
+		objectType: string[];
+		materials: string[];
+		country: string[];
+		region: string[];
+		culture: string[];
+		era: StandardPeriod[];
+		onDisplay: boolean;
+		hasImage: boolean;
+		museumId?: string[];
+	}
+
+	export type SearchField = 'all' | 'title' | 'artist' | 'culture';
+</script>
 
 <script lang="ts">
 	import type { StandardPeriod } from '$lib/types/artwork';
-	import { artworkApi } from '$lib/api/artwork';
 	import { Select, SelectContent, SelectItem, SelectTrigger } from '$lib/components/ui/select';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
@@ -21,184 +37,98 @@
 		"A.D. 1900-present"
 	];
 
-	export interface ArtworkFilters {
-		searchTerm: string[];
-		searchField: SearchField;
-		objectType: string[];
-		materials: string[];
-		country: string[];
-		region: string[];
-		culture: string[];
-		era: StandardPeriod[];
-		onDisplay: boolean;
-		hasImage: boolean;
-	}
-
-	export type SearchField = 'all' | 'title' | 'artist' | 'culture';
-
-	let { onSearch, children } = $props<{
+	let {
+		filters,
+		filterOptions,
+		loading,
+		error,
+		onFilterChange,
+		children
+	} = $props<{
+		filters: ArtworkFilters;
+		filterOptions: {
+			objectType: string[];
+			materials: string[];
+			countries: string[];
+			regions: string[];
+			cultures: string[];
+		};
+		loading: {
+			options: boolean;
+		};
+		error: string | null;
+		onFilterChange: (
+			key: keyof ArtworkFilters,
+			value: string[] | StandardPeriod[] | SearchField | boolean
+		) => void;
 		onSearch: (filters: ArtworkFilters) => void;
 		children?: unknown;
 	}>();
 
-	const state = $state({
-		filters: {
-			searchTerm: [] as string[],
-			searchField: "all" as SearchField,
-			objectType: [] as string[],
-			materials: [] as string[],
-			culture: [] as string[],
-			country: [] as string[],
-			region: [] as string[],
-			era: [] as StandardPeriod[],
-			onDisplay: false,
-			hasImage: true
-		},
-		filterOptions: {
-			objectType: [] as string[],
-			materials: [] as string[],
-			countries: [] as string[],
-			regions: [] as string[],
-			cultures: [] as string[]
-		},
-		loading: {
-			options: false
-		},
-		error: null as string | null,
-		isTruncated: false,
-		materialsTrigger: null as HTMLElement | null
-	});
+	type FilterKey = keyof ArtworkFilters;
 
-	// Fetch initial filter options
-	async function fetchFilterOptions(): Promise<void> {
-		if (state.loading.options) return;
-
-		state.loading.options = true;
-		state.error = null;
-
-		try {
-			state.filterOptions = await artworkApi.getFilterOptions({});
-		} catch (error) {
-			state.error = error instanceof Error ? error.message : 'Failed to load filter options';
-			console.error('Error fetching filter options:', error);
-		} finally {
-			state.loading.options = false;
-		}
+	function handleSingleSelect(
+		key: FilterKey,
+		value: string | undefined,
+		dependentFields?: { field: FilterKey; reset: true }[]
+	) {
+		onFilterChange(key, value ? [value] : []);
+		dependentFields?.forEach(({ field }) => {
+			onFilterChange(field, []);
+		})
 	}
 
 	// Handle search field changes
 	function handleSearchFieldChange(value: string) {
 		if (value === "all" || value === "title" || value === "artist" || value === "culture") {
-			state.filters.searchField = value;
+			onFilterChange('searchField', value);
 		}
 	}
 
-	// Handle object type selection and load subtypes
-	async function handleClassificationChange(classification: string | undefined) {
-		// Update classification filter
-		state.filters.objectType = classification ? [classification] : [];
-
-		// Reset materials when classification changes
-		state.filters.materials = [];
-
-		if (classification) {
-			state.loading.options = true;
-			try {
-				// Fetch materials relevant to this classification
-				const response = await artworkApi.getFilterOptions({
-					artworkType: classification
-				});
-				state.filterOptions.materials = response.materials || [];
-			} catch (error) {
-				state.error = error instanceof Error ?
-					error.message : 'Failed to load options';
-			} finally {
-				state.loading.options = false;
-			}
-		}
-
-		// Trigger search with updated filters
-		onSearch(state.filters);
+	function handleClassificationChange(classification: string | undefined) {
+		handleSingleSelect('objectType', classification, [
+			{ field: 'materials', reset: true }
+		]);
 	}
 
-	// Handle materials selection
 	function handleMaterialsChange(materials: string[]) {
-		state.filters.materials = materials;
-		onSearch(state.filters);
+		onFilterChange('materials', materials);
 	}
 
-	async function handleCountryChange(country: string | undefined) {
-		state.filters.country = country ? [country] : [];
-		state.filters.region = [];
-		state.filters.culture = [];
-
-		if (country) {
-			try {
-				const response = await artworkApi.getFilterOptions({ country });
-				state.filterOptions.regions = response.regions || [];
-			} catch (error) {
-				state.error = error instanceof Error ? error.message : 'Failed to load regions';
-			}
-		}
-
-		onSearch(state.filters);
+	function handleCountryChange(country: string | undefined) {
+		handleSingleSelect('country', country, [
+			{ field: 'region', reset: true },
+			{ field: 'culture', reset: true }
+		]);
 	}
 
-	// Handle region selection and load cultures
-	async function handleRegionChange(region: string | undefined) {
-		state.filters.region = region ? [region] : [];
-		state.filters.culture = [];
-
-		if (region) {
-			try {
-				const response = await artworkApi.getFilterOptions({
-					country: state.filters.country[0],
-					region
-				});
-				state.filterOptions.cultures = response.cultures || [];
-			} catch (error) {
-				state.error = error instanceof Error ? error.message : 'Failed to load cultures';
-			}
-		}
-
-		onSearch(state.filters);
+	function handleRegionChange(region: string | undefined) {
+		handleSingleSelect('region', region, [
+			{ field: 'culture', reset: true }
+		]);
 	}
 
-	// Handle culture selection
 	function handleCultureChange(culture: string | undefined) {
-		state.filters.culture = culture ? [culture] : [];
-		onSearch(state.filters);
+		handleSingleSelect('culture', culture);
 	}
 
-	// Handle era selection
 	function handleEraChange(value: string | undefined) {
-		state.filters.era = value ? [value as StandardPeriod] : [];
-		onSearch(state.filters);
+		handleSingleSelect('era', value as StandardPeriod);
 	}
 
 	// Handle checkbox changes
 	function handleCheckboxChange(key: 'onDisplay' | 'hasImage', checked: boolean) {
-		state.filters[key] = checked;
-		onSearch(state.filters);
+		onFilterChange(key, checked);
 	}
 
 	// Handle search execution
 	function handleSearch() {
-		const searchTerms = state.filters.searchTerm[0]?.trim()
-			? [state.filters.searchTerm[0]]
+		const searchTerms = filters.searchTerm[0]?.trim()
+			? [filters.searchTerm[0]]
 			: [];
-
-		onSearch({
-			...state.filters,
-			searchTerm: searchTerms
-		});
+		onFilterChange('searchTerm', searchTerms);
 	}
-	// Initial load effect
-	$effect(() => {
-		if (!state.filterOptions.objectType.length && !state.loading.options) {
-			fetchFilterOptions();
-		}
-	});
+
 </script>
 
 <div class="space-y-6">
@@ -208,15 +138,15 @@
 		<div class="flex gap-2">
 			<Select
 				type="single"
-				value={state.filters.searchField}
+				value={filters.searchField}
 				onValueChange={handleSearchFieldChange}
 			>
 				<SelectTrigger class="w-36">
-					{#if state.filters.searchField === 'all'}
+					{#if filters.searchField === 'all'}
 						All Fields
-					{:else if state.filters.searchField === 'title'}
+					{:else if filters.searchField === 'title'}
 						Title
-					{:else if state.filters.searchField === 'artist'}
+					{:else if filters.searchField === 'artist'}
 						Artist
 					{:else}
 						Culture
@@ -234,8 +164,8 @@
 				<Input
 					type="text"
 					placeholder="Search artworks..."
-					value={state.filters.searchTerm[0] || ''}
-					onchange={(e) => state.filters.searchTerm = [e.currentTarget.value]}
+					value={filters.searchTerm[0] || ''}
+					onchange={(e) => onFilterChange('searchTerm', [e.currentTarget.value])}
 					onkeydown={(e) => e.key === 'Enter' && handleSearch()}
 				/>
 				<Button
@@ -264,13 +194,11 @@
 			<div class="space-y-2">
 				<div class="flex items-center justify-between h-6">
 					<Label>Artwork Type</Label>
-					{#if state.filters.objectType.length || state.filters.materials.length}
+					{#if filters.objectType.length || filters.materials.length}
 						<Button
 							variant="ghost"
 							size="sm"
-							onclick={() => {
-								handleClassificationChange(undefined);
-						}}
+							onclick={() => handleClassificationChange(undefined)}
 						>
 							Reset
 						</Button>
@@ -279,39 +207,39 @@
 
 				<Select
 					type="single"
-					value={state.filters.objectType[0]}
+					value={filters.objectType[0]}
 					onValueChange={handleClassificationChange}
 				>
 					<SelectTrigger>
-						<span class={!state.filters.objectType[0] ? "text-muted-foreground" : ""}>
-            	{state.filters.objectType[0] || 'Object type'}
-        		</span>
+						<span class={!filters.objectType[0] ? "text-muted-foreground" : ""}>
+								{filters.objectType[0] || 'Object type'}
+						</span>
 					</SelectTrigger>
 					<SelectContent>
-						{#each state.filterOptions.objectType || [] as type}
+						{#each filterOptions.objectType || [] as type}
 							<SelectItem value={type}>{type}</SelectItem>
 						{/each}
 					</SelectContent>
 				</Select>
 
 				<!-- Materials selection appears when classification is selected -->
-				{#if state.filters.objectType.length > 0 && state.filterOptions.materials.length > 0}
+				{#if filters.objectType.length > 0 && filterOptions.materials.length > 0}
 					<Select
 						type="multiple"
-						value={state.filters.materials}
+						value={filters.materials}
 						onValueChange={handleMaterialsChange}
 					>
 						<SelectTrigger class="text-left">
-							<div class="flex-1 min-w-0"> <!-- Use flexbox and min-width to prevent overflow -->
+							<div class="flex-1 min-w-0">
 								<span id="materials-content" class="truncate block text">
-                {state.filters.materials.length === 0
-									? 'Medium'
-									: state.filters.materials.join(', ')}
-            		</span>
+										{filters.materials.length === 0
+											? 'Medium'
+											: filters.materials.join(', ')}
+								</span>
 							</div>
 						</SelectTrigger>
 						<SelectContent>
-							{#each state.filterOptions.materials as material}
+							{#each filterOptions.materials as material}
 								<SelectItem value={material}>{material}</SelectItem>
 							{/each}
 						</SelectContent>
@@ -323,16 +251,13 @@
 			<div class="space-y-2">
 				<div class="flex items-center justify-between h-6">
 					<Label>Geographical Location</Label>
-					{#if state.filters.country.length || state.filters.region.length || state.filters.culture.length}
+					{#if filters.country.length || filters.region.length || filters.culture.length}
 						<Button
 							variant="ghost"
 							size="sm"
 							onclick={() => {
-                    state.filters.country = [];
-                    state.filters.region = [];
-                    state.filters.culture = [];
-                    onSearch(state.filters);
-                }}
+								handleCountryChange(undefined);
+						}}
 						>
 							Reset
 						</Button>
@@ -342,35 +267,35 @@
 				<!-- Country Selection -->
 				<Select
 					type="single"
-					value={state.filters.country[0]}
+					value={filters.country[0]}
 					onValueChange={handleCountryChange}
 				>
 					<SelectTrigger>
-            <span class={!state.filters.country[0] ? "text-muted-foreground" : ""}>
-                {state.filters.country[0] || 'Select country'}
-            </span>
+						<span class={!filters.country[0] ? "text-muted-foreground" : ""}>
+								{filters.country[0] || 'Select country'}
+						</span>
 					</SelectTrigger>
 					<SelectContent>
-						{#each state.filterOptions.countries as country}
+						{#each filterOptions.countries as country}
 							<SelectItem value={country}>{country}</SelectItem>
 						{/each}
 					</SelectContent>
 				</Select>
 
 				<!-- Region Selection - Only show if country is selected -->
-				{#if state.filters.country.length > 0 && state.filterOptions.regions.length > 0}
+				{#if filters.country.length > 0 && filterOptions.regions.length > 0}
 					<Select
 						type="single"
-						value={state.filters.region[0]}
+						value={filters.region[0]}
 						onValueChange={handleRegionChange}
 					>
 						<SelectTrigger>
-                <span class={!state.filters.region[0] ? "text-muted-foreground" : ""}>
-                    {state.filters.region[0] || 'Select region'}
-                </span>
+							<span class={!filters.region[0] ? "text-muted-foreground" : ""}>
+									{filters.region[0] || 'Select region'}
+							</span>
 						</SelectTrigger>
 						<SelectContent>
-							{#each state.filterOptions.regions as region}
+							{#each filterOptions.regions as region}
 								<SelectItem value={region}>{region}</SelectItem>
 							{/each}
 						</SelectContent>
@@ -378,19 +303,19 @@
 				{/if}
 
 				<!-- Culture Selection - Show based on selected region -->
-				{#if state.filters.region.length > 0 && state.filterOptions.cultures.length > 0}
+				{#if filters.region.length > 0 && filterOptions.cultures.length > 0}
 					<Select
 						type="single"
-						value={state.filters.culture[0]}
+						value={filters.culture[0]}
 						onValueChange={handleCultureChange}
 					>
 						<SelectTrigger>
-                <span class={!state.filters.culture[0] ? "text-muted-foreground" : ""}>
-                    {state.filters.culture[0] || 'Select culture'}
-                </span>
+							<span class={!filters.culture[0] ? "text-muted-foreground" : ""}>
+									{filters.culture[0] || 'Select culture'}
+							</span>
 						</SelectTrigger>
 						<SelectContent>
-							{#each state.filterOptions.cultures as culture}
+							{#each filterOptions.cultures as culture}
 								<SelectItem value={culture}>{culture}</SelectItem>
 							{/each}
 						</SelectContent>
@@ -402,7 +327,7 @@
 			<div class="space-y-2">
 				<div class="flex items-center justify-between h-6">
 					<Label>Era</Label>
-					{#if state.filters.era.length}
+					{#if filters.era.length}
 						<Button
 							variant="ghost"
 							size="sm"
@@ -415,13 +340,13 @@
 
 				<Select
 					type="single"
-					value={state.filters.era[0]}
+					value={filters.era[0]}
 					onValueChange={handleEraChange}
 				>
 					<SelectTrigger>
-						<span class={!state.filters.era[0] ? "text-muted-foreground" : ""}>
-            	{state.filters.era[0] || 'Time period'}
-        		</span>
+						<span class={!filters.era[0] ? "text-muted-foreground" : ""}>
+								{filters.era[0] || 'Time period'}
+						</span>
 					</SelectTrigger>
 					<SelectContent>
 						{#each PERIOD_OPTIONS as period}
@@ -437,7 +362,7 @@
 			<div class="flex items-center space-x-2">
 				<Checkbox
 					id="onDisplay"
-					checked={state.filters.onDisplay}
+					checked={filters.onDisplay}
 					onCheckedChange={(checked) => handleCheckboxChange('onDisplay', checked)}
 				/>
 				<Label for="onDisplay">On view</Label>
@@ -446,7 +371,7 @@
 			<div class="flex items-center space-x-2">
 				<Checkbox
 					id="hasImage"
-					checked={state.filters.hasImage}
+					checked={filters.hasImage}
 					onCheckedChange={(checked) => handleCheckboxChange('hasImage', checked)}
 				/>
 				<Label for="hasImage">Has image</Label>
@@ -454,10 +379,16 @@
 		</div>
 	</div>
 
+	{#if loading.options}
+		<div class="flex justify-center py-4">
+			<span class="text-sm text-muted-foreground">Loading filter options...</span>
+		</div>
+	{/if}
+
 	<!-- Error Display -->
-	{#if state.error}
+	{#if error}
 		<div class="text-sm text-destructive mt-2">
-			{state.error}
+			{error}
 		</div>
 	{/if}
 </div>
