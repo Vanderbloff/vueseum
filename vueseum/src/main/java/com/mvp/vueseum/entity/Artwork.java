@@ -71,9 +71,6 @@ public class Artwork extends baseEntity {
     @Column(name = "creation_date")
     private String creationDate;
 
-    @Column(name = "on_display", nullable = false)
-    private Boolean isOnDisplay = false;
-
     @Column(name = "external_id", nullable = false)
     private String externalId = "";
 
@@ -88,8 +85,6 @@ public class Artwork extends baseEntity {
 
     @Column(name = "type")
     private String classification;
-
-    private LocalDateTime displayStatusCheck;
 
     // Track processing status
     @Enumerated(EnumType.STRING)
@@ -121,9 +116,7 @@ public class Artwork extends baseEntity {
                    String externalId,
                    String classification,
                    String medium,
-                   String imageUrl,
-                   Boolean isOnDisplay,
-                   LocalDateTime displayStatusCheck) {
+                   String imageUr) {
         this.title = title;
         this.artist = artist;
         this.museum = museum;
@@ -131,8 +124,6 @@ public class Artwork extends baseEntity {
         this.classification = classification;
         this.medium = medium;
         this.imageUrl = imageUrl;
-        this.isOnDisplay = isOnDisplay;
-        this.displayStatusCheck = displayStatusCheck;
     }
 
     public String getArtistName() {
@@ -214,11 +205,9 @@ public class Artwork extends baseEntity {
                 ", classification='" + classification + '\'' +
                 ", copyrightStatus='" + copyrightStatus + '\'' +
                 ", creationDate='" + creationDate + '\'' +
-                ", isOnDisplay=" + isOnDisplay +
                 ", externalId='" + externalId + '\'' +
                 ", museum=" + (museum != null ? "Museum{name='" + museum.getName() + "'}" : "Unknown") +
                 ", additionalMetadata=" + additionalMetadata +
-                ", displayStatusCheck=" + displayStatusCheck +
                 ", processingStatus=" + processingStatus +
                 ", lastSyncAttempt=" + lastSyncAttempt +
                 ", lastSyncError='" + lastSyncError + '\'' +
