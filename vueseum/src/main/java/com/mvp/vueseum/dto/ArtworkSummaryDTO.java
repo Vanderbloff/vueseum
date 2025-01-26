@@ -20,7 +20,6 @@ public class ArtworkSummaryDTO {
     private String imageUrl;
     private String galleryNumber;
     private String department;
-    private Boolean isOnDisplay;
 
     public static ArtworkSummaryDTO fromEntity(Artwork artwork) {
         ArtworkSummaryDTO dto = new ArtworkSummaryDTO();
@@ -37,7 +36,6 @@ public class ArtworkSummaryDTO {
         dto.imageUrl = artwork.getImageUrl();
         dto.galleryNumber = artwork.getGalleryNumber();
         dto.department = artwork.getDepartment();
-        dto.isOnDisplay = artwork.getIsOnDisplay();
         return dto;
     }
 }
