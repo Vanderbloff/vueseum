@@ -32,7 +32,6 @@ public class ArtworkDetails {
 
     // Museum-Specific Metadata
     private String department;       // Museum department
-    private Boolean isOnView;        // Current exhibition status
     private String galleryNumber;
 
     // Additional Descriptive Information
@@ -126,7 +125,6 @@ public class ArtworkDetails {
                 ", artworkType='" + artworkType + '\'' +
                 ", dimensions='" + dimensions + '\'' +
                 ", department='" + department + '\'' +
-                ", isOnView=" + isOnView +
                 ", galleryNumber='" + galleryNumber + '\'' +
                 ", description='" + description + '\'' +
                 ", tags=" + tags +
