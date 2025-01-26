@@ -16,7 +16,6 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @Component
 public class ArtworkSpecifications {
@@ -24,8 +23,6 @@ public class ArtworkSpecifications {
     public static Specification<Artwork> withSearchCriteria(ArtworkSearchCriteria criteria) {
         return (root, _, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-
-            predicates.add(cb.isTrue(root.get("isOnDisplay")));
 
             // Handle artwork type/classification with hierarchical relationships
             if (criteria.getArtworkType() != null) {
