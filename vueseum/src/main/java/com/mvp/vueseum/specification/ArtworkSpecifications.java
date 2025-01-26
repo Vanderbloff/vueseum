@@ -25,6 +25,8 @@ public class ArtworkSpecifications {
         return (root, _, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
+            predicates.add(cb.isTrue(root.get("isOnDisplay")));
+
             // Handle artwork type/classification with hierarchical relationships
             if (criteria.getArtworkType() != null) {
                 String artworkType = criteria.getArtworkType();
@@ -73,11 +75,6 @@ public class ArtworkSpecifications {
                 root.fetch("artist", JoinType.LEFT);
             }
 
-            // Handle display status
-            if (criteria.getIsOnDisplay() != null && criteria.getIsOnDisplay()) {
-                predicates.add(cb.isTrue(root.get("isOnDisplay")));
-            }
-
             // Title search with partial matching
             if (StringUtils.hasText(criteria.getTitle())) {
                 predicates.add(
@@ -99,8 +96,7 @@ public class ArtworkSpecifications {
             }
 
             // Combine all predicates with AND
-            return predicates.isEmpty() ? null :
-                    cb.and(predicates.toArray(new Predicate[0]));
+            return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
 
