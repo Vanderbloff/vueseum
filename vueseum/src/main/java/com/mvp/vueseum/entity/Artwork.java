@@ -116,7 +116,7 @@ public class Artwork extends baseEntity {
                    String externalId,
                    String classification,
                    String medium,
-                   String imageUr) {
+                   String imageUrl) {
         this.title = title;
         this.artist = artist;
         this.museum = museum;

@@ -3,123 +3,96 @@ package com.mvp.vueseum.client.museum_client;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 import com.mvp.vueseum.client.BaseMuseumApiClient;
 import com.mvp.vueseum.domain.ArtworkDetails;
-import com.mvp.vueseum.entity.Artwork;
 import com.mvp.vueseum.entity.Museum;
+import com.mvp.vueseum.event.SyncOperation;
 import com.mvp.vueseum.exception.ApiClientException;
 import com.mvp.vueseum.service.artwork.ArtworkService;
 import com.mvp.vueseum.service.museum.MuseumService;
+import com.mvp.vueseum.util.RetryUtil;
+import lombok.AccessLevel;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.env.Environment;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @SuppressWarnings("UnstableApiUsage")
 @Service
 @Getter
 @PropertySource("classpath:museum.properties")
 public class MetMuseumApiClient extends BaseMuseumApiClient {
-
     private static final Logger logger = LoggerFactory.getLogger(MetMuseumApiClient.class);
-    private final RateLimiter rateLimiter;
-    private final ArtworkService artworkService;
     private final Museum metMuseum;
 
+    @Getter(AccessLevel.NONE)
+    private final RateLimiter rateLimiter;
+
     public MetMuseumApiClient(
+            RetryUtil retryUtil,
             Environment environment,
             MuseumService museumService,
             @Value("${museum.metropolitan.api.baseUrl}") String baseUrl,
             ArtworkService artworkService
     ) {
-        super(environment, baseUrl);
-        // Get or create Met Museum record once during initialization
+        super(retryUtil, environment, baseUrl, artworkService);
         this.metMuseum = museumService.findOrCreateMuseum("Metropolitan Museum of Art");
-        this.rateLimiter = RateLimiter.create(Integer.parseInt(environment.getProperty("museum.metropolitan.api.rateLimit", "80")));
-        this.artworkService = artworkService;
+        this.rateLimiter = RateLimiter.create(
+                Integer.parseInt(
+                        environment.getProperty("museum.metropolitan.api.rateLimit", "80")
+                )
+        );
     }
 
-    @VisibleForTesting  // From com.google.common.annotations
-    public void syncArtworksForTesting(List<String> artworkIds) {
-        syncStartTime = LocalDateTime.now();
-        processedCount.set(0);
-        errorCount.set(0);
-
-        try {
-            processBatch(artworkIds, rateLimiter, artworkService);
-        } catch (Exception e) {
-            errorCount.incrementAndGet();
-            throw new ApiClientException("Test sync failed", e);
-        }
-    }
-
-    /**
-     * Initiates a full synchronization of the museum's collection.
-     * This process extracts all object IDs, processes them in batches,
-     * and updates the local database.
-     */
     @Override
-    @Scheduled(cron = "0 0 2 * * *") // Run at 2 AM daily
-    public void syncArtworks() {
-        try {
-            syncStartTime = LocalDateTime.now();
-            logger.info("Starting Met Museum collection sync at {}", syncStartTime);
+    public List<String> getCurrentlyDisplayedArtworkIds() {
+        return withRetry(() -> {
+            rateLimiter.acquire();
+            String response = restClient.get()
+                    .uri("/objects")
+                    .retrieve()
+                    .body(String.class);
 
-            // Extract all object IDs
-            List<String> allIds = withRetry(
-                    () -> {
+            List<String> allIds = parseSearchResponse(response, "ObjectIDs");
+
+            return allIds.stream()
+                    .filter(id -> {
                         rateLimiter.acquire();
-                        String response = restClient.get()
-                                .uri("/objects")
+                        String detailResponse = restClient.get()
+                                .uri("/objects/{id}", id)
                                 .retrieve()
                                 .body(String.class);
-                        return parseSearchResponse(response, "ObjectIDs");
-                    },
-                    "fetch object IDs from the Met Museum collection"
-            );
+                        return isArtworkDisplayed(detailResponse);
+                    })
+                    .collect(Collectors.toList());
+        }, "fetch displayed artwork IDs");
+    }
 
-            // Process in batches to manage memory and respect rate limits
-            int batchSize = Integer.parseInt(
-                    environment.getProperty("museum.metropolitan.api.rateLimit", "80")
-            );
-            List<List<String>> batches = Lists.partition(allIds, batchSize);
-            for (List<String> batch : batches) {
-                try {
-                    processBatch(batch, rateLimiter, artworkService);
-                    int currentProcessed = processedCount.addAndGet(batch.size());
-                    if (currentProcessed % 1000 == 0) {
-                        logProgress(currentProcessed, allIds.size());
-                    }
-                    logger.debug("Processed batch of {} artworks. Total processed: {}", batch.size(), processedCount);
-                } catch (Exception e) {
-                    errorCount.incrementAndGet();
-                    logger.error("Failed to process batch", e);
-                }
+    private boolean isArtworkDisplayed(String response) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode rootNode = objectMapper.readTree(response);
 
-                // Respect rate limiting between batches
-                rateLimiter.acquire(batch.size());
+            // Skip Cloisters
+            if (rootNode.path("department").asInt() == 7) {
+                return false;
             }
 
-            logger.info("Completed collection sync. Processed: {}, Errors: {}, Total time: {} minutes",
-                    processedCount.get(),
-                    errorCount.get(),
-                    ChronoUnit.MINUTES.between(syncStartTime, LocalDateTime.now()));
-
-        } catch (Exception e) {
-            logger.error("Failed to complete collection sync", e);
-            throw new ApiClientException("Collection sync failed", e);
+            // Check if artwork has a gallery number
+            return !rootNode.path("GalleryNumber").asText().isBlank();
+        } catch (JsonProcessingException e) {
+            logger.warn("Failed to parse artwork response", e);
+            return false;
         }
     }
 
@@ -144,18 +117,12 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
     @Override
     public ArtworkDetails convertToArtworkDetails(String response) {
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode rootNode = objectMapper.readTree(response);
-
-            // Early return if artwork belongs to The Cloisters
-            if (rootNode.path("department").asInt() == 7) {
-                logger.debug("Skipping Met Museum Cloisters artwork: {}",
-                        rootNode.path("objectID").asText());
-                return null;  // This artwork will be skipped during processing
+            if (!isArtworkDisplayed(response)) {
+                return null;
             }
 
-            String galleryNumber = rootNode.path("GalleryNumber").asText();
-            Boolean isOnDisplay = !galleryNumber.isBlank();
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode rootNode = objectMapper.readTree(response);
 
             return ArtworkDetails.builder()
                     .apiSource("Metropolitan Museum of Art")
@@ -177,8 +144,7 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
 
                     // Museum location
                     .department(rootNode.path("department").asText())
-                    .isOnView(isOnDisplay)
-                    .galleryNumber(galleryNumber)
+                    .galleryNumber(rootNode.path("GalleryNumber").asText())
 
                     // Geographic details - Met-specific richness
                     .country(rootNode.path("country").asText())
@@ -207,36 +173,78 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
     }
 
     @Override
-    protected Long getMuseumId() {
+    protected List<String> getUpdatedArtworkIds(LocalDateTime since) {
+        return withRetry(() -> {
+            rateLimiter.acquire();
+
+            // Format date as required by Met API (YYYY-MM-DD)
+            String formattedDate = since.format(DateTimeFormatter.ISO_DATE);
+
+            String response = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/objects")
+                            .queryParam("metadataDate", formattedDate)
+                            .build())
+                    .retrieve()
+                    .body(String.class);
+
+            List<String> updatedIds = parseSearchResponse(response, "ObjectIDs");
+
+            // Filter for displayed artworks
+            return updatedIds.stream()
+                    .filter(id -> isArtworkDisplayed(fetchObjectResponse(id)))
+                    .collect(Collectors.toList());
+        }, "fetch updated artwork IDs");
+    }
+
+    // Helper method to get object response
+    private String fetchObjectResponse(String id) {
+        rateLimiter.acquire();
+        return restClient.get()
+                .uri("/objects/{id}", id)
+                .retrieve()
+                .body(String.class);
+    }
+
+    @Override
+    public void performSync(SyncOperation operation) {
+        try {
+            syncStartTime = operation.getStartTime();
+            logger.info("Starting {} sync at {}",
+                    operation.isFullSync() ? "full" : "incremental",
+                    syncStartTime);
+
+            List<String> artworkIds = operation.isFullSync()
+                    ? getCurrentlyDisplayedArtworkIds()
+                    : getUpdatedArtworkIds(operation.getIncrementalSince());
+
+            processArtworksSync(artworkIds);
+
+            logger.info("Completed {} sync. Processed: {}, Errors: {}",
+                    operation.isFullSync() ? "full" : "incremental",
+                    processedCount.get(),
+                    errorCount.get());
+
+        } catch (Exception e) {
+            logger.error("Failed to complete sync", e);
+            throw new ApiClientException("Sync failed", e);
+        }
+    }
+
+    @Override
+    public Long getMuseumId() {
         return metMuseum.getId();
     }
 
-    /**
-     * Updates the display status of artworks in the database.
-     * Runs more frequently than the full sync to keep display status current.
-     */
-    @Scheduled(cron = "0 0 * * * *") // Run hourly
-    public void updateDisplayStatus() {
-        logger.info("Starting display status update");
-        List<Artwork> artworksToCheck = artworkService.findArtworksNeedingDisplayCheck();
+    @Override
+    protected int getBatchSize() {
+        return Integer.parseInt(
+                environment.getProperty("museum.metropolitan.api.batchSize", "80")
+        );
+    }
 
-        int updatedCount = 0;
-        int errorCount = 0;
-
-        for (Artwork artwork : artworksToCheck) {
-            try {
-                rateLimiter.acquire();
-                ArtworkDetails details = fetchArtworkById(artwork.getExternalId());
-                artworkService.updateDisplayStatus(artwork.getId(), details.getIsOnView());
-                updatedCount++;
-            } catch (Exception e) {
-                errorCount++;
-                logger.warn("Failed to update display status for artwork ID: {}",
-                        artwork.getExternalId(), e);
-            }
-        }
-
-        logger.info("Completed display status update. Updated: {}, Errors: {}",
-                updatedCount, errorCount);
+    @Override
+    protected RateLimiter getRateLimiter() {
+        return rateLimiter;
     }
 }
