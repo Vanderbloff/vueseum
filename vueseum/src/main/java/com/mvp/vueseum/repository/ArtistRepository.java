@@ -23,7 +23,6 @@ public interface ArtistRepository extends JpaRepository<Artist, Long> {
         SELECT DISTINCT a FROM Artist a
         JOIN a.works w
         WHERE LOWER(a.artistName) LIKE LOWER(CONCAT(:prefix, '%'))
-        AND w.isOnDisplay = true
         AND w.museum.id = :museumId
         ORDER BY a.artistName
         LIMIT 10
