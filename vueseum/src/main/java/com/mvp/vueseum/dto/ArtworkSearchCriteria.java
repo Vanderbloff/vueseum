@@ -35,8 +35,6 @@ public class ArtworkSearchCriteria {
     @Size(max = 50)
     private String artworkType;
 
-    private Boolean isOnDisplay;
-
     private Boolean hasImage;
 
     @Size(max = 100)
