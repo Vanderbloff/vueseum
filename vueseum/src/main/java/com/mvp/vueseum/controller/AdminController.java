@@ -1,34 +1,28 @@
 package com.mvp.vueseum.controller;
 
-import com.mvp.vueseum.client.museum_client.MetMuseumApiClient;
-import com.mvp.vueseum.repository.ArtworkRepository;
+import com.mvp.vueseum.service.SyncManagementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
 public class AdminController {
-    private final MetMuseumApiClient metMuseumApiClient;
-    private final ArtworkRepository artworkRepository;
+    private final SyncManagementService syncService;
 
     @PostMapping("/sync/start")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public void startSync() {
-        metMuseumApiClient.syncArtworks();
+    public void startSync(@RequestParam(required = false) Long museumId) {
+        syncService.startSync(museumId);
     }
 
     @GetMapping("/sync/status")
-    public Map<String, Object> getSyncStatus() {
-        Map<String, Object> status = new HashMap<>();
-        status.put("totalArtworksInDb", artworkRepository.count());
-        status.put("processingErrors", metMuseumApiClient.getErrorCount());
-        status.put("syncStartTime", metMuseumApiClient.getSyncStartTime());
-        status.put("processedCount", metMuseumApiClient.getProcessedCount());
-        return status;
+    public Map<String, Object> getSyncStatus(@RequestParam(required = false) Long museumId) {
+        return museumId != null ?
+                syncService.getSingleMuseumStatus(museumId) :
+                syncService.getAggregatedStatus();
     }
 }
