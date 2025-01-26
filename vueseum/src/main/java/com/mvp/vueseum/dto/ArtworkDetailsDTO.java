@@ -31,7 +31,6 @@ public class ArtworkDetailsDTO {
     private String imageUrl;
     private String description;
     private String galleryNumber;
-    private Boolean isOnDisplay;
     private String creationDate;
     private MuseumDTO museum;
     private List<String> tags;
@@ -57,7 +56,6 @@ public class ArtworkDetailsDTO {
         dto.classification = artwork.getClassification();
         dto.copyrightStatus = artwork.getCopyrightStatus();
         dto.galleryNumber = artwork.getGalleryNumber();
-        dto.isOnDisplay = artwork.getIsOnDisplay();
         dto.creationDate = artwork.getCreationDate();
         dto.museum = artwork.getMuseum() != null ?
                 MuseumDTO.fromEntity(artwork.getMuseum()) : null;
@@ -91,7 +89,6 @@ public class ArtworkDetailsDTO {
         dto.imageUrl = details.getPrimaryImageUrl();
         dto.description = details.getDescription();
         dto.galleryNumber = details.getGalleryNumber();
-        dto.isOnDisplay = details.getIsOnView();
         dto.creationDate = details.getCreationYear();
         dto.tags = new ArrayList<>(details.getTags());
         return dto;
