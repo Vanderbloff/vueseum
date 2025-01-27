@@ -4,18 +4,16 @@ import com.mvp.vueseum.domain.ArtworkDetails;
 import com.mvp.vueseum.entity.Artist;
 import com.mvp.vueseum.exception.PersistenceException;
 import com.mvp.vueseum.repository.ArtistRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 @Transactional
 public class ArtistService {
 
     private final ArtistRepository artistRepository;
-
-    public ArtistService(ArtistRepository artistRepository) {
-        this.artistRepository = artistRepository;
-    }
 
     public Artist findOrCreateArtist(ArtworkDetails details) {
         String artistName = details.getArtistName() != null ?
