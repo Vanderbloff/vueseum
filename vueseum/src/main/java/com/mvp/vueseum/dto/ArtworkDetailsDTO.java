@@ -1,7 +1,6 @@
 package com.mvp.vueseum.dto;
 
 import com.mvp.vueseum.domain.ArtworkDetails;
-import com.mvp.vueseum.entity.Artwork;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -34,39 +33,6 @@ public class ArtworkDetailsDTO {
     private String creationDate;
     private MuseumDTO museum;
     private List<String> tags;
-
-    public static ArtworkDetailsDTO fromEntity(Artwork artwork) {
-        ArtworkDetailsDTO dto = new ArtworkDetailsDTO();
-        dto.id = artwork.getId();
-        dto.externalId = artwork.getExternalId();
-        dto.title = artwork.getTitle();
-        dto.artistName = artwork.getArtistName();
-        dto.artistPrefix = artwork.getArtistPrefix();
-        dto.artistRole = artwork.getArtistRole();
-        dto.fullAttribution = artwork.getFullAttribution();
-        dto.isConfidentAttribution = artwork.isConfidentAttribution();
-        dto.medium = artwork.getMedium();
-        dto.culture = artwork.getCulture();
-        dto.imageUrl = artwork.getImageUrl();
-        dto.description = artwork.getDescription();
-        dto.country = artwork.getCountry();
-        dto.region = artwork.getRegion();
-        dto.subRegion = artwork.getSubRegion();
-        dto.geographyType = artwork.getGeographyType();
-        dto.classification = artwork.getClassification();
-        dto.copyrightStatus = artwork.getCopyrightStatus();
-        dto.galleryNumber = artwork.getGalleryNumber();
-        dto.creationDate = artwork.getCreationDate();
-        dto.museum = artwork.getMuseum() != null ?
-                MuseumDTO.fromEntity(artwork.getMuseum()) : null;
-
-        @SuppressWarnings("unchecked")
-        List<String> tagList = (List<String>) artwork.getAdditionalMetadata()
-                .getOrDefault("tags", new ArrayList<>());
-        dto.tags = new ArrayList<>(tagList);
-
-        return dto;
-    }
 
     public static ArtworkDetailsDTO fromArtworkDetails(ArtworkDetails details) {
         ArtworkDetailsDTO dto = new ArtworkDetailsDTO();
