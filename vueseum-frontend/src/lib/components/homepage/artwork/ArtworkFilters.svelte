@@ -8,9 +8,8 @@
 		region: string[];
 		culture: string[];
 		era: StandardPeriod[];
-		onDisplay: boolean;
 		hasImage: boolean;
-		museumId?: string[];
+		museumId: string[];
 	}
 
 	export type SearchField = 'all' | 'title' | 'artist' | 'culture';
@@ -117,7 +116,7 @@
 	}
 
 	// Handle checkbox changes
-	function handleCheckboxChange(key: 'onDisplay' | 'hasImage', checked: boolean) {
+	function handleCheckboxChange(key: 'hasImage', checked: boolean) {
 		onFilterChange(key, checked);
 	}
 
@@ -359,15 +358,6 @@
 
 		<!-- Checkbox Filters -->
 		<div class="flex flex-wrap gap-6 mt-6">
-			<div class="flex items-center space-x-2">
-				<Checkbox
-					id="onDisplay"
-					checked={filters.onDisplay}
-					onCheckedChange={(checked) => handleCheckboxChange('onDisplay', checked)}
-				/>
-				<Label for="onDisplay">On view</Label>
-			</div>
-
 			<div class="flex items-center space-x-2">
 				<Checkbox
 					id="hasImage"
