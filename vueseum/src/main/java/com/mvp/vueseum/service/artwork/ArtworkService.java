@@ -44,25 +44,18 @@ public class ArtworkService {
     private final ArtworkRepository artworkRepository;
     private final ArtistService artistService;
     private final MuseumService museumService;
-    private final Cache<String, Artwork> artworkCache = Caffeine.newBuilder()
-            .expireAfterWrite(Duration.ofDays(1))
-            .maximumSize(1000)
-            .build();
+    private final Cache<String, Artwork> artworkCache;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @CacheEvict(value = "artworks", key = "#details.externalId")
     public void saveFromDetails(ArtworkDetails details) {
-        // Find or create the artist
         try {
             Artist artist = null;
             if (StringUtils.hasText(details.getArtistName())) {
                 artist = artistService.findOrCreateArtist(details);
             }
 
-            // Find or create the museum
             Museum museum = museumService.findOrCreateMuseum(details.getApiSource());
-
-            // Find or create the artwork
             Artwork artwork = artworkRepository.findByExternalIdAndMuseum(
                     details.getExternalId(),
                     museum
@@ -152,9 +145,9 @@ public class ArtworkService {
     }
 
     private void validateClassification(String classification) {
-        if (!artworkRepository.findDistinctClassifications()
+        if (artworkRepository.findDistinctClassifications()
                 .stream()
-                .anyMatch(c -> c.startsWith(classification))) {
+                .noneMatch(c -> c.startsWith(classification))) {
             throw new IllegalArgumentException("Invalid classification: " + classification);
         }
     }
@@ -217,16 +210,16 @@ public class ArtworkService {
                     ArtworkSpecifications.forTourPreferences(preferences));
         }
 
-        // Add display status requirement - artwork must be on display
-        spec = spec.and((root, _, cb) -> cb.isTrue(root.get("isOnDisplay")));
-
-        // First, get required artworks if any exist
         List<Artwork> candidates = new ArrayList<>();
         if (!preferences.getRequiredArtworkIds().isEmpty()) {
-            candidates.addAll(artworkRepository.findAllById(preferences.getRequiredArtworkIds()));
+            candidates.addAll(
+                    artworkRepository.findAllById(
+                            preferences.getRequiredArtworkIds()
+                    )
+            );
 
-            // Validate all required artworks were found
-            if (candidates.size() != preferences.getRequiredArtworkIds().size()) {
+            if (candidates.size() !=
+                    preferences.getRequiredArtworkIds().size()) {
                 throw new InvalidRequestException("Not all required artworks could be found");
             }
         }
@@ -296,7 +289,6 @@ public class ArtworkService {
                 // Location and display
                 .galleryNumber(artwork.getGalleryNumber())
                 .department(artwork.getDepartment())
-                .isOnView(artwork.getIsOnDisplay())
 
                 // Description and image
                 .description(artwork.getDescription())
@@ -343,7 +335,6 @@ public class ArtworkService {
         // Location and Display
         artwork.setGalleryNumber(details.getGalleryNumber());
         artwork.setDepartment(details.getDepartment());
-        artwork.setIsOnDisplay(details.getIsOnView());
 
         // Description and Image
         artwork.setDescription(details.getDescription());
@@ -356,54 +347,60 @@ public class ArtworkService {
         artwork.setAdditionalMetadata(additionalMetadata);
     }
 
-    public boolean isRecentlyUpdated(String id, Long museumId) {
-        Museum museum = museumService.findMuseumById(museumId)
-                .orElseThrow(() -> new ResourceNotFoundException("Museum not found"));
-
-        LocalDateTime threshold = LocalDateTime.now().minusDays(1);
-        return artworkRepository.findByExternalIdAndMuseum(id, museum)
-                .map(artwork -> artwork.getUpdatedAt().isAfter(threshold))
-                .orElse(false);
-    }
-
-    public List<Artwork> findArtworksNeedingDisplayCheck() {
-        LocalDateTime threshold = LocalDateTime.now().minusHours(1);
-        List<Artwork> results = new ArrayList<>();
-        Pageable pageable = PageRequest.of(0, 100); // Process in chunks of 100
-        Page<Artwork> page;
-
-        do {
-            page = artworkRepository.findByDisplayStatusCheckBefore(threshold, pageable);
-            results.addAll(page.getContent());
-            pageable = pageable.next();
-        } while (page.hasNext());
-
-        return results;
-    }
-
-    @Transactional
-    public void updateDisplayStatus(Long id, Boolean isOnView) {
-        Artwork artwork = artworkRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Artwork not found: " + id));
-        artwork.setIsOnDisplay(isOnView);
-        artwork.setDisplayStatusCheck(LocalDateTime.now());
-        artworkRepository.save(artwork);
-    }
-
     @Transactional
     public void recordProcessingError(String externalId, Long museumId, Exception error) {
         Museum museum = museumService.findMuseumById(museumId)
                 .orElseThrow(() -> new ResourceNotFoundException("Museum not found"));
 
+        // If it's a not found error, we don't need to do anything since
+        // the artwork doesn't exist in our system
+        if (error instanceof ResourceNotFoundException) {
+            return;
+        }
+
         String errorMessage = error != null ? error.getMessage() : "Unknown error";
+
+        // Only try to record error if artwork exists
         artworkRepository.findByExternalIdAndMuseum(externalId, museum)
                 .ifPresent(artwork -> {
                     artwork.setProcessingStatus(Artwork.ProcessingStatus.ERROR);
                     artwork.setLastSyncError(errorMessage);
                     artwork.setLastSyncAttempt(LocalDateTime.now());
                     artworkRepository.save(artwork);
-                    log.debug("Recorded processing error for artwork {}: {}", externalId, errorMessage);
+                    log.debug("Recorded processing error for artwork {}: {}",
+                            externalId, errorMessage);
                 });
+    }
+
+    /**
+     * Internal method to perform the actual artwork deletion.
+     * Use other public methods to remove artworks based on specific criteria.
+     */
+    @Transactional
+    private void doRemoveArtwork(Artwork artwork) {
+        log.info("Removing artwork {} as it is no longer on display",
+                artwork.getExternalId());
+        artworkRepository.delete(artwork);
+        artworkCache.invalidate(artwork.getExternalId());
+    }
+
+    /**
+     * Bulk removal operation for artworks that are no longer on display.
+     * Used during full sync operations to remove artworks that are no longer in the museum's display list.
+     *
+     * @param displayedIds Set of external IDs that are currently displayed
+     * @param museumId ID of the museum to process
+     * @throws ResourceNotFoundException if museum is not found
+     */
+    @Transactional
+    public void removeNonDisplayedArtworks(Set<String> displayedIds, Long museumId) {
+        museumService.findMuseumById(museumId)
+                .orElseThrow(() -> new ResourceNotFoundException("Museum not found"));
+
+        findAllWithArtistsAndMuseums().stream()
+                .filter(art -> art.getMuseum().getId().equals(museumId))
+                .filter(art -> !displayedIds.contains(art.getExternalId()))
+                .forEach(this::doRemoveArtwork);
     }
 
     @VisibleForTesting
@@ -432,7 +429,6 @@ public class ArtworkService {
             artwork.setLastSyncAttempt(LocalDateTime.now());
 
             Artwork savedArtwork = artworkRepository.save(artwork);
-            // Direct cache update instead of using transaction synchronization
             artworkCache.put(savedArtwork.getExternalId(), savedArtwork);
 
         } catch (DataIntegrityViolationException e) {
