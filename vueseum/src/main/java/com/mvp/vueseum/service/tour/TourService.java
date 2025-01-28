@@ -1,7 +1,6 @@
 package com.mvp.vueseum.service.tour;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.mvp.vueseum.domain.TourGenerationRequest;
 import com.mvp.vueseum.domain.TourPreferences;
 import com.mvp.vueseum.domain.TourUpdateRequest;
@@ -10,7 +9,9 @@ import com.mvp.vueseum.entity.Tour;
 import com.mvp.vueseum.event.TourProgressListener;
 import com.mvp.vueseum.exception.GenerationLimitExceededException;
 import com.mvp.vueseum.exception.InvalidRequestException;
+import com.mvp.vueseum.exception.ResourceNotFoundException;
 import com.mvp.vueseum.exception.TourLimitExceededException;
+import com.mvp.vueseum.repository.ArtworkRepository;
 import com.mvp.vueseum.repository.TourRepository;
 import com.mvp.vueseum.service.DescriptionGenerationService;
 import com.mvp.vueseum.service.artwork.ArtworkService;
@@ -27,12 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,12 +44,8 @@ public class TourService {
     private final ScoringService scoringService;
     private final TourProgressListener progressListener;
     private final TourRepository tourRepository;
-
-    // Single cache for tour descriptions
-    private final Cache<String, String> descriptionCache = Caffeine.newBuilder()
-            .expireAfterWrite(Duration.ofDays(1))
-            .maximumSize(1000)
-            .build();
+    private final ArtworkRepository artworkRepository;
+    private final Cache<String, String> descriptionCache;
 
     public Tour generateTour(TourGenerationRequest request, HttpServletRequest httpRequest) {
         String requestId = UUID.randomUUID().toString();
@@ -218,5 +211,32 @@ public class TourService {
                     tour.markAsDeleted(); // Uses baseEntity soft delete
                     tourRepository.save(tour);
                 });
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> validateTour(Long tourId) {
+        return tourRepository.findById(tourId)
+                .map(tour -> {
+                    List<Map<String, Object>> unavailableStops = tour.getStops().stream()
+                            .filter(stop -> !artworkRepository.existsById(stop.getArtwork().getId()))
+                            .map(stop -> {
+                                Map<String, Object> stopInfo = new HashMap<>();
+                                stopInfo.put("stopNumber", stop.getSequenceNumber());
+                                stopInfo.put("artworkTitle", stop.getArtwork().getTitle());
+                                stopInfo.put("galleryNumber", stop.getArtwork().getGalleryNumber());
+                                return stopInfo;
+                            })
+                            .collect(Collectors.toList());
+
+                    tour.setLastValidated(LocalDateTime.now());
+                    tourRepository.save(tour);
+
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("tourId", tourId);
+                    result.put("validatedAt", tour.getLastValidated());
+                    result.put("unavailableStops", unavailableStops);
+                    return result;
+                })
+                .orElseThrow(() -> new ResourceNotFoundException("Tour not found: " + tourId));
     }
 }
