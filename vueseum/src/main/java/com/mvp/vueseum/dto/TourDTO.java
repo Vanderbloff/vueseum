@@ -1,11 +1,9 @@
 package com.mvp.vueseum.dto;
 
 import com.mvp.vueseum.entity.Tour;
-import com.mvp.vueseum.entity.TourStop;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
