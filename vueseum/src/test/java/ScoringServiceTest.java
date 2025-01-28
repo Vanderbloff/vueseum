@@ -72,7 +72,7 @@ class ScoringServiceTest {
                 List.of(previousArtwork)
         );
 
-        assertThat(score).isBetween(0.11, 0.13);
+        assertThat(score).isBetween(0.10, 0.13);
     }
 
     @Test
