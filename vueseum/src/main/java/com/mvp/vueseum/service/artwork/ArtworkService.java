@@ -1,7 +1,6 @@
 package com.mvp.vueseum.service.artwork;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import com.mvp.vueseum.domain.ArtworkDetails;
 import com.mvp.vueseum.dto.ArtworkSearchCriteria;
@@ -30,7 +29,6 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -45,6 +43,7 @@ public class ArtworkService {
     private final ArtistService artistService;
     private final MuseumService museumService;
     private final Cache<String, Artwork> artworkCache;
+    private final Cache<String, List<String>> filterValueCache;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @CacheEvict(value = "artworks", key = "#details.externalId")
@@ -89,17 +88,13 @@ public class ArtworkService {
         }
     }
 
-    private final Cache<String, List<String>> filterOptionsCache = Caffeine.newBuilder()
-            .expireAfterWrite(Duration.ofHours(24))
-            .build();
-
     public Map<String, List<String>> getFilterOptions(ArtworkSearchCriteria criteria) {
         try {
             Map<String, List<String>> options = new HashMap<>();
 
             // Handle object type hierarchy
             if (criteria.getArtworkType() == null) {
-                options.put("objectType", filterOptionsCache.get("classifications", _ ->
+                options.put("objectType", filterValueCache.get("classifications", _ ->
                         artworkRepository.findDistinctClassifications().stream()
                                 .map(this::getTopLevelCategory)
                                 .distinct()
@@ -119,14 +114,14 @@ public class ArtworkService {
                         .collect(Collectors.toList());
 
                 options.put("subtypes", subtypes);
-                options.put("materials", filterOptionsCache.get("mediums", _ ->
+                options.put("materials", filterValueCache.get("mediums", _ ->
                         artworkRepository.findDistinctMediums()));
             }
 
             // Handle cultural/geographic filtering
             if (criteria.getGeographicLocation() == null) {
                 options.put("culturalRegions", CulturalMapping.getCulturalRegions());
-                options.put("cultures", filterOptionsCache.get("cultures", _ ->
+                options.put("cultures", filterValueCache.get("cultures", _ ->
                         artworkRepository.findDistinctCultures()));
             } else {
                 validateGeographicLocation(criteria.getGeographicLocation());
