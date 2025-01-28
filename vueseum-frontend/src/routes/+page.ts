@@ -17,8 +17,8 @@ export const load: Load = async ({ url }) => {
 		region: searchParams.getAll('region'),
 		culture: searchParams.getAll('culture'),
 		era: searchParams.getAll('period') as StandardPeriod[],
-		onDisplay: searchParams.get('onDisplay') === 'true',
-		hasImage: true
+		hasImage: true,
+		museumId: searchParams.getAll('museumId')
 	};
 
 	const sort = {
