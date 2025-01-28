@@ -3,18 +3,21 @@ package com.mvp.vueseum.service.description;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mvp.vueseum.util.HttpUtils;
+import com.mvp.vueseum.exception.RetryException;
 import com.mvp.vueseum.exception.AiProviderAuthException;
 import com.mvp.vueseum.exception.AiProviderException;
 import com.mvp.vueseum.exception.AiProviderRateLimitException;
 import com.mvp.vueseum.service.BaseDescriptionService;
+import com.mvp.vueseum.util.RetryUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 import java.util.Map;
@@ -33,34 +36,31 @@ public class OpenAiDescriptionService extends BaseDescriptionService {
     private final String apiUrl;
     private final String model;
     private final ObjectMapper objectMapper;
+    private final RetryUtil retryUtil;
 
     public OpenAiDescriptionService(
             @Value("${ai.openai.api-key}") String apiKey,
             @Value("${ai.openai.url}") String apiUrl,
             @Value("${ai.openai.model}") String model,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            RetryUtil retryUtil) {
         this.apiKey = apiKey;
         this.apiUrl = apiUrl;
         this.model = model;
         this.objectMapper = objectMapper;
+        this.retryUtil = retryUtil;
     }
 
     @Override
     protected String generateDescription(String prompt) {
         try {
-            return HttpUtils.withRetry(() -> makeOpenAiRequest(prompt), 3);
-        } catch (HttpClientErrorException e) {
-            switch (e.getStatusCode()) {
-                case UNAUTHORIZED:
-                    throw new AiProviderAuthException("Invalid API key");
-                case TOO_MANY_REQUESTS:
-                    Duration retryAfter = parseRetryAfter(Objects.requireNonNull(e.getResponseHeaders()));
-                    throw new AiProviderRateLimitException("Too many requests", retryAfter);
-                default:
-                    throw new AiProviderException("OpenAI request failed: " + e.getMessage());
-            }
-        } catch (Exception e) {
-            throw new AiProviderException("Failed to generate description: " + e.getMessage(), e);
+            return retryUtil.withRetry(
+                    () -> makeOpenAiRequest(prompt),
+                    "OpenAI description generation",
+                    3
+            );
+        } catch (RetryException e) {
+            throw new AiProviderException("Failed to generate description after retries", e);
         }
     }
 
@@ -100,8 +100,29 @@ public class OpenAiDescriptionService extends BaseDescriptionService {
             }
             """.formatted(model, prompt.replace("\"", "\\\""));
 
-        String response = HttpUtils.postJsonRequest(apiUrl, requestBody, headers);
-        return extractContentFromResponse(response);
+        try {
+            String response = RestClient.builder()
+                    .baseUrl(apiUrl)
+                    .build()
+                    .post()
+                    .headers(headerConsumer -> headers.forEach(headerConsumer::add))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(requestBody)
+                    .retrieve()
+                    .body(String.class);
+
+            return extractContentFromResponse(response);
+        } catch (HttpClientErrorException e) {
+            switch (e.getStatusCode()) {
+                case UNAUTHORIZED:
+                    throw new AiProviderAuthException("Invalid API key");
+                case TOO_MANY_REQUESTS:
+                    Duration retryAfter = parseRetryAfter(Objects.requireNonNull(e.getResponseHeaders()));
+                    throw new AiProviderRateLimitException("Too many requests", retryAfter);
+                default:
+                    throw new AiProviderException("OpenAI request failed: " + e.getMessage());
+            }
+        }
     }
 
     private String extractContentFromResponse(String response) {
