@@ -45,10 +45,11 @@
 <div class="w-full max-w-4xl mx-auto space-y-4">
 	<!-- Progress section -->
 	<div class="space-y-2">
-		<div class="flex justify-between text-sm text-gray-600">
+		<div class="flex justify-between text-sm text-muted-foreground">
 			<span>Stop {state.currentStop + 1} of {tour.stops.length}</span>
 		</div>
-		<Progress value={state.progress} />
+		<Progress value={state.progress}
+		class="mt-2"/>
 	</div>
 
 	<!-- Single-item carousel -->
