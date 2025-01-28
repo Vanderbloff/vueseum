@@ -33,7 +33,6 @@ export interface Artwork {
 	region?: string;
 	galleryNumber?: string | null;
 	department?: string;
-	isOnDisplay: boolean;
 	creationDate?: string;
 	museum: Museum | null;
 	tags: string[];
