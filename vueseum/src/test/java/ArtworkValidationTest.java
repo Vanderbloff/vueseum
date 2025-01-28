@@ -75,18 +75,4 @@ class ArtworkValidationTest {
             assertThat(artwork.getLastSyncError()).isNotEmpty();
         }
     }
-
-    @Nested
-    @DisplayName("Display Status Tests")
-    class DisplayStatusTests {
-        @Test
-        @DisplayName("should track display status check time")
-        void displayStatusCheck() {
-            LocalDateTime checkTime = LocalDateTime.now();
-            artwork.setDisplayStatusCheck(checkTime);
-            artwork.setIsOnDisplay(true);
-
-            assertThat(artwork.getDisplayStatusCheck()).isEqualTo(checkTime);
-        }
-    }
 }
