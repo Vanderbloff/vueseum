@@ -101,10 +101,6 @@ export class ArtworkApiClient extends BaseApiClient {
 				});
 			}
 
-			if (filters.onDisplay) {
-				filteredData = filteredData.filter(artwork => artwork.isOnDisplay);
-			}
-
 			const start = page * size;
 			const end = Math.min(start + size, filteredData.length);
 			const items = filteredData.slice(start, end);
