@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Entity
@@ -57,6 +58,9 @@ public class Tour extends baseEntity {
     @Enumerated(EnumType.STRING)
     private TourTheme theme;
 
+    @Column
+    private LocalDateTime lastValidated;
+
     public enum TourTheme {
         CHRONOLOGICAL("Art through the ages", "Experience art's evolution across time"),
         ARTIST_FOCUSED("Featured artist spotlight", "Deep dive into an artist's work"),
@@ -77,7 +81,7 @@ public class Tour extends baseEntity {
      * Future functionality will need methods to:
      * 1. Replace stops - For when users want to modify specific stops
      * 2. Insert stops - For adding new stops between existing ones
-     * 3. Resequence stops - For reordering tour stops
+     * 3. Re-sequence stops - For reordering tour stops
      *
      * Consider implementing:
      * - replaceStop(Artwork, sequenceNumber)
