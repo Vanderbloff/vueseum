@@ -28,8 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -55,12 +54,18 @@ class ArtworkServiceTest {
                 .maximumSize(100)
                 .build();
 
+        Cache<String, List<String>> filterValueCache = Caffeine.newBuilder()
+                .expireAfterWrite(Duration.ofHours(24))
+                .maximumSize(100)
+                .build();
+
         // Initialize service
         artworkService = new ArtworkService(
                 artworkRepository,
                 artistService,
                 museumService,
-                artworkCache
+                artworkCache,
+                filterValueCache
         );
 
         // Setup test data
