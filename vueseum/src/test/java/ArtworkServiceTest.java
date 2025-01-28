@@ -5,7 +5,6 @@ import com.mvp.vueseum.dto.ArtworkSearchCriteria;
 import com.mvp.vueseum.entity.Artist;
 import com.mvp.vueseum.entity.Artwork;
 import com.mvp.vueseum.entity.Museum;
-import com.mvp.vueseum.exception.InvalidRequestException;
 import com.mvp.vueseum.exception.ResourceNotFoundException;
 import com.mvp.vueseum.repository.ArtworkRepository;
 import com.mvp.vueseum.service.artist.ArtistService;
@@ -24,7 +23,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,7 +30,6 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
