@@ -16,6 +16,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/tours")
 @RequiredArgsConstructor
@@ -89,5 +91,10 @@ public class TourController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteTour(@PathVariable Long id) {
         tourService.deleteTour(id);
+    }
+
+    @GetMapping("/{id}/validate")
+    public ResponseEntity<Map<String, Object>> validateTour(@PathVariable Long id) {
+        return ResponseEntity.ok(tourService.validateTour(id));
     }
 }
