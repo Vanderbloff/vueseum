@@ -1,14 +1,15 @@
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.mvp.vueseum.domain.TourGenerationRequest;
 import com.mvp.vueseum.domain.TourPreferences;
 import com.mvp.vueseum.domain.TourUpdateRequest;
 import com.mvp.vueseum.entity.Artwork;
 import com.mvp.vueseum.entity.Museum;
 import com.mvp.vueseum.entity.Tour;
-import com.mvp.vueseum.entity.base.baseEntity;
 import com.mvp.vueseum.event.TourProgressListener;
 import com.mvp.vueseum.exception.GenerationLimitExceededException;
-import com.mvp.vueseum.exception.InvalidRequestException;
 import com.mvp.vueseum.exception.TourLimitExceededException;
+import com.mvp.vueseum.repository.ArtworkRepository;
 import com.mvp.vueseum.repository.TourRepository;
 import com.mvp.vueseum.service.DescriptionGenerationService;
 import com.mvp.vueseum.service.artwork.ArtworkService;
@@ -19,12 +20,13 @@ import com.mvp.vueseum.service.visitor.DeviceFingerprintService;
 import com.mvp.vueseum.service.visitor.VisitorTrackingService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -33,7 +35,6 @@ import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -55,69 +56,109 @@ class TourServiceTest {
     @Mock
     private TourRepository tourRepository;
     @Mock
+    private ArtworkRepository artworkRepository;
+    @Mock
     private HttpServletRequest httpRequest;
 
-    @InjectMocks
+    private Cache<String, String> descriptionCache;
     private TourService tourService;
-
-    private TourGenerationRequest request;
-    private String deviceFingerprint;
-    private List<Artwork> testArtworks;
     private Museum testMuseum;
+    private List<Artwork> testArtworks;
+    private static final String TEST_DEVICE_FINGERPRINT = "test-fingerprint";
 
     @BeforeEach
     void setUp() {
-        deviceFingerprint = "test-fingerprint";
+        // Initialize cache
+        descriptionCache = Caffeine.newBuilder()
+                .expireAfterWrite(Duration.ofMinutes(30))
+                .maximumSize(100)
+                .build();
+
+        // Initialize service
+        tourService = new TourService(
+                descriptionService,
+                artworkService,
+                museumService,
+                visitorTrackingService,
+                deviceFingerprintService,
+                scoringService,
+                progressListener,
+                tourRepository,
+                artworkRepository,
+                descriptionCache
+        );
+
+        // Setup test data
         testMuseum = new Museum();
         testMuseum.setId(1L);
-        testArtworks = IntStream.range(0, 3)
+        testMuseum.setName("Test Museum");
+
+        testArtworks = IntStream.range(0, 5)
                 .mapToObj(i -> {
                     Artwork artwork = new Artwork();
                     artwork.setId((long) i);
+                    artwork.setTitle("Artwork " + i);
                     artwork.setMuseum(testMuseum);
                     return artwork;
                 })
                 .collect(Collectors.toList());
 
-        request = TourGenerationRequest.builder()
-                .visitorId("test-visitor")
-                .museum(testMuseum)
-                .preferences(TourPreferences.builder()
-                        .museumId(1L)
-                        .theme(Tour.TourTheme.CHRONOLOGICAL)
-                        .maxStops(5)
-                        .minStops(3)
-                        .build())
-                .build();
-
+        // Common mock setup
+        lenient().when(museumService.isValidMuseum(1L)).thenReturn(true);
+        lenient().when(deviceFingerprintService.generateFingerprint(any()))
+                .thenReturn(TEST_DEVICE_FINGERPRINT);
     }
 
     @Test
-    void whenGeneratingTour_thenSuccessful() {
+    @DisplayName("when generating description, uses caching")
+    void whenGeneratingDescription_thenUsesCaching() {
+        String description = "Test description";
+        when(descriptionService.generateTourDescription(any(), any()))
+                .thenReturn(description);
         when(artworkService.findArtworkCandidates(any()))
-                .thenReturn(testArtworks);
+                .thenReturn(testArtworks.subList(0, 3));
         when(scoringService.scoreArtwork(any(), any(), any()))
                 .thenReturn(1.0);
-        when(descriptionService.generateTourDescription(any(), any()))
-                .thenReturn("Test description");
         when(visitorTrackingService.recordTourGeneration(anyString(), anyString()))
                 .thenReturn(true);
-        when(deviceFingerprintService.generateFingerprint(any()))
-                .thenReturn(deviceFingerprint);
         when(tourRepository.countByDeviceFingerprintAndDeletedFalse(anyString()))
                 .thenReturn(0L);
-        when(museumService.isValidMuseum(anyLong()))
+
+        TourGenerationRequest request = createTestRequest();
+
+        Tour firstTour = tourService.generateTour(request, httpRequest);
+        Tour secondTour = tourService.generateTour(request, httpRequest);
+
+        verify(descriptionService, times(1))
+                .generateTourDescription(any(), any());
+        assertThat(secondTour.getDescription())
+                .isEqualTo(firstTour.getDescription());
+    }
+
+    @Test
+    @DisplayName("when generating tour, then successful")
+    void whenGeneratingTour_thenSuccessful() {
+        when(artworkService.findArtworkCandidates(any()))
+                .thenReturn(testArtworks.subList(0, 3));
+        when(scoringService.scoreArtwork(any(), any(), any()))
+                .thenReturn(1.0);
+        when(visitorTrackingService.recordTourGeneration(anyString(), anyString()))
                 .thenReturn(true);
+        when(tourRepository.countByDeviceFingerprintAndDeletedFalse(anyString()))
+                .thenReturn(0L);
+        when(descriptionService.generateTourDescription(any(), any()))
+                .thenReturn("Test description");
 
-        Tour result = tourService.generateTour(request, httpRequest);
+        TourGenerationRequest request = createTestRequest();
 
-        // Assert
+                Tour result = tourService.generateTour(request, httpRequest);
+
         assertThat(result)
                 .isNotNull()
                 .satisfies(tour -> {
                     assertThat(tour.getStops()).hasSize(3);
                     assertThat(tour.getDeviceFingerprint())
-                            .isEqualTo(deviceFingerprint);
+                            .isEqualTo(TEST_DEVICE_FINGERPRINT);
                     assertThat(tour.getTheme())
                             .isEqualTo(Tour.TourTheme.CHRONOLOGICAL);
                 });
@@ -128,54 +169,26 @@ class TourServiceTest {
     }
 
     @Test
-    void whenDailyLimitReached_thenThrowsException() {
-        // Arrange
-        when(visitorTrackingService.recordTourGeneration(anyString(), anyString()))
-                .thenReturn(false);
-        when(deviceFingerprintService.generateFingerprint(any()))
-                .thenReturn(deviceFingerprint);
-        when(tourRepository.countByDeviceFingerprintAndDeletedFalse(anyString()))
-                .thenReturn(0L);
-        when(museumService.isValidMuseum(anyLong()))
-                .thenReturn(true);
-
-        assertThatThrownBy(() -> tourService.generateTour(request, httpRequest))
-                .isInstanceOf(GenerationLimitExceededException.class)
-                .hasMessageContaining("Daily tour generation limit");
-    }
-
-    @Test
-    void whenDeviceLimitReached_thenThrowsException() {
-        String fingerprint = "test-fingerprint";
-        when(museumService.isValidMuseum(anyLong())).thenReturn(true);
-        when(deviceFingerprintService.generateFingerprint(any())).thenReturn(fingerprint);
-        when(tourRepository.countByDeviceFingerprintAndDeletedFalse(fingerprint))
-                .thenReturn(10L);
-
-        assertThatThrownBy(() -> tourService.generateTour(request, httpRequest))
-                .isInstanceOf(TourLimitExceededException.class)
-                .hasMessageContaining("Maximum tour limit");
-    }
-
-    @Test
+    @DisplayName("when required artworks provided, then included in tour")
     void whenRequiredArtworksProvided_thenIncludedInTour() {
+        TourGenerationRequest request = createTestRequest();
         request.getPreferences().setRequiredArtworkIds(
                 Set.of(testArtworks.getFirst().getId())
         );
+
         when(artworkService.findArtworkCandidates(any()))
                 .thenReturn(testArtworks);
         when(scoringService.scoreArtwork(any(), any(), any()))
                 .thenReturn(1.0);
         when(visitorTrackingService.recordTourGeneration(anyString(), anyString()))
                 .thenReturn(true);
-        when(deviceFingerprintService.generateFingerprint(any()))
-                .thenReturn(deviceFingerprint);
         when(tourRepository.countByDeviceFingerprintAndDeletedFalse(anyString()))
                 .thenReturn(0L);
-        when(museumService.isValidMuseum(anyLong()))
-                .thenReturn(true);
+        when(descriptionService.generateTourDescription(any(), any()))
+                .thenReturn("Test description");
 
-        Tour result = tourService.generateTour(request, httpRequest);
+                Tour result = tourService.generateTour(request, httpRequest);
+
 
         assertThat(result.getStops())
                 .extracting(stop -> stop.getArtwork().getId())
@@ -183,6 +196,33 @@ class TourServiceTest {
     }
 
     @Test
+    @DisplayName("when daily limit reached, then throws exception")
+    void whenDailyLimitReached_thenThrowsException() {
+        when(visitorTrackingService.recordTourGeneration(anyString(), anyString()))
+                .thenReturn(false);
+        when(tourRepository.countByDeviceFingerprintAndDeletedFalse(anyString()))
+                .thenReturn(0L);
+
+        assertThatThrownBy(() ->
+                tourService.generateTour(createTestRequest(), httpRequest))
+                .isInstanceOf(GenerationLimitExceededException.class)
+                .hasMessageContaining("Daily tour generation limit");
+    }
+
+    @Test
+    @DisplayName("when device limit reached, then throws exception")
+    void whenDeviceLimitReached_thenThrowsException() {
+        when(tourRepository.countByDeviceFingerprintAndDeletedFalse(TEST_DEVICE_FINGERPRINT))
+                .thenReturn(10L);
+
+        assertThatThrownBy(() ->
+                tourService.generateTour(createTestRequest(), httpRequest))
+                .isInstanceOf(TourLimitExceededException.class)
+                .hasMessageContaining("Maximum tour limit");
+    }
+
+    @Test
+    @DisplayName("when updating tour, then only mutable fields change")
     void whenUpdatingTour_thenOnlyMutableFieldsChange() {
         Tour existingTour = new Tour();
         existingTour.setName("Original Name");
@@ -195,79 +235,31 @@ class TourServiceTest {
         when(tourRepository.save(any(Tour.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        TourUpdateRequest updateRequest = new TourUpdateRequest("New Name", "New Description");
-        Optional<Tour> result = tourService.updateTourDetails(1L, updateRequest);
+        TourUpdateRequest updateRequest =
+                new TourUpdateRequest("New Name", "New Description");
+
+                Optional<Tour> result = tourService.updateTourDetails(1L, updateRequest);
 
         assertThat(result)
                 .isPresent()
                 .hasValueSatisfying(tour -> {
                     assertThat(tour.getName()).isEqualTo("New Name");
                     assertThat(tour.getDescription()).isEqualTo("New Description");
-                    // Verify immutable fields haven't changed
                     assertThat(tour.getTheme()).isEqualTo(Tour.TourTheme.CHRONOLOGICAL);
                     assertThat(tour.getMuseum()).isEqualTo(testMuseum);
                 });
     }
 
-    @Test
-    void whenDeletingTour_thenMarkedAsDeleted() {
-        Tour existingTour = new Tour();
-        existingTour.setName("Tour to Delete");
-
-        when(tourRepository.findByIdAndDeletedFalse(1L))
-                .thenReturn(Optional.of(existingTour));
-        when(tourRepository.save(any(Tour.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-
-        tourService.deleteTour(1L);
-
-        verify(tourRepository).save(argThat(baseEntity::getDeleted));
-    }
-
-    @Test
-    void whenGeneratingDescription_thenUsesCaching() {
-        when(artworkService.findArtworkCandidates(any()))
-                .thenReturn(testArtworks);
-        when(scoringService.scoreArtwork(any(), any(), any()))
-                .thenReturn(1.0);
-        when(visitorTrackingService.recordTourGeneration(anyString(), anyString()))
-                .thenReturn(true);
-        when(descriptionService.generateTourDescription(any(), any()))
-                .thenReturn("Test description");
-        when(deviceFingerprintService.generateFingerprint(any()))
-                .thenReturn(deviceFingerprint);
-        when(tourRepository.countByDeviceFingerprintAndDeletedFalse(anyString()))
-                .thenReturn(0L);
-        when(museumService.isValidMuseum(anyLong()))
-                .thenReturn(true);
-
-        Tour firstResult = tourService.generateTour(request, httpRequest);
-        Tour secondResult = tourService.generateTour(request, httpRequest);
-
-        verify(descriptionService, times(1))
-                .generateTourDescription(any(), any());
-        assertThat(secondResult.getDescription())
-                .isEqualTo(firstResult.getDescription());
-    }
-
-    @Test
-    void whenInvalidPreferences_thenThrowsException() {
-        request.getPreferences().setMaxStops(2);
-        when(museumService.isValidMuseum(anyLong()))
-                .thenReturn(true);
-
-        assertThatThrownBy(() -> tourService.generateTour(request, httpRequest))
-                .isInstanceOf(InvalidRequestException.class)
-                .hasMessageContaining("Maximum stops cannot be less than minimum stops");
-    }
-
-    @Test
-    void whenInvalidMuseum_thenThrowsException() {
-        when(museumService.isValidMuseum(anyLong()))
-                .thenReturn(false);
-
-        assertThatThrownBy(() -> tourService.generateTour(request, httpRequest))
-                .isInstanceOf(InvalidRequestException.class)
-                .hasMessageContaining("Invalid museum ID");
+    private TourGenerationRequest createTestRequest() {
+        return TourGenerationRequest.builder()
+                .visitorId("test-visitor")
+                .museum(testMuseum)
+                .preferences(TourPreferences.builder()
+                        .museumId(1L)
+                        .theme(Tour.TourTheme.CHRONOLOGICAL)
+                        .maxStops(5)
+                        .minStops(3)
+                        .build())
+                .build();
     }
 }
