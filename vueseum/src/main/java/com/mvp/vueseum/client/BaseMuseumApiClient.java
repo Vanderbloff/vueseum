@@ -66,48 +66,55 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
                 .build();
     }
 
-    @Override
-    public void syncDisplayedArtworks() {
-        try {
-            syncStartTime = LocalDateTime.now();
-            logger.info("Starting displayed artworks sync at {}", syncStartTime);
+    /**
+     * Processes a batch of artwork IDs, extracting details and saving to the database.
+     * Continues processing even if individual artworks fail.
+     */
+    protected void processDisplayedBatch(List<String> objectIds) {
+        List<List<String>> batches = Lists.partition(objectIds, getBatchSize());
 
-            // Get the current list of displayed artworks
-            List<String> displayedIds = getCurrentlyDisplayedArtworkIds();
-            logger.info("Found {} displayed artworks", displayedIds.size());
+        for (List<String> batch : batches) {
+            try {
+                for (String id : batch) {
+                    try {
+                        ArtworkDetails details = fetchArtworkById(id);
+                        if (details == null) {
+                            logger.debug("No valid details found for artwork {}, skipping", id);
+                            errorCount.incrementAndGet();
+                            processedCount.incrementAndGet();
+                            continue;
+                        }
 
-            // Process displayed artworks in batches
-            int batchSize = getBatchSize();
-            List<List<String>> batches = Lists.partition(displayedIds, batchSize);
+                        artworkService.saveFromDetails(details);
+                        processedCount.incrementAndGet();
 
-            for (List<String> batch : batches) {
-                try {
-                    processDisplayedBatch(batch);
-                    int currentProcessed = processedCount.addAndGet(batch.size());
-                    if (currentProcessed % 1000 == 0) {
-                        logProgress(currentProcessed, displayedIds.size());
+                    } catch (Exception e) {
+                        logger.warn("Failed to process artwork ID: {}", id, e);
+                        artworkService.recordProcessingError(id, getMuseumId(), e);
+                        errorCount.incrementAndGet();
+                        processedCount.incrementAndGet();
                     }
-                } catch (Exception e) {
-                    errorCount.incrementAndGet();
-                    logger.error("Failed to process batch", e);
                 }
 
-                // Respect rate limiting between batches
-                getRateLimiter().acquire(batch.size());
+                logProgress(processedCount.get(), objectIds.size());
+
+            } catch (Exception e) {
+                errorCount.incrementAndGet();
+                logger.error("Failed to process batch", e);
             }
 
-            logger.info("Completed displayed artworks sync. Processed: {}, Errors: {}, Total time: {} minutes",
-                    processedCount.get(),
-                    errorCount.get(),
-                    ChronoUnit.MINUTES.between(syncStartTime, LocalDateTime.now()));
-
-        } catch (Exception e) {
-            logger.error("Failed to complete displayed artworks sync", e);
-            throw new ApiClientException("Displayed artworks sync failed", e);
+            getRateLimiter().acquire(batch.size());
         }
+
+        logger.info("Completed processing. Processed: {}, Errors: {}, Total time: {} minutes",
+                processedCount.get(),
+                errorCount.get(),
+                ChronoUnit.MINUTES.between(syncStartTime, LocalDateTime.now()));
     }
 
     protected void logProgress(int currentProcessed, int totalIds) {
+        if (currentProcessed % 1000 != 0) return;
+
         double percentComplete = (double) currentProcessed / totalIds * 100;
         long minutesElapsed = ChronoUnit.MINUTES.between(syncStartTime, LocalDateTime.now());
         double processRate = currentProcessed / (double) Math.max(1, minutesElapsed);
@@ -143,36 +150,6 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
         }
     }
 
-    /**
-     * Processes a batch of artwork IDs, extracting details and saving to the database.
-     * Continues processing even if individual artworks fail.
-     */
-    protected void processDisplayedBatch(List<String> objectIds) {
-        for (String id : objectIds) {
-            try {
-                ArtworkDetails details = fetchArtworkById(id);
-
-                if (details == null) {
-                    // Treat null details as an error condition
-                    logger.debug("No valid details found for artwork {}, skipping", id);
-                    errorCount.incrementAndGet();
-                    processedCount.incrementAndGet();
-                    continue;
-                }
-
-                artworkService.saveFromDetails(details);
-                processedCount.incrementAndGet();
-
-            } catch (Exception e) {
-                logger.warn("Failed to process artwork ID: {}", id, e);
-                // Record the error but continue processing the batch
-                artworkService.recordProcessingError(id, getMuseumId(), e);
-                errorCount.incrementAndGet();
-                processedCount.incrementAndGet();
-            }
-        }
-    }
-
     protected <T> T withRetry(Supplier<T> operation, String operationName) {
         try {
             return retryUtil.withRetry(operation, operationName, 3);
@@ -196,23 +173,7 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
         return processedCount.get();
     }
 
-    // Helper method for processing artworks
-    protected void processArtworksSync(List<String> artworkIds) {
-        int batchSize = getBatchSize();
-        List<List<String>> batches = Lists.partition(artworkIds, batchSize);
-
-        for (List<String> batch : batches) {
-            try {
-                processDisplayedBatch(batch);
-                logProgress(processedCount.get(), artworkIds.size());
-            } catch (Exception e) {
-                errorCount.incrementAndGet();
-                logger.error("Failed to process batch", e);
-            }
-            getRateLimiter().acquire(batch.size());
-        }
-    }
-
+    protected abstract boolean isArtworkDisplayed(String apiResponse);
     protected abstract List<String> getUpdatedArtworkIds(LocalDateTime since);
     protected abstract ArtworkDetails convertToArtworkDetails(String apiResponse);
     protected abstract int getBatchSize();
