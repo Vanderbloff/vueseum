@@ -1,14 +1,13 @@
 package com.mvp.vueseum.service.tour;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.mvp.vueseum.domain.TourPreferences;
 import com.mvp.vueseum.entity.Artist;
 import com.mvp.vueseum.repository.ArtistRepository;
 import com.mvp.vueseum.service.cultural.CulturalMapping;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -18,20 +17,11 @@ import java.util.regex.Pattern;
 
 @SuppressWarnings("CommentedOutCode")
 @Service
+@RequiredArgsConstructor
 public class SuggestionService {
     private final ArtistRepository artistRepository;
     private final FilterOptionsService filterOptionsService;
     private final Cache<String, List<Suggestion>> suggestionCache;
-
-    public SuggestionService(ArtistRepository artistRepository,
-                             FilterOptionsService filterOptionsService) {
-        this.artistRepository = artistRepository;
-        this.filterOptionsService = filterOptionsService;
-        this.suggestionCache = Caffeine.newBuilder()
-                .expireAfterWrite(Duration.ofMinutes(30))
-                .maximumSize(1000)
-                .build();
-    }
 
     /**
      * Represents different types of suggestions we can provide.
