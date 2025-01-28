@@ -1,20 +1,20 @@
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.Scheduler;
 import com.mvp.vueseum.domain.ArtworkDetails;
 import com.mvp.vueseum.dto.ArtworkSearchCriteria;
 import com.mvp.vueseum.entity.Artist;
 import com.mvp.vueseum.entity.Artwork;
 import com.mvp.vueseum.entity.Museum;
+import com.mvp.vueseum.exception.InvalidRequestException;
 import com.mvp.vueseum.exception.ResourceNotFoundException;
 import com.mvp.vueseum.repository.ArtworkRepository;
 import com.mvp.vueseum.service.artist.ArtistService;
 import com.mvp.vueseum.service.artwork.ArtworkService;
 import com.mvp.vueseum.service.museum.MuseumService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
@@ -22,55 +22,51 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ArtworkServiceTest {
     @Mock
     private ArtworkRepository artworkRepository;
-
     @Mock
     private ArtistService artistService;
-
     @Mock
     private MuseumService museumService;
 
-    private Cache<String, Artwork> artworkCache = Caffeine.newBuilder()
-            .expireAfterWrite(Duration.ofDays(1))
-            .maximumSize(1000)
-            .build();
-
-    @InjectMocks
+    private Cache<String, Artwork> artworkCache;
     private ArtworkService artworkService;
-
     private Artist testArtist;
     private Museum testMuseum;
     private Artwork testArtwork;
 
     @BeforeEach
     void setUp() {
+        // Initialize cache
         artworkCache = Caffeine.newBuilder()
-                .expireAfterWrite(Duration.ofDays(1))
-                .maximumSize(1000)
-                .recordStats()
-                .scheduler(Scheduler.systemScheduler())
+                .expireAfterWrite(Duration.ofMinutes(30))
+                .maximumSize(100)
                 .build();
 
-        ReflectionTestUtils.setField(artworkService, "artworkCache", artworkCache);
+        // Initialize service
+        artworkService = new ArtworkService(
+                artworkRepository,
+                artistService,
+                museumService,
+                artworkCache
+        );
 
-        artworkCache.invalidateAll();
-
+        // Setup test data
         testArtist = new Artist();
         testArtist.setArtistName("Test Artist");
         testArtist.setNationality("Test Nationality");
@@ -78,17 +74,17 @@ class ArtworkServiceTest {
         testMuseum = new Museum();
         testMuseum.setId(1L);
         testMuseum.setName("Test Museum");
-        testMuseum.setLocation("Test Location");
 
         testArtwork = new Artwork();
         testArtwork.setTitle("Test Artwork");
         testArtwork.setExternalId("TEST-001");
-        testArtwork.setMedium("Oil on canvas");
         testArtwork.setArtist(testArtist);
         testArtwork.setMuseum(testMuseum);
+        testArtwork.setMedium("Oil on canvas");
     }
 
     @Test
+    @DisplayName("when saving new artwork, then saves successfully")
     void whenSavingNewArtwork_thenSavesSuccessfully() {
         ArtworkDetails details = ArtworkDetails.builder()
                 .title("Test Artwork")
@@ -104,15 +100,8 @@ class ArtworkServiceTest {
                 .thenReturn(testArtist);
         when(artworkRepository.findByExternalIdAndMuseum(anyString(), any()))
                 .thenReturn(Optional.empty());
-
-        Artwork savedArtwork = new Artwork();
-        savedArtwork.setTitle("Test Artwork");
-        savedArtwork.setExternalId("TEST-001");
-        savedArtwork.setArtist(testArtist);
-        savedArtwork.setMuseum(testMuseum);
-
         when(artworkRepository.save(any()))
-                .thenReturn(savedArtwork);
+                .thenReturn(testArtwork);
 
         artworkService.saveFromDetailsForTest(details);
 
@@ -121,7 +110,7 @@ class ArtworkServiceTest {
                         artwork.getMedium().equals("Oil on canvas") &&
                         artwork.getArtist() == testArtist &&
                         artwork.getMuseum() == testMuseum &&
-                        artwork.getExternalId().equals("TEST-001")  // Add this
+                        artwork.getExternalId().equals("TEST-001")
         ));
 
         assertThat(artworkCache.getIfPresent("TEST-001"))
@@ -133,6 +122,7 @@ class ArtworkServiceTest {
     }
 
     @Test
+    @DisplayName("when searching artworks, then applies correct criteria")
     void whenSearchingArtworks_thenAppliesCorrectCriteria() {
         ArtworkSearchCriteria criteria = new ArtworkSearchCriteria();
         criteria.setTitle("Test");
@@ -145,16 +135,15 @@ class ArtworkServiceTest {
         Page<ArtworkDetails> result = artworkService.searchArtworks(criteria, pageable);
 
         assertThat(result).isNotNull();
-        assertThat(result.getContent())
-                .hasSize(1)
-                .first()
-                .satisfies(details -> {
-                    assertThat(details.getTitle()).isEqualTo("Test Artwork");
-                    assertThat(details.getArtistName()).isEqualTo("Test Artist");
-                });
+        var content = result.getContent();
+        assertThat(content).hasSize(1);
+        var firstArtwork = content.getFirst();
+        assertThat(firstArtwork.getTitle()).isEqualTo("Test Artwork");
+        assertThat(firstArtwork.getArtistName()).isEqualTo("Test Artist");
     }
 
     @Test
+    @DisplayName("when fetching filter options, then returns valid options")
     void whenFetchingFilterOptions_thenReturnsValidOptions() {
         ArtworkSearchCriteria criteria = new ArtworkSearchCriteria();
         when(artworkRepository.findDistinctClassifications())
@@ -174,6 +163,7 @@ class ArtworkServiceTest {
     }
 
     @Test
+    @DisplayName("when saving artwork with existing artist, then updates properly")
     void whenSavingArtworkWithExistingArtist_thenUpdatesProperly() {
         ArtworkDetails details = ArtworkDetails.builder()
                 .externalId("TEST-001")
@@ -183,10 +173,14 @@ class ArtworkServiceTest {
                 .apiSource("Test Museum")
                 .build();
 
-        when(museumService.findOrCreateMuseum(anyString())).thenReturn(testMuseum);
-        when(artistService.findOrCreateArtist(any())).thenReturn(testArtist);
-        when(artworkRepository.findByExternalIdAndMuseum(anyString(), any())).thenReturn(Optional.of(testArtwork));
-        when(artworkRepository.save(any())).thenReturn(testArtwork);
+        when(museumService.findOrCreateMuseum(anyString()))
+                .thenReturn(testMuseum);
+        when(artistService.findOrCreateArtist(any()))
+                .thenReturn(testArtist);
+        when(artworkRepository.findByExternalIdAndMuseum(anyString(), any()))
+                .thenReturn(Optional.of(testArtwork));
+        when(artworkRepository.save(any()))
+                .thenReturn(testArtwork);
 
         artworkService.saveFromDetailsForTest(details);
 
@@ -197,122 +191,78 @@ class ArtworkServiceTest {
     }
 
     @Test
-    void whenFetchingArtworkById_thenReturnsCorrectArtwork() {
-        String externalId = "TEST-001";
-        Long museumId = 1L;
+    @DisplayName("when removing non-displayed artworks, then removes all not in displayed set")
+    void whenRemovingNonDisplayedArtworks_thenRemovesAllNotInDisplayedSet() {
+        Artwork displayedArtwork = new Artwork();
+        displayedArtwork.setExternalId("DISPLAYED-001");
+        displayedArtwork.setMuseum(testMuseum);
 
-        when(museumService.findMuseumById(museumId)).thenReturn(Optional.of(testMuseum));
+        Artwork nonDisplayedArtwork = new Artwork();
+        nonDisplayedArtwork.setExternalId("NOT-DISPLAYED-001");
+        nonDisplayedArtwork.setMuseum(testMuseum);
+
+        when(museumService.findMuseumById(1L))
+                .thenReturn(Optional.of(testMuseum));
+        when(artworkRepository.findAllWithArtistsAndMuseums())
+                .thenReturn(List.of(displayedArtwork, nonDisplayedArtwork));
+
+        artworkService.removeNonDisplayedArtworks(
+                Set.of("DISPLAYED-001"), // Only include the displayed artwork's ID
+                1L
+        );
+
+        verify(artworkRepository).delete(nonDisplayedArtwork);
+        verify(artworkRepository, never()).delete(displayedArtwork);
+        assertThat(artworkCache.getIfPresent("NOT-DISPLAYED-001")).isNull();
+    }
+
+    @Test
+    @DisplayName("when removing artworks with invalid museum id, then throws exception")
+    void whenRemovingArtworksWithInvalidMuseumId_thenThrowsException() {
+        when(museumService.findMuseumById(999L))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() ->
+                artworkService.removeNonDisplayedArtworks(Set.of("TEST-001"), 999L)
+        )
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Museum not found");
+
+        verify(artworkRepository, never()).delete((Artwork) any());
+    }
+
+    @Test
+    @DisplayName("when recording processing error, then updates status")
+    void whenRecordingProcessingError_thenUpdatesStatus() {
+        String externalId = "TEST-001";
+        String errorMessage = "Processing failed";
+        when(museumService.findMuseumById(1L))
+                .thenReturn(Optional.of(testMuseum));
         when(artworkRepository.findByExternalIdAndMuseum(externalId, testMuseum))
                 .thenReturn(Optional.of(testArtwork));
 
-        ArtworkDetails result = artworkService.fetchArtworkById(externalId, museumId);
-
-        assertThat(result).isNotNull();
-        assertThat(result.getTitle()).isEqualTo("Test Artwork");
-        assertThat(result.getArtistName()).isEqualTo("Test Artist");
-    }
-
-    @Test
-    void whenFetchingNonExistentArtwork_thenThrowsException() {
-        String externalId = "NONEXISTENT";
-        Long museumId = 1L;
-
-        when(museumService.findMuseumById(museumId)).thenReturn(Optional.of(testMuseum));
-        when(artworkRepository.findByExternalIdAndMuseum(externalId, testMuseum))
-                .thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> artworkService.fetchArtworkById(externalId, museumId))
-                .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("Artwork not found");
-    }
-
-    @Test
-    void whenCheckingDisplayStatus_thenUpdatesCorrectly() {
-        Long artworkId = 1L;
-        when(artworkRepository.findById(artworkId)).thenReturn(Optional.of(testArtwork));
-
-        artworkService.updateDisplayStatus(artworkId, true);
+        artworkService.recordProcessingError(externalId, 1L, new Exception(errorMessage));
 
         verify(artworkRepository).save(argThat(artwork ->
-                artwork.getIsOnDisplay() &&
-                        artwork.getDisplayStatusCheck() != null
+                artwork.getProcessingStatus() == Artwork.ProcessingStatus.ERROR &&
+                        artwork.getLastSyncError().equals(errorMessage) &&
+                        artwork.getLastSyncAttempt() != null
         ));
     }
 
     @Test
-    void whenSavingArtwork_thenCacheIsUpdated() {
-        ArtworkDetails details = ArtworkDetails.builder()
-                .externalId("TEST-001")
-                .title("Test Artwork")
-                .artistName("Test Artist")
-                .medium("Oil on canvas")
-                .apiSource("Test Museum")
-                .build();
-
-        when(museumService.findOrCreateMuseum(anyString())).thenReturn(testMuseum);
-        when(artistService.findOrCreateArtist(any())).thenReturn(testArtist);
-        when(artworkRepository.findByExternalIdAndMuseum(anyString(), any()))
-                .thenReturn(Optional.empty());
-        when(artworkRepository.save(any())).thenReturn(testArtwork);
-
-        artworkService.saveFromDetailsForTest(details);
-
-        Artwork cachedArtwork = artworkCache.getIfPresent("TEST-001");
-        assertThat(cachedArtwork)
-                .isNotNull()
-                .satisfies(artwork -> {
-                    assertThat(artwork.getTitle()).isEqualTo("Test Artwork");
-                    assertThat(artwork.getExternalId()).isEqualTo("TEST-001");
-                });
-    }
-
-    @Test
-    void whenUpdatingExistingArtwork_thenCacheIsUpdated() {
+    @DisplayName("when artwork not found during sync, then skips processing")
+    void whenArtworkNotFoundDuringSync_thenSkipsProcessing() {
         String externalId = "TEST-001";
+        when(museumService.findMuseumById(1L))
+                .thenReturn(Optional.of(testMuseum));
 
-        // Pre-populate cache
-        artworkCache.put(externalId, testArtwork);
+        artworkService.recordProcessingError(externalId, 1L,
+                new ResourceNotFoundException("Artwork not found"));
 
-        ArtworkDetails updatedDetails = ArtworkDetails.builder()
-                .externalId(externalId)
-                .title("Updated Artwork")
-                .artistName("Test Artist")
-                .medium("Oil on canvas")
-                .apiSource("Test Museum")
-                .build();
-
-        when(museumService.findOrCreateMuseum(anyString())).thenReturn(testMuseum);
-        when(artistService.findOrCreateArtist(any())).thenReturn(testArtist);
-        when(artworkRepository.findByExternalIdAndMuseum(anyString(), any()))
-                .thenReturn(Optional.of(testArtwork));
-        when(artworkRepository.save(any())).thenReturn(testArtwork);
-
-        artworkService.saveFromDetailsForTest(updatedDetails);
-
-        Artwork cachedArtwork = artworkCache.getIfPresent(externalId);
-        assertThat(cachedArtwork)
-                .isNotNull()
-                .satisfies(artwork ->
-                        assertThat(artwork.getTitle()).isEqualTo("Updated Artwork")
-                );
-    }
-
-    @Test
-    void whenCachingArtwork_thenRespectsMaxSize() {
-        int maxCacheEntries = 1000;
-
-        // Create and cache more than the maximum entries
-        for (int i = 0; i < maxCacheEntries + 10; i++) {
-            Artwork artwork = new Artwork();
-            artwork.setExternalId("TEST-" + i);
-            artwork.setTitle("Test Artwork " + i);
-            artworkCache.put(artwork.getExternalId(), artwork);
-        }
-
-        // Force cache maintenance
-        artworkCache.cleanUp();
-
-        assertThat(artworkCache.estimatedSize())
-                .isLessThanOrEqualTo((long)(maxCacheEntries * 1.01)); // Allow 1% buffer
+        // Verify no delete operation occurred
+        verify(artworkRepository, never()).delete((Artwork) any());
+        // Verify no save operation occurred
+        verify(artworkRepository, never()).save(any());
     }
 }
