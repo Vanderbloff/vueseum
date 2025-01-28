@@ -1,6 +1,6 @@
 package com.mvp.vueseum.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -18,26 +18,15 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 
 /**
- * Security configuration for the Art Platform.
+ * Security configuration for Vueseum.
  * This class configures CORS (Cross-Origin Resource Sharing) and CSRF (Cross-Site Request Forgery) protection.
  */
-@Configuration  // Tells Spring this is a configuration class
-@EnableWebSecurity  // Enables Spring Security's web security support
+@Configuration
+@EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+    private final CorsProperties.Cors corsProperties;
 
-    // Reading CORS configuration from properties files
-    // These values will be different for development vs production
-    @Value("${app.cors.allowed-origins}")
-    private String[] allowedOrigins;
-
-    @Value("${app.cors.allowed-methods}")
-    private String[] allowedMethods;
-
-    @Value("${app.cors.allowed-headers}")
-    private String[] allowedHeaders;
-
-    @Value("${app.cors.max-age}")
-    private long maxAge;
 
     /**
      * Configures the main security filter chain for the application.
@@ -46,7 +35,6 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // CORS configuration - Allows frontend to make requests from a different domain
                 .cors(cors -> cors
                         .configurationSource(corsConfigurationSource())
                 )
@@ -125,16 +113,16 @@ public class SecurityConfig {
         // Set which origins can access the API
         // In development, this might be localhost:3000
         // In production, this would be your frontend domain
-        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins));
+        configuration.setAllowedOrigins(Arrays.asList(corsProperties.allowedOrigins()));
 
         // Set which HTTP methods are allowed (GET, POST, etc.)
-        configuration.setAllowedMethods(Arrays.asList(allowedMethods));
+        configuration.setAllowedMethods(Arrays.asList(corsProperties.allowedMethods()));
 
         // Set which headers are allowed in requests
-        configuration.setAllowedHeaders(Arrays.asList(allowedHeaders));
+        configuration.setAllowedHeaders(Arrays.asList(corsProperties.allowedHeaders()));
 
         // How long the browser should cache the CORS response
-        configuration.setMaxAge(maxAge);
+        configuration.setMaxAge(corsProperties.maxAge());
 
         // Allow credentials (cookies, authorization headers)
         // This is needed for CSRF tokens
