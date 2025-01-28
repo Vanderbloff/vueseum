@@ -2,7 +2,6 @@ package com.mvp.vueseum.service.visitor;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,7 +23,6 @@ public class VisitorTrackingService {
     private static class VisitorData {
         private final String deviceFingerprint;
         private volatile LocalDateTime lastVisit;
-        @Getter(AccessLevel.NONE)
         private final AtomicInteger numOfGeneratedTours;
         private volatile LocalDate latestDay;
 
@@ -60,10 +58,6 @@ public class VisitorTrackingService {
             numOfGeneratedTours.incrementAndGet();
             lastVisit = LocalDateTime.now(clock);
             return true;
-        }
-
-        public int getNumOfGeneratedTours() {
-            return numOfGeneratedTours.get();
         }
     }
 
