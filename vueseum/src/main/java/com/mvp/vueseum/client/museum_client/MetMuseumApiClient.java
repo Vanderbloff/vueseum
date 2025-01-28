@@ -24,6 +24,7 @@ import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -55,30 +56,21 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
     }
 
     @Override
-    public List<String> getCurrentlyDisplayedArtworkIds() {
-        return withRetry(() -> {
-            rateLimiter.acquire();
-            String response = restClient.get()
-                    .uri("/objects")
-                    .retrieve()
-                    .body(String.class);
-
-            List<String> allIds = parseSearchResponse(response, "ObjectIDs");
-
-            return allIds.stream()
-                    .filter(id -> {
-                        rateLimiter.acquire();
-                        String detailResponse = restClient.get()
-                                .uri("/objects/{id}", id)
-                                .retrieve()
-                                .body(String.class);
-                        return isArtworkDisplayed(detailResponse);
-                    })
-                    .collect(Collectors.toList());
-        }, "fetch displayed artwork IDs");
+    public Long getMuseumId() {
+        return metMuseum.getId();
     }
 
-    private boolean isArtworkDisplayed(String response) {
+    @Override
+    protected int getBatchSize() {
+        return Integer.parseInt(environment.getProperty("museum.metropolitan.api.batchSize", "80"));
+    }
+
+    @Override
+    public RateLimiter getRateLimiter() {
+        return rateLimiter;
+    }
+
+    public boolean isArtworkDisplayed(String response) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode rootNode = objectMapper.readTree(response);
@@ -97,21 +89,66 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
     }
 
     @Override
-    public ArtworkDetails fetchArtworkById(String id) {
-        try {
+    public List<String> getCurrentlyDisplayedArtworkIds() {
+        return withRetry(() -> {
             rateLimiter.acquire();
 
+            // Use wildcard search with isOnView parameter
             String response = restClient.get()
-                    .uri("/objects/{id}", id)
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/search")
+                            .queryParam("q", "*")
+                            .queryParam("isOnView", true)
+                            .build())
                     .retrieve()
                     .body(String.class);
 
+            return parseSearchResponse(response, "objectIDs");
+        }, "fetch displayed artwork IDs");
+    }
+
+    @Override
+    protected List<String> getUpdatedArtworkIds(LocalDateTime since) {
+        return withRetry(() -> {
+            rateLimiter.acquire();
+
+            String formattedDate = since.format(DateTimeFormatter.ISO_DATE);
+
+            String response = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/objects")
+                            .queryParam("metadataDate", formattedDate)
+                            .build())
+                    .retrieve()
+                    .body(String.class);
+
+            List<String> updatedIds = parseSearchResponse(response, "ObjectIDs");
+
+            // Filter for displayed artworks
+            return updatedIds.stream()
+                    .filter(id -> isArtworkDisplayed(fetchObjectResponse(id)))
+                    .collect(Collectors.toList());
+        }, "fetch updated artwork IDs");
+    }
+
+    @Override
+    public ArtworkDetails fetchArtworkById(String id) {
+        try {
+            String response = fetchObjectResponse(id);
             return convertToArtworkDetails(response);
         }
         catch (HttpClientErrorException.NotFound e) {
             logger.warn("Artwork with id {} not found", id, e);
             return null;
         }
+    }
+
+    private String fetchObjectResponse(String id) {
+        rateLimiter.acquire();
+        return restClient.get()
+                .uri("/objects/{id}", id)
+                .retrieve()
+                .body(String.class);
     }
 
     @Override
@@ -165,48 +202,13 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                     // Dates and rights
                     .creationYear(rootNode.path("objectDate").asText())
                     .acquisitionDate(rootNode.path("accessionYear").asText())
-                    .copyrightStatus(rootNode.path("rightsAndReproduction").asText())  // Added this
+                    .copyrightStatus(rootNode.path("rightsAndReproduction").asText())
                     .build();
         } catch (JsonProcessingException e) {
             throw new ApiClientException("Failed to parse response from Met Museum API", e);
         }
     }
 
-    @Override
-    protected List<String> getUpdatedArtworkIds(LocalDateTime since) {
-        return withRetry(() -> {
-            rateLimiter.acquire();
-
-            // Format date as required by Met API (YYYY-MM-DD)
-            String formattedDate = since.format(DateTimeFormatter.ISO_DATE);
-
-            String response = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/objects")
-                            .queryParam("metadataDate", formattedDate)
-                            .build())
-                    .retrieve()
-                    .body(String.class);
-
-            List<String> updatedIds = parseSearchResponse(response, "ObjectIDs");
-
-            // Filter for displayed artworks
-            return updatedIds.stream()
-                    .filter(id -> isArtworkDisplayed(fetchObjectResponse(id)))
-                    .collect(Collectors.toList());
-        }, "fetch updated artwork IDs");
-    }
-
-    // Helper method to get object response
-    private String fetchObjectResponse(String id) {
-        rateLimiter.acquire();
-        return restClient.get()
-                .uri("/objects/{id}", id)
-                .retrieve()
-                .body(String.class);
-    }
-
-    @Override
     public void performSync(SyncOperation operation) {
         try {
             syncStartTime = operation.getStartTime();
@@ -214,37 +216,22 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                     operation.isFullSync() ? "full" : "incremental",
                     syncStartTime);
 
-            List<String> artworkIds = operation.isFullSync()
-                    ? getCurrentlyDisplayedArtworkIds()
-                    : getUpdatedArtworkIds(operation.getIncrementalSince());
+            List<String> artworkIds;
+            if (operation.isFullSync()) {
+                artworkIds = getCurrentlyDisplayedArtworkIds();
+                // Move DB operations to service
+                artworkService.removeNonDisplayedArtworks(
+                        new HashSet<>(artworkIds),
+                        getMuseumId()
+                );
+            } else {
+                artworkIds = getUpdatedArtworkIds(operation.getIncrementalSince());
+            }
 
-            processArtworksSync(artworkIds);
-
-            logger.info("Completed {} sync. Processed: {}, Errors: {}",
-                    operation.isFullSync() ? "full" : "incremental",
-                    processedCount.get(),
-                    errorCount.get());
-
+            processDisplayedBatch(artworkIds);
         } catch (Exception e) {
             logger.error("Failed to complete sync", e);
             throw new ApiClientException("Sync failed", e);
         }
-    }
-
-    @Override
-    public Long getMuseumId() {
-        return metMuseum.getId();
-    }
-
-    @Override
-    protected int getBatchSize() {
-        return Integer.parseInt(
-                environment.getProperty("museum.metropolitan.api.batchSize", "80")
-        );
-    }
-
-    @Override
-    protected RateLimiter getRateLimiter() {
-        return rateLimiter;
     }
 }
