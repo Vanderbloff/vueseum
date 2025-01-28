@@ -58,14 +58,6 @@
 				</div>
 			</div>
 
-			{#if artwork.isOnDisplay}
-				<div class="px-6 pt-4">
-					<span class="inline-block px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
-							On Display
-					</span>
-				</div>
-			{/if}
-
 			<!-- Details section -->
 			<div class="p-6 space-y-4">
 				<div>
@@ -120,17 +112,13 @@
 						</div>
 					{/if}
 
-					{#if artwork.isOnDisplay}
-						<div class="flex gap-2">
-							<span class="font-medium">Location:</span>
-							<span>
-            		{artwork.museum?.name}
-								{#if artwork.galleryNumber}
-                {' • Gallery ' + artwork.galleryNumber}
-								{/if}
-        			</span>
-						</div>
-					{/if}
+					<div class="flex gap-2">
+						<span class="font-medium">Location:</span>
+						<span>
+							{artwork.museum?.name}
+							{' • Gallery ' + artwork.galleryNumber}
+						</span>
+					</div>
 				</div>
 
 				<Button
