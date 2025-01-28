@@ -9,7 +9,6 @@ export interface ArtworkSearchCriteria {
 	country?: string;
 	region?: string;
 	artworkType?: string;
-	isOnDisplay?: boolean;
 	museums?: string[];
 	tags?: string[];
 }
