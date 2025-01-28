@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { MapPin, Edit, Trash2 } from 'lucide-svelte';
+	import { MapPin, Edit, Trash2, CheckCircle, Loader2 } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import {
 		AlertDialog,
@@ -24,6 +24,12 @@
 			name: string;
 			location: string;
 		};
+		lastValidated?: Date;
+		unavailableArtworks?: Array<{
+			id: number;
+			title: string;
+			galleryNumber: string;
+		}>;
 	}
 
 	let {
@@ -31,13 +37,17 @@
 		onSelect = (tour: Tour) => goto(`/tours/${tour.id}`),
 		onDelete,
 		onEdit,
-		isUpdating = false
+		onValidate,
+		isUpdating = false,
+		isValidating = false
 	} = $props<{
 		tour: Tour;
 		onSelect?: (tour: Tour) => void;
 		onDelete?: (tourId: number) => void;
 		onEdit?: (tourId: number, updates: { name: string; description: string }) => Promise<boolean>;
+		onValidate?: (tourId: number) => Promise<void>;
 		isUpdating?: boolean;
+		isValidating?: boolean;
 	}>();
 
 	const state = $state({
@@ -48,7 +58,7 @@
 			description: ''
 		},
 		isValid: true,
-		isDialogOpen: false
+		isDialogOpen: false,
 	});
 
 	function validateForm() {
@@ -108,8 +118,41 @@
 		</div>
 	</Button>
 
+	{#if (tour.unavailableArtworks?.length ?? 0) > 0}
+		<div class="mt-2 px-4 py-2 bg-destructive/10 rounded-md">
+			<p class="text-sm text-destructive">
+				{tour.unavailableArtworks.length} artwork{tour.unavailableArtworks.length === 1 ? '' : 's'}
+				{tour.unavailableArtworks.length === 1 ? 'is' : 'are'} no longer on display
+			</p>
+			<div class="mt-1 text-xs text-muted-foreground">
+				{#each tour.unavailableArtworks as artwork}
+					<p>{artwork.title} (Gallery {artwork.galleryNumber})</p>
+				{/each}
+			</div>
+			<div class="mt-2 text-xs text-muted-foreground">
+				Last checked: {new Date(tour.lastValidated ?? '').toLocaleString()}
+			</div>
+		</div>
+	{/if}
+
 	<!-- Action buttons -->
 	<div class="absolute top-2 right-2 space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+		<Button
+			variant="secondary"
+			size="icon"
+			class="h-8 w-8"
+			disabled={isValidating}
+			onclick={() => onValidate?.(tour.id)}
+		>
+			{#if isValidating}
+				<span class="animate-spin">
+            <Loader2 class="h-4 w-4" />
+        </span>
+			{:else}
+				<CheckCircle class="h-4 w-4" />
+			{/if}
+		</Button>
+
 		<!-- Edit button -->
 		<AlertDialog bind:open={state.isDialogOpen}>
 			<AlertDialogTrigger disabled={isUpdating}>
