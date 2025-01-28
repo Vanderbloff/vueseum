@@ -2,6 +2,7 @@ package com.mvp.vueseum.config;
 
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
+import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.ConsoleAppender;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.LoggerFactory;
@@ -15,7 +16,7 @@ public class LoggingConfig {
         LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
 
         // Console appender configuration
-        ConsoleAppender consoleAppender = new ConsoleAppender();
+        ConsoleAppender<ILoggingEvent> consoleAppender = new ConsoleAppender<>();
         consoleAppender.setContext(loggerContext);
         consoleAppender.setName("console");
 
