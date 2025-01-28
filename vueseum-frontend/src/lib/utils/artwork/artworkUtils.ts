@@ -37,7 +37,7 @@ export class ArtworkUtils {
 			filters.region.length > 0 ||
 			filters.culture.length > 0 ||
 			filters.era.length > 0 ||
-			filters.onDisplay ||
+			filters.museumId.length > 0 ||
 			filters.hasImage
 		);
 	}
@@ -116,8 +116,6 @@ export class ArtworkUtils {
 				}
 			}
 
-			// Other filters with null checks
-			if (filters.onDisplay && !artwork.isOnDisplay) return false;
 			if (filters.hasImage && !artwork.imageUrl) return false;
 
 			return true;
@@ -134,8 +132,8 @@ export class ArtworkUtils {
 			region: [],
 			culture: [],
 			era: [],
-			onDisplay: false,
-			hasImage: true
+			hasImage: true,
+			museumId: []
 		};
 	}
 }
