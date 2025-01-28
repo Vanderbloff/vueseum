@@ -14,7 +14,8 @@
 		isLoading: false,
 		error: null as string | null,
 		updateError: null as string | null,
-		updatingTourId: null as number | null
+		updatingTourId: null as number | null,
+		validatingTourId: null as number | null
 	});
 
 	async function loadTours() {
@@ -63,16 +64,40 @@
 			state.updatingTourId = null;
 		}
 	}
+
+	async function handleValidate(tourId: number) {
+		state.validatingTourId = tourId;
+		state.error = null;
+
+		try {
+			const result = await tourApi.validateTour(tourId);
+			state.tours = state.tours.map((tour: Tour) =>
+				tour.id === tourId
+					? {
+						...tour,
+						lastValidated: new Date(),
+						unavailableArtworks: result.unavailableArtworks
+					}
+					: tour
+			);
+		} catch (error) {
+			state.error = error instanceof Error
+				? error.message
+				: 'Failed to validate tour availability';
+		} finally {
+			state.validatingTourId = null;
+		}
+	}
 </script>
 
 <div class="w-full space-y-6">
 	<!-- Main error state -->
 	{#if state.error}
-		<div class="p-4 bg-red-50 border border-red-100 rounded-lg">
-			<p class="text-red-700">{state.error}</p>
+		<div class="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+			<p class="text-destructive">{state.error}</p>
 			<Button
 				variant="link"
-				class="mt-2 text-red-700 hover:text-red-800"
+				class="mt-2 text-destructive hover:text-destructive/90"
 				onclick={loadTours}
 			>
 				Try again
@@ -81,11 +106,11 @@
 	{/if}
 
 	{#if state.updateError}
-		<div class="p-4 bg-red-50 border border-red-100 rounded-lg">
-			<p class="text-red-700">{state.updateError}</p>
+		<div class="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+			<p class="text-destructive">{state.updateError}</p>
 			<Button
 				variant="link"
-				class="mt-2 text-red-700 hover:text-red-800"
+				class="mt-2 text-destructive hover:text-destructive/90"
 				onclick={() => state.updateError = null}
 			>
 				Dismiss
@@ -106,7 +131,9 @@
 					{tour}
 					onDelete={handleDelete}
 					onEdit={handleTourEdit}
+					onValidate={handleValidate}
 					isUpdating={state.updatingTourId === tour.id}
+					isValidating={state.validatingTourId === tour.id}
 				/>
 			{/each}
 		</div>
