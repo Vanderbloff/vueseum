@@ -19,7 +19,6 @@ export interface TourStop {
 		galleryNumber?: string | null;
 		department?: string;
 		creationDate?: string;
-		isOnDisplay: boolean;
 	};
 	tourContextDescription: string;
 	isRequired: boolean;
@@ -35,6 +34,20 @@ export interface Tour {
 		id: number;
 		name: string;
 	};
+	lastValidated?: string;
+	unavailableArtworks?: UnavailableArtworkInfo[];
+}
+
+export interface TourValidationResult {
+	tourId: number;
+	unavailableArtworks: UnavailableArtworkInfo[];
+	validatedAt: string;
+}
+
+export interface UnavailableArtworkInfo {
+	artworkId: number;
+	title: string;
+	galleryNumber: string;
 }
 
 export interface PaginatedResponse<T> {
