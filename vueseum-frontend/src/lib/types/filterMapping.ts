@@ -1,7 +1,7 @@
 // src/lib/utils/filterMapping.ts
 
 import type { ArtworkFilters } from '../components/homepage/artwork/ArtworkFilters.svelte';
-import type { ArtworkSearchCriteria } from '../types/search';
+import type { ArtworkSearchCriteria } from './search';
 
 export function mapFiltersToSearchCriteria(
 	filters: ArtworkFilters
@@ -54,11 +54,6 @@ export function mapFiltersToSearchCriteria(
 	// Map period/era filter
 	if (filters.era.length > 0) {
 		criteria.period = filters.era[0];
-	}
-
-	// Map display status
-	if (filters.onDisplay) {
-		criteria.isOnDisplay = true;
 	}
 
 	return criteria;
