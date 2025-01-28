@@ -211,13 +211,13 @@
 
 			<DialogContent class="sm:max-w-[425px] max-h-[90vh] p-6">
 				<DialogHeader class="mb-4">
-					<DialogTitle class="text-center">Create Your Own Self-Guided Tour</DialogTitle>
-					<DialogDescription class="text-center">
+					<DialogTitle class="text-center text-foreground">Create Your Own Self-Guided Tour</DialogTitle>
+					<DialogDescription class="text-center text-foreground">
 						Choose your preferences, we'll handle the rest.
 					</DialogDescription>
 				</DialogHeader>
 
-				<div class="space-y-6">
+				<div class="space-y-6 text-foreground">
 					<div class="space-y-2">
 						<Label for="museum-select">Select a museum</Label>
 						<Select
@@ -342,7 +342,7 @@
 
 								{#if state.isGenerating}
 									<div class="text-center py-4">
-										<p class="text-lg font-medium">Your tour is on the way!</p>
+										<p class="text-lg font-medium text-foreground">Your tour is on the way!</p>
 										<p class="text-sm text-muted-foreground mt-2">
 											We're crafting a personalized experience just for you.
 										</p>
