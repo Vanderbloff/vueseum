@@ -65,11 +65,9 @@ CREATE TABLE artworks (
     description TEXT,
     department VARCHAR(255),
     creation_date VARCHAR(100),
-    is_on_display BOOLEAN DEFAULT false,
     processing_status VARCHAR(50) DEFAULT 'PENDING',
     last_sync_attempt TIMESTAMP,
     last_sync_error TEXT,
-    display_status_check TIMESTAMP,
     artist_prefix VARCHAR(100),
     artist_role VARCHAR(100),
     classification VARCHAR(255),
@@ -88,6 +86,7 @@ CREATE TABLE tours (
     museum_id BIGINT NOT NULL REFERENCES museums(id),
     generation_prompt TEXT,
     tour_theme VARCHAR(50)
+    last_validated TIMESTAMP
 );
 
 -- Create tour_stops table
@@ -105,7 +104,6 @@ CREATE TABLE tour_stops (
 -- Create indices for optimized queries
 CREATE INDEX idx_artwork_museum ON artworks(museum_id);
 CREATE INDEX idx_artwork_artist ON artworks(artist_id);
-CREATE INDEX idx_artwork_display ON artworks(is_on_display) WHERE is_on_display = true;
 CREATE INDEX idx_artwork_status ON artworks(processing_status);
 CREATE INDEX idx_tour_museum ON tours(museum_id);
 CREATE INDEX idx_tour_theme ON tours(tour_theme);
@@ -114,7 +112,6 @@ CREATE INDEX idx_artwork_creation_date ON artworks(creation_date NULLS LAST);
 CREATE INDEX idx_artwork_title ON artworks(title NULLS LAST);
 CREATE INDEX idx_artwork_culture_country ON artworks(culture, country);
 CREATE INDEX idx_artwork_geography ON artworks(country, region, sub_region);
-CREATE INDEX idx_artwork_status_check ON artworks(display_status_check);
 CREATE INDEX idx_artwork_geography ON artworks(country, region, sub_region);
 CREATE INDEX idx_tour_device_fingerprint ON tours(device_fingerprint);
 
