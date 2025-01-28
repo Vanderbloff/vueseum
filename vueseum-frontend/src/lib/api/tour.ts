@@ -2,7 +2,7 @@
 import { API_BASE_URL } from '../config';
 import { ApiError, BaseApiClient } from '$lib/api/base';
 import type { Artwork, PaginatedResponse } from '$lib/types/artwork';
-import type { Tour } from '$lib/types/tour';
+import type { Tour, TourValidationResult } from '$lib/types/tour';
 
 interface TourPreferences {
 	museumId: number;
@@ -161,6 +161,51 @@ export class TourApiClient extends BaseApiClient {
 		}
 	}
 
+	async validateTour(id: number): Promise<TourValidationResult> {
+		if (import.meta.env.DEV) {
+			if (typeof window !== 'undefined') {
+				const storedTours = JSON.parse(localStorage.getItem('devTours') || '[]');
+				const tourIndex = storedTours.findIndex((t: Tour) => t.id === id);
+
+				if (tourIndex === -1) {
+					throw new Error('Tour not found');
+				}
+
+				// Generate validation results if not already present
+				if (!storedTours[tourIndex].unavailableArtworks) {
+					const unavailableArtworks = storedTours[tourIndex].stops
+						.filter(() => Math.random() < 0.2)
+						.map((stop: { artwork: { id: number; title: string; galleryNumber: number } }) => ({
+							id: stop.artwork.id,
+							title: stop.artwork.title,
+							galleryNumber: stop.artwork.galleryNumber
+						}));
+
+					// Update the tour with validation results
+					storedTours[tourIndex] = {
+						...storedTours[tourIndex],
+						unavailableArtworks,
+						lastValidated: new Date().toISOString()
+					};
+
+					// Save back to localStorage
+					localStorage.setItem('devTours', JSON.stringify(storedTours));
+				}
+
+				return {
+					tourId: id,
+					unavailableArtworks: storedTours[tourIndex].unavailableArtworks,
+					validatedAt: storedTours[tourIndex].lastValidated
+				};
+			}
+			throw new Error('Tour not found');
+		}
+		
+		return this.fetchWithError<TourValidationResult>(
+			`${this.baseUrl}/${id}/validate`
+		);
+	}
+
 	private async generateDevTour(preferences: TourPreferences): Promise<Tour> {
 		// Simulate network delay
 		await new Promise(resolve => setTimeout(resolve, 1000));
@@ -219,7 +264,6 @@ export class TourApiClient extends BaseApiClient {
 					galleryNumber: artwork.galleryNumber,
 					department: artwork.department,
 					creationDate: artwork.creationDate,
-					isOnDisplay: artwork.isOnDisplay
 				},
 				tourContextDescription: `${artwork.description}`,
 				isRequired: index < preferences.minStops
