@@ -18,7 +18,6 @@
       "region": "North Holland",
       "geographicLocation": "Amsterdam",
       "galleryNumber": "1",
-      "isOnDisplay": true,
       "creationDate": "1889",
       "museum": {
         "id": 1,
@@ -44,7 +43,6 @@
       "region": "Tuscany",
       "geographicLocation": "Florence",
       "galleryNumber": "2",
-      "isOnDisplay": true,
       "creationDate": "1503",
       "museum": {
         "id": 2,
@@ -70,7 +68,6 @@
       "region": "Catalonia",
       "geographicLocation": "Barcelona",
       "galleryNumber": "3",
-      "isOnDisplay": true,
       "creationDate": "1931",
       "museum": {
         "id": 1,
@@ -96,7 +93,6 @@
       "region": "Vienna Region",
       "geographicLocation": "Vienna",
       "galleryNumber": "4",
-      "isOnDisplay": true,
       "creationDate": "1907",
       "museum": {
         "id": 1,
@@ -122,7 +118,6 @@
       "region": "North Holland",
       "geographicLocation": "Amsterdam",
       "galleryNumber": "5",
-      "isOnDisplay": true,
       "creationDate": "1665",
       "museum": {
         "id": 1,
