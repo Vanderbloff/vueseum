@@ -112,7 +112,6 @@ CREATE INDEX idx_artwork_creation_date ON artworks(creation_date NULLS LAST);
 CREATE INDEX idx_artwork_title ON artworks(title NULLS LAST);
 CREATE INDEX idx_artwork_culture_country ON artworks(culture, country);
 CREATE INDEX idx_artwork_geography ON artworks(country, region, sub_region);
-CREATE INDEX idx_artwork_geography ON artworks(country, region, sub_region);
 CREATE INDEX idx_tour_device_fingerprint ON tours(device_fingerprint);
 
 -- Add indices for soft delete queries
