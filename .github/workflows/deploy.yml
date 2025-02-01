@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./vueseum  # This points to the backend directory containing pom.xml
+        working-directory: ./vueseum
     
     steps:
       - uses: actions/checkout@v4
@@ -40,32 +40,39 @@ jobs:
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts 'mkdir -p /tmp/deploy'
-
-            # Copy JAR file - note the updated source path
-            - name: Transfer JAR via SCP
-              run: |
-                echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
-                chmod 600 private_key.pem
-                scp -o StrictHostKeyChecking=no -i private_key.pem \
-                    ./target/*.jar vueseumadmin@$(az vm show -d -g vueseum-prod-rg -n vueseum-app-prod --query publicIps -o tsv):/tmp/deploy/vueseum.jar
-                rm -f private_key.pem
-
-
-            # Verify JAR transfer
+      
+      - name: Transfer JAR via SCP
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+          scp -o StrictHostKeyChecking=no -i private_key.pem \
+              ./target/*.jar vueseumadmin@$(az vm show -d -g vueseum-prod-rg -n vueseum-app-prod --query publicIps -o tsv):/tmp/deploy/vueseum.jar
+          rm -f private_key.pem
+      
+      - name: Verify JAR Transfer
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts 'test -f /tmp/deploy/vueseum.jar || exit 1'
-
-            # Run deployment script
+      
+      - name: Run Deployment Script
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts 'cd /opt/vueseum && sudo -u vueseum ./deploy.sh /tmp/deploy/vueseum.jar'
-
-            # Cleanup
+      
+      - name: Cleanup Temporary Files
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
