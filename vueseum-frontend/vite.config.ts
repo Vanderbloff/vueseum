@@ -9,11 +9,26 @@ export default defineConfig({
 		include: ['src/**/*.{test,spec}.{js,ts}']
 	},
 	server: {
+		// Development proxy configuration
 		proxy: {
 			'/api': {
 				target: 'http://localhost:3001',
 				changeOrigin: true,
 				rewrite: (path) => path.replace(/^\/api/, '')
+			}
+		},
+		// Production settings
+		port: 3000,
+		strictPort: true,
+	},
+	build: {
+		target: 'esnext',
+		minify: 'esbuild',
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					vendor: ['svelte']
+				}
 			}
 		}
 	}
