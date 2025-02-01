@@ -8,9 +8,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./vueseum  # backend directory
     
     steps:
       - uses: actions/checkout@v4
@@ -34,30 +31,37 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Create a temporary directory for the JAR
+            # Create temp directory
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts 'mkdir -p /tmp/deploy'
-      
-            # Copy the JAR file to VM using az storage copy
+
+            # Copy JAR file - note the updated source path
+            az vm copy \
+              --resource-group vueseum-prod-rg \
+              --name vueseum-app-prod \
+              --source-path "./target/*.jar" \
+              --destination-path "/tmp/deploy/vueseum.jar"
+
+            # Verify JAR transfer
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
-              --scripts "sudo cp target/*.jar /tmp/deploy/vueseum.jar"
-      
-            # Run deployment script with the copied JAR
+              --scripts 'test -f /tmp/deploy/vueseum.jar || exit 1'
+
+            # Run deployment script
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts 'cd /opt/vueseum && sudo -u vueseum ./deploy.sh /tmp/deploy/vueseum.jar'
-      
+
             # Cleanup
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
-              --scripts 'rm -rf /tmp/deploy'                  
+              --scripts 'rm -rf /tmp/deploy'
