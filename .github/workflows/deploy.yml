@@ -42,11 +42,14 @@ jobs:
               --scripts 'mkdir -p /tmp/deploy'
 
             # Copy JAR file - note the updated source path
-            az vm copy \
-              --resource-group vueseum-prod-rg \
-              --name vueseum-app-prod \
-              --source-path "./target/*.jar" \
-              --destination-path "/tmp/deploy/vueseum.jar"
+            - name: Transfer JAR via SCP
+              run: |
+                echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
+                chmod 600 private_key.pem
+                scp -o StrictHostKeyChecking=no -i private_key.pem \
+                    ./target/*.jar vueseumadmin@$(az vm show -d -g vueseum-prod-rg -n vueseum-app-prod --query publicIps -o tsv):/tmp/deploy/vueseum.jar
+                rm -f private_key.pem
+
 
             # Verify JAR transfer
             az vm run-command invoke \
