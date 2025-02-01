@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./vueseum-frontend
+        working-directory: ./vueseum/vueseum-frontend
         
     steps:
       - uses: actions/checkout@v4
