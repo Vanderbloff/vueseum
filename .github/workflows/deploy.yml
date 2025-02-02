@@ -34,8 +34,13 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
+
+            # Debug: Show current location and structure
+            pwd
+            ls -la
+            
             # Find the JAR file
-            JAR_FILE=$(find ./target -name "*.jar" -type f)
+            JAR_FILE=$(find ${{ github.workspace }}/vueseum/target -name "*.jar" -type f)
             if [ -z "$JAR_FILE" ]; then
               echo "No JAR file found in target directory"
               ls -la ./target  # Debug: show contents of target directory
