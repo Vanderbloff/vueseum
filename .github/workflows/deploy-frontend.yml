@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./vueseum
+        working-directory: ./vueseum/vueseum-frontend
     
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +29,8 @@ jobs:
         run: npm ci
         
       - name: Build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: npm run build
       
       - name: Azure Login
@@ -55,10 +57,10 @@ jobs:
               --name $CONTAINER_NAME \
               --auth-mode login
 
-            # Upload build files
+            # Change this part in the workflow
             az storage blob upload-batch \
               --account-name vueseumdeploy \
-              --source ./dist \
+              --source ./.svelte-kit/output \
               --destination $CONTAINER_NAME \
               --auth-mode login
 
