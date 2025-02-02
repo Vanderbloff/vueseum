@@ -82,7 +82,9 @@ jobs:
                   --account-name vueseumdeploy \
                   --container-name $CONTAINER_NAME \
                   --name vueseum.jar \
-                  --file /tmp/deploy/vueseum.jar
+                  --file /tmp/deploy/vueseum.jar \
+                  --auth-mode login
+
                 
                 if [ -f /tmp/deploy/vueseum.jar ]; then
                   cd /opt/vueseum && sudo -u vueseum ./deploy-backend.sh /tmp/deploy/vueseum.jar
