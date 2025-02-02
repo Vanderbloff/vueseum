@@ -3,7 +3,7 @@ name: Deploy Backend to Azure VM
 on:
   push:
     branches: [ "master" ]
-  workflow_dispatch:
+  workflow_dispatch:      
 
 jobs:
   build-and-deploy:
@@ -24,66 +24,63 @@ jobs:
       
       - name: Build with Maven
         run: mvn -B package --file pom.xml
-
+      
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
-
-      # Single VM command for all preparation steps
-      - name: Prepare VM and Deploy
+      
+      - name: Transfer and Deploy
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Get VM IP
-            VM_IP=$(az vm show -d -g vueseum-prod-rg -n vueseum-app-prod --query publicIps -o tsv)
-            echo "VM IP: $VM_IP"
+            # Create storage account if it doesn't exist
+            az storage account create \
+              --name vueseumdeploy \
+              --resource-group vueseum-prod-rg \
+              --sku Standard_LRS \
+              --kind StorageV2 \
+              2>/dev/null || true
 
-            # Single command to prepare environment
+            # Create temporary container
+            CONTAINER_NAME="deploy-$(date +%s)"
+            az storage container create \
+              --account-name vueseumdeploy \
+              --name $CONTAINER_NAME \
+              --auth-mode login
+
+            # Upload JAR
+            az storage blob upload \
+              --account-name vueseumdeploy \
+              --container-name $CONTAINER_NAME \
+              --name vueseum.jar \
+              --file ./target/*.jar \
+              --auth-mode login
+
+            # Create temp directory and download JAR on VM
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
-              --scripts '
+              --scripts "
                 mkdir -p /tmp/deploy
-                chmod 777 /tmp/deploy
-                echo "Environment prepared"'
-
-      - name: Get GitHub Actions IP
-        run: |
-          echo "GitHub Actions IP: $(curl -s https://api.ipify.org)"
-
-      - name: Transfer and Deploy JAR
-        run: |
-          # Get VM IP
-          VM_IP=$(az vm show -d -g vueseum-prod-rg -n vueseum-app-prod --query publicIps -o tsv)
-          
-          # Setup SSH key
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
-          chmod 600 private_key.pem
-          
-          # SCP transfer
-          scp -vvv -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i private_key.pem \
-              target/*.jar vueseumadmin@$VM_IP:/tmp/deploy/vueseum.jar
-          
-          # Cleanup key
-          rm -f private_key.pem
-
-      # Final deployment as a single command
-      - name: Complete Deployment
-        uses: azure/CLI@v1
-        with:
-          inlineScript: |
-            az vm run-command invoke \
-              --resource-group vueseum-prod-rg \
-              --name vueseum-app-prod \
-              --command-id RunShellScript \
-              --scripts '
+                az storage blob download \
+                  --account-name vueseumdeploy \
+                  --container-name $CONTAINER_NAME \
+                  --name vueseum.jar \
+                  --file /tmp/deploy/vueseum.jar
+                
                 if [ -f /tmp/deploy/vueseum.jar ]; then
                   cd /opt/vueseum && sudo -u vueseum ./deploy.sh /tmp/deploy/vueseum.jar
                   rm -rf /tmp/deploy
-                  systemctl is-active vueseum-backend.service || echo "Service check failed"
+                  systemctl is-active vueseum-backend.service || echo 'Service check failed'
                 else
-                  echo "JAR file not found"
+                  echo 'JAR file not found'
                   exit 1
-                fi'
+                fi"
+
+            # Cleanup: Delete container
+            az storage container delete \
+              --account-name vueseumdeploy \
+              --name $CONTAINER_NAME \
+              --auth-mode login
