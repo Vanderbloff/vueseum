@@ -101,18 +101,18 @@ jobs:
              --name vueseum-app-prod \
              --command-id RunShellScript \
              --scripts "
-              mkdir -p /tmp/deploy
-              # Download using curl and SAS token
-              curl -o /tmp/deploy/vueseum.jar '${BLOB_URL}?${SAS_TOKEN}'
+                mkdir -p /tmp/deploy
+                # Download using curl and SAS token
+                curl -o /tmp/deploy/vueseum.jar '${BLOB_URL}?${SAS_TOKEN}'
     
-             if [ -f /tmp/deploy/vueseum.jar ]; then
-              cd /opt/vueseum && sudo -u vueseum ./deploy-backend.sh /tmp/deploy/vueseum.jar
-              rm -rf /tmp/deploy
-              systemctl is-active vueseum-backend.service || echo 'Service check failed'
-             else
-              echo 'JAR file not found'
-              exit 1
-             fi"
+                if [ -f /tmp/deploy/vueseum.jar ]; then
+                 cd /opt/vueseum && sudo -u vueseum ./deploy-backend.sh /tmp/deploy/vueseum.jar
+                 rm -rf /tmp/deploy
+                 sudo systemctl is-active vueseum-backend.service || echo 'Service check failed'
+                else
+                 echo 'JAR file not found'
+                 exit 1
+                fi"
 
             # Cleanup: Delete container
             az storage container delete \
