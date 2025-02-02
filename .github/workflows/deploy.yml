@@ -9,7 +9,6 @@ concurrency:
   group: "vm-deploy"
   cancel-in-progress: false
 
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -39,86 +38,35 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
-
-            # Debug: Show current location and structure
-            pwd
-            ls -la
-            
             # Find the JAR file
             JAR_FILE=$(find ${{ github.workspace }}/vueseum/target -name "*.jar" -type f)
             if [ -z "$JAR_FILE" ]; then
               echo "No JAR file found in target directory"
-              ls -la ./target  # Debug: show contents of target directory
+              ls -la ./target
               exit 1
             fi
-            echo "Found JAR file: $JAR_FILE"
-
-            # Create storage account if it doesn't exist
-            az storage account create \
-              --name vueseumdeploy \
-              --resource-group vueseum-prod-rg \
-              --sku Standard_LRS \
-              --kind StorageV2 \
-              2>/dev/null || true
-
-            # Create temporary container
-            CONTAINER_NAME="deploy-$(date +%s)"
-            az storage container create \
-              --account-name vueseumdeploy \
-              --name $CONTAINER_NAME \
-              --auth-mode login
-
-            # Upload JAR
-            az storage blob upload \
-              --account-name vueseumdeploy \
-              --container-name $CONTAINER_NAME \
-              --name vueseum.jar \
-              --file "$JAR_FILE" \
-              --auth-mode login
-
-            # Generate SAS token for the specific blob
-             END_TIME=$(date -u -d "30 minutes" '+%Y-%m-%dT%H:%MZ')
-             SAS_TOKEN=$(az storage blob generate-sas \
-             --account-name vueseumdeploy \
-             --container-name $CONTAINER_NAME \
-             --name vueseum.jar \
-             --permissions r \
-             --expiry $END_TIME \
-             --auth-mode login \
-             --as-user \
-             --output tsv)
-
-            # Get blob URL
-            BLOB_URL=$(az storage blob url \
-             --account-name vueseumdeploy \
-             --container-name $CONTAINER_NAME \
-            --name vueseum.jar \
-            --output tsv)
-
-            # Create temp directory and download JAR on VM
+            
+            # Convert JAR to base64 for transfer
+            ENCODED_JAR=$(base64 -w 0 "$JAR_FILE")
+            
+            # Deploy using Run Command
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
+                # Create temp directory
                 mkdir -p /tmp/deploy
-                # Download using curl and SAS token
-                curl -o /tmp/deploy/vueseum.jar '${BLOB_URL}?${SAS_TOKEN}'
+                
+                # Decode and save JAR
+                echo '$ENCODED_JAR' | base64 -d > /tmp/deploy/vueseum.jar
                 
                 if [ -f /tmp/deploy/vueseum.jar ]; then
-                  # First ensure the directory exists
-                  sudo mkdir -p /opt/vueseum/backend/releases
-                  # Then run the deployment script without user switching
+                  # Run deployment script
                   cd /opt/vueseum && ./deploy-backend.sh /tmp/deploy/vueseum.jar
                   rm -rf /tmp/deploy
                   systemctl is-active vueseum-backend.service || echo 'Service check failed'
                 else
-                  echo 'JAR file not found'
+                  echo 'JAR file not found after transfer'
                   exit 1
                 fi"
-
-            # Cleanup: Delete container
-            az storage container delete \
-              --account-name vueseumdeploy \
-              --name $CONTAINER_NAME \
-              --auth-mode login
