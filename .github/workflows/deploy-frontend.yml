@@ -12,12 +12,18 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./vueseum-frontend
-    
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Debug Directory Structure
+        run: |
+          echo "Current directory: $PWD"
+          echo "Repository root: ${{ github.workspace }}"
+          echo "Directory contents:"
+          ls -la
+          echo "Full directory tree:"
+          tree -L 2
+        working-directory: ${{ github.workspace }}
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
