@@ -97,21 +97,24 @@ jobs:
 
             # Create temp directory and download JAR on VM
             az vm run-command invoke \
-             --resource-group vueseum-prod-rg \
-             --name vueseum-app-prod \
-             --command-id RunShellScript \
-             --scripts "
+              --resource-group vueseum-prod-rg \
+              --name vueseum-app-prod \
+              --command-id RunShellScript \
+              --scripts "
                 mkdir -p /tmp/deploy
                 # Download using curl and SAS token
                 curl -o /tmp/deploy/vueseum.jar '${BLOB_URL}?${SAS_TOKEN}'
-    
+                
                 if [ -f /tmp/deploy/vueseum.jar ]; then
-                 cd /opt/vueseum && sudo -u vueseum ./deploy-backend.sh /tmp/deploy/vueseum.jar
-                 rm -rf /tmp/deploy
-                 sudo systemctl is-active vueseum-backend.service || echo 'Service check failed'
+                  # First ensure the directory exists
+                  sudo mkdir -p /opt/vueseum/backend/releases
+                  # Then run the deployment script with NOPASSWD sudo
+                  cd /opt/vueseum && SUDO_ASKPASS=/bin/echo sudo -A -u vueseum ./deploy-backend.sh /tmp/deploy/vueseum.jar
+                  rm -rf /tmp/deploy
+                  sudo systemctl is-active vueseum-backend.service || echo 'Service check failed'
                 else
-                 echo 'JAR file not found'
-                 exit 1
+                  echo 'JAR file not found'
+                  exit 1
                 fi"
 
             # Cleanup: Delete container
