@@ -82,6 +82,8 @@ jobs:
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
+                mkdir -p /tmp/deploy
+                
                 # Use storage account key authentication instead of managed identity
                 STORAGE_KEY=\$(az storage account keys list --resource-group vueseum-prod-rg --account-name vueseumdeploy --query '[0].value' -o tsv)
     
