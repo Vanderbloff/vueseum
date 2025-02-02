@@ -14,11 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./vueseum/vueseum-frontend
+        working-directory: ./vueseum-frontend
     
     steps:
       - uses: actions/checkout@v4
-
+      
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -29,8 +29,6 @@ jobs:
         run: npm ci
         
       - name: Build
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: npm run build
       
       - name: Azure Login
@@ -57,44 +55,49 @@ jobs:
               --name $CONTAINER_NAME \
               --auth-mode login
 
-            # Change this part in the workflow
-            az storage blob upload-batch \
+            # Upload build files as single archive
+            cd ${{ github.workspace }}/vueseum-frontend/.svelte-kit/output
+            tar -czf build.tar.gz *
+            
+            # Upload archive
+            az storage blob upload \
               --account-name vueseumdeploy \
-              --source ./.svelte-kit/output \
-              --destination $CONTAINER_NAME \
+              --container-name $CONTAINER_NAME \
+              --name build.tar.gz \
+              --file build.tar.gz \
               --auth-mode login
 
-            # Generate SAS token for the container
+            # Generate SAS token for the specific blob
             END_TIME=$(date -u -d "30 minutes" '+%Y-%m-%dT%H:%MZ')
-            SAS_TOKEN=$(az storage container generate-sas \
+            SAS_TOKEN=$(az storage blob generate-sas \
               --account-name vueseumdeploy \
-              --name $CONTAINER_NAME \
+              --container-name $CONTAINER_NAME \
+              --name build.tar.gz \
               --permissions r \
               --expiry $END_TIME \
               --auth-mode login \
               --as-user \
               --output tsv)
 
-            # Get container URL
-            CONTAINER_URL=$(az storage container url \
+            # Get blob URL
+            BLOB_URL=$(az storage blob url \
               --account-name vueseumdeploy \
-              --name $CONTAINER_NAME \
+              --container-name $CONTAINER_NAME \
+              --name build.tar.gz \
               --output tsv)
 
-            # Create temp directory and deploy on VM
+            # Create temp directory, download and deploy on VM
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
                 mkdir -p /tmp/deploy
-                
-                # Download build files using curl
                 cd /tmp/deploy
-                curl -O '${CONTAINER_URL}?${SAS_TOKEN}'
+                curl -o build.tar.gz '${BLOB_URL}?${SAS_TOKEN}'
+                tar -xzf build.tar.gz
                 
                 if [ -d /tmp/deploy ]; then
-                  # Run deployment script
                   cd /opt/vueseum && ./deploy-frontend.sh /tmp/deploy
                   rm -rf /tmp/deploy
                   systemctl is-active vueseum-frontend || echo 'Service check failed'
