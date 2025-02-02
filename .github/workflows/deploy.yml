@@ -49,13 +49,25 @@ jobs:
         run: |
           echo "GitHub Actions IP: ${{ steps.ip.outputs.ipv4 }}"
 
+      - name: Check GitHub Actions IP
+        run: |
+          curl -s https://api.ipify.org
+          echo "Attempting connection from above IP"
+
       - name: Transfer JAR via SCP
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
           chmod 600 private_key.pem
-          # Add verbose flag to see more details about the connection attempt
-          scp -v -o StrictHostKeyChecking=no -i private_key.pem \
-              ./target/*.jar vueseumadmin@$(az vm show -d -g vueseum-prod-rg -n vueseum-app-prod --query publicIps -o tsv):/tmp/deploy/vueseum.jar
+          
+          # Store the VM's IP in a variable
+          VM_IP=$(az vm show -d -g vueseum-prod-rg -n vueseum-app-prod --query publicIps -o tsv)
+          echo "Attempting to connect to VM IP: $VM_IP"
+          
+          # Try TCP connection first
+          nc -zv $VM_IP 22 || echo "TCP connection failed"
+          
+          scp -vvv -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i private_key.pem \
+              ./target/*.jar vueseumadmin@$VM_IP:/tmp/deploy/vueseum.jar
           rm -f private_key.pem
       
       - name: Verify JAR Transfer
