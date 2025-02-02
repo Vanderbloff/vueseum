@@ -76,32 +76,43 @@ jobs:
               --file "$JAR_FILE" \
               --auth-mode login
 
+            # Generate SAS token for the specific blob
+             END_TIME=$(date -u -d "30 minutes" '+%Y-%m-%dT%H:%MZ')
+             SAS_TOKEN=$(az storage blob generate-sas \
+             --account-name vueseumdeploy \
+             --container-name $CONTAINER_NAME \
+             --name vueseum.jar \
+             --permissions r \
+             --expiry $END_TIME \
+             --auth-mode login \
+             --as-user \
+             --output tsv)
+
+            # Get blob URL
+            BLOB_URL=$(az storage blob url \
+             --account-name vueseumdeploy \
+             --container-name $CONTAINER_NAME \
+            --name vueseum.jar \
+            --output tsv)
+
             # Create temp directory and download JAR on VM
             az vm run-command invoke \
-              --resource-group vueseum-prod-rg \
-              --name vueseum-app-prod \
-              --command-id RunShellScript \
-              --scripts "
-                mkdir -p /tmp/deploy
-                
-                # Use storage account key authentication instead of managed identity
-                STORAGE_KEY=\$(az storage account keys list --resource-group vueseum-prod-rg --account-name vueseumdeploy --query '[0].value' -o tsv)
+             --resource-group vueseum-prod-rg \
+             --name vueseum-app-prod \
+             --command-id RunShellScript \
+             --scripts "
+              mkdir -p /tmp/deploy
+              # Download using curl and SAS token
+              curl -o /tmp/deploy/vueseum.jar '${BLOB_URL}?${SAS_TOKEN}'
     
-                az storage blob download \
-                 --account-name vueseumdeploy \
-                 --container-name $CONTAINER_NAME \
-                 --name vueseum.jar \
-                 --file /tmp/deploy/vueseum.jar \
-                 --account-key \$STORAGE_KEY
-    
-                if [ -f /tmp/deploy/vueseum.jar ]; then
-                 cd /opt/vueseum && sudo -u vueseum ./deploy-backend.sh /tmp/deploy/vueseum.jar
-                 rm -rf /tmp/deploy
-                 systemctl is-active vueseum-backend.service || echo 'Service check failed'
-                else
-                 echo 'JAR file not found'
-                 exit 1
-                fi"
+             if [ -f /tmp/deploy/vueseum.jar ]; then
+              cd /opt/vueseum && sudo -u vueseum ./deploy-backend.sh /tmp/deploy/vueseum.jar
+              rm -rf /tmp/deploy
+              systemctl is-active vueseum-backend.service || echo 'Service check failed'
+             else
+              echo 'JAR file not found'
+              exit 1
+             fi"
 
             # Cleanup: Delete container
             az storage container delete \
