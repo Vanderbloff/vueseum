@@ -108,10 +108,10 @@ jobs:
                 if [ -f /tmp/deploy/vueseum.jar ]; then
                   # First ensure the directory exists
                   sudo mkdir -p /opt/vueseum/backend/releases
-                  # Then run the deployment script with NOPASSWD sudo
-                  cd /opt/vueseum && SUDO_ASKPASS=/bin/echo sudo -A -u vueseum ./deploy-backend.sh /tmp/deploy/vueseum.jar
+                  # Then run the deployment script without user switching
+                  cd /opt/vueseum && ./deploy-backend.sh /tmp/deploy/vueseum.jar
                   rm -rf /tmp/deploy
-                  sudo systemctl is-active vueseum-backend.service || echo 'Service check failed'
+                  systemctl is-active vueseum-backend.service || echo 'Service check failed'
                 else
                   echo 'JAR file not found'
                   exit 1
