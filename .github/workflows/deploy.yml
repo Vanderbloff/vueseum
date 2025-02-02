@@ -3,7 +3,7 @@ name: Deploy Backend to Azure VM
 on:
   push:
     branches: [ "master" ]
-  workflow_dispatch:      # Allows manual trigger
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -25,95 +25,65 @@ jobs:
       - name: Build with Maven
         run: mvn -B package --file pom.xml
 
-      - name: Get GitHub Actions IP
-        id: ip
-        uses: haythem/public-ip@v1.3
-
-      - name: Debug - Show IP
-        run: |
-          echo "GitHub Actions IP: ${{ steps.ip.outputs.ipv4 }}"
-          curl -s https://api.ipify.org
-
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
 
-      - name: Prepare VM
+      # Single VM command for all preparation steps
+      - name: Prepare VM and Deploy
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Create temp directory and prepare VM
-            az vm run-command invoke \
-              --resource-group vueseum-prod-rg \
-              --name vueseum-app-prod \
-              --command-id RunShellScript \
-              --scripts 'mkdir -p /tmp/deploy && chmod 777 /tmp/deploy'
+            # Get VM IP
+            VM_IP=$(az vm show -d -g vueseum-prod-rg -n vueseum-app-prod --query publicIps -o tsv)
+            echo "VM IP: $VM_IP"
 
-            # Small delay to ensure command completes
-            sleep 5
-
-      - name: Transfer JAR
-        run: |
-          # Get VM IP
-          VM_IP=$(az vm show -d -g vueseum-prod-rg -n vueseum-app-prod --query publicIps -o tsv)
-          echo "Attempting connection to VM IP: $VM_IP"
-
-          # Setup SSH key
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
-          chmod 600 private_key.pem
-
-          # Test TCP connection
-          echo "Testing TCP connection..."
-          nc -zv $VM_IP 22 || echo "TCP connection failed"
-
-          # Attempt SCP transfer
-          echo "Attempting SCP transfer..."
-          scp -vvv -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i private_key.pem \
-              target/*.jar vueseumadmin@$VM_IP:/tmp/deploy/vueseum.jar
-
-          # Cleanup private key
-          rm -f private_key.pem
-
-      - name: Deploy and Cleanup
-        uses: azure/CLI@v1
-        with:
-          inlineScript: |
-            # Wait briefly to ensure file transfer is complete
-            sleep 5
-
-            # Deploy and cleanup in a single command to avoid conflicts
+            # Single command to prepare environment
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts '
-                # Check if JAR exists
-                if [ ! -f /tmp/deploy/vueseum.jar ]; then
-                  echo "JAR file not found in /tmp/deploy/"
-                  exit 1
-                fi
+                mkdir -p /tmp/deploy
+                chmod 777 /tmp/deploy
+                echo "Environment prepared"'
 
-                # Deploy
-                echo "Running deployment script..."
-                cd /opt/vueseum && sudo -u vueseum ./deploy.sh /tmp/deploy/vueseum.jar
+      - name: Get GitHub Actions IP
+        run: |
+          echo "GitHub Actions IP: $(curl -s https://api.ipify.org)"
 
-                # Cleanup
-                echo "Cleaning up..."
-                rm -rf /tmp/deploy
+      - name: Transfer and Deploy JAR
+        run: |
+          # Get VM IP
+          VM_IP=$(az vm show -d -g vueseum-prod-rg -n vueseum-app-prod --query publicIps -o tsv)
+          
+          # Setup SSH key
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+          
+          # SCP transfer
+          scp -vvv -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i private_key.pem \
+              target/*.jar vueseumadmin@$VM_IP:/tmp/deploy/vueseum.jar
+          
+          # Cleanup key
+          rm -f private_key.pem
 
-                echo "Deployment complete"'
-
-      - name: Verify Deployment
+      # Final deployment as a single command
+      - name: Complete Deployment
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Wait briefly for services to start
-            sleep 10
-
-            # Check if service is running
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
-              --scripts 'systemctl is-active vueseum-backend.service'
+              --scripts '
+                if [ -f /tmp/deploy/vueseum.jar ]; then
+                  cd /opt/vueseum && sudo -u vueseum ./deploy.sh /tmp/deploy/vueseum.jar
+                  rm -rf /tmp/deploy
+                  systemctl is-active vueseum-backend.service || echo "Service check failed"
+                else
+                  echo "JAR file not found"
+                  exit 1
+                fi'
