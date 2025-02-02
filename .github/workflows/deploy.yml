@@ -34,6 +34,15 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
+            # Find the JAR file
+            JAR_FILE=$(find ./target -name "*.jar" -type f)
+            if [ -z "$JAR_FILE" ]; then
+              echo "No JAR file found in target directory"
+              ls -la ./target  # Debug: show contents of target directory
+              exit 1
+            fi
+            echo "Found JAR file: $JAR_FILE"
+
             # Create storage account if it doesn't exist
             az storage account create \
               --name vueseumdeploy \
@@ -54,7 +63,7 @@ jobs:
               --account-name vueseumdeploy \
               --container-name $CONTAINER_NAME \
               --name vueseum.jar \
-              --file ./target/*.jar \
+              --file "$JAR_FILE" \
               --auth-mode login
 
             # Create temp directory and download JAR on VM
