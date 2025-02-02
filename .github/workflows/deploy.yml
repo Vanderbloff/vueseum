@@ -3,7 +3,12 @@ name: Deploy Backend to Azure VM
 on:
   push:
     branches: [ "master" ]
-  workflow_dispatch:      
+  workflow_dispatch:     
+
+concurrency:
+  group: "vm-deploy"
+  cancel-in-progress: false
+
 
 jobs:
   build-and-deploy:
