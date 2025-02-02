@@ -82,6 +82,8 @@ jobs:
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
+                # Ensure Azure CLI is authenticated inside the VM
+                az login --identity || echo 'Azure CLI login failed or using managed identity'
                 mkdir -p /tmp/deploy
                 az storage blob download \
                   --account-name vueseumdeploy \
