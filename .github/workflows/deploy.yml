@@ -85,7 +85,7 @@ jobs:
                   --file /tmp/deploy/vueseum.jar
                 
                 if [ -f /tmp/deploy/vueseum.jar ]; then
-                  cd /opt/vueseum && sudo -u vueseum ./deploy.sh /tmp/deploy/vueseum.jar
+                  cd /opt/vueseum && sudo -u vueseum ./deploy-backend.sh /tmp/deploy/vueseum.jar
                   rm -rf /tmp/deploy
                   systemctl is-active vueseum-backend.service || echo 'Service check failed'
                 else
