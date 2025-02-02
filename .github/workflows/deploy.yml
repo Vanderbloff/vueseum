@@ -46,23 +46,39 @@ jobs:
               exit 1
             fi
             
-            # Convert JAR to base64 for transfer
-            ENCODED_JAR=$(base64 -w 0 "$JAR_FILE")
+            # Split file into chunks and encode each chunk
+            split -b 1M "$JAR_FILE" "/tmp/chunk-"
             
-            # Deploy using Run Command
+            # First, create directory and cleanup any old files
+            az vm run-command invoke \
+              --resource-group vueseum-prod-rg \
+              --name vueseum-app-prod \
+              --command-id RunShellScript \
+              --scripts "mkdir -p /tmp/deploy && rm -f /tmp/deploy/chunk-* /tmp/deploy/vueseum.jar"
+            
+            # Transfer each chunk
+            for chunk in /tmp/chunk-*; do
+              ENCODED_CHUNK=$(base64 -w 0 "$chunk")
+              CHUNK_NAME=$(basename "$chunk")
+              
+              az vm run-command invoke \
+                --resource-group vueseum-prod-rg \
+                --name vueseum-app-prod \
+                --command-id RunShellScript \
+                --scripts "echo '$ENCODED_CHUNK' | base64 -d > /tmp/deploy/$CHUNK_NAME"
+            done
+            
+            # Combine chunks and deploy
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
-                # Create temp directory
-                mkdir -p /tmp/deploy
+                cd /tmp/deploy
+                cat chunk-* > vueseum.jar
+                rm chunk-*
                 
-                # Decode and save JAR
-                echo '$ENCODED_JAR' | base64 -d > /tmp/deploy/vueseum.jar
-                
-                if [ -f /tmp/deploy/vueseum.jar ]; then
-                  # Run deployment script
+                if [ -f vueseum.jar ]; then
                   cd /opt/vueseum && ./deploy-backend.sh /tmp/deploy/vueseum.jar
                   rm -rf /tmp/deploy
                   systemctl is-active vueseum-backend.service || echo 'Service check failed'
@@ -70,3 +86,6 @@ jobs:
                   echo 'JAR file not found after transfer'
                   exit 1
                 fi"
+            
+            # Cleanup local chunks
+            rm -f /tmp/chunk-*
