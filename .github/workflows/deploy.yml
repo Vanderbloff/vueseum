@@ -41,11 +41,20 @@ jobs:
               --command-id RunShellScript \
               --scripts 'mkdir -p /tmp/deploy'
       
+      - name: Get GitHub Actions IP
+        id: ip
+        uses: haythem/public-ip@v1.3
+
+      - name: Debug - Show IP
+        run: |
+          echo "GitHub Actions IP: ${{ steps.ip.outputs.ipv4 }}"
+
       - name: Transfer JAR via SCP
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
           chmod 600 private_key.pem
-          scp -o StrictHostKeyChecking=no -i private_key.pem \
+          # Add verbose flag to see more details about the connection attempt
+          scp -v -o StrictHostKeyChecking=no -i private_key.pem \
               ./target/*.jar vueseumadmin@$(az vm show -d -g vueseum-prod-rg -n vueseum-app-prod --query publicIps -o tsv):/tmp/deploy/vueseum.jar
           rm -f private_key.pem
       
