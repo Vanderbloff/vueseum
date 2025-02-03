@@ -3,10 +3,13 @@ name: Deploy Frontend to Azure VM
 on:
   push:
     branches: [ "master" ]
+    paths:
+      - 'vueseum-frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
   workflow_dispatch:     
 
 concurrency:
-  group: "vm-deploy"
+  group: "frontend-deploy"
   cancel-in-progress: false
 
 jobs:
@@ -31,6 +34,11 @@ jobs:
         
       - name: Build
         run: npm run build
+
+      - name: Create Build Archive
+        run: |
+          cd build
+          tar -czf ../build.tar.gz .
       
       - name: Azure Login
         uses: azure/login@v1
@@ -56,16 +64,12 @@ jobs:
               --name $CONTAINER_NAME \
               --auth-mode login
 
-            # Create archive from build output
-            cd ${{ github.workspace }}/vueseum-frontend/build
-            tar -czf build.tar.gz *
-            
-            # Upload archive
+            # Upload the pre-created archive
             az storage blob upload \
               --account-name vueseumdeploy \
               --container-name $CONTAINER_NAME \
               --name build.tar.gz \
-              --file build.tar.gz \
+              --file "${{ github.workspace }}/vueseum-frontend/build.tar.gz" \
               --auth-mode login
 
             # Generate SAS token for the blob
@@ -93,6 +97,9 @@ jobs:
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
+                # Ensure curl is installed
+                command -v curl >/dev/null 2>&1 || { apt-get update && apt-get install -y curl; }
+
                 # Create temp directory
                 mkdir -p /tmp/deploy
                 cd /tmp/deploy
