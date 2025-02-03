@@ -5,8 +5,8 @@
 	"type": "module",
 	"scripts": {
 		"dev": "concurrently \"npm run mock-api\" \"vite dev\"",
-		"build": "svelte-kit build",
-		"preview": "svelte-kit preview",
+		"build": "vite build",
+		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
