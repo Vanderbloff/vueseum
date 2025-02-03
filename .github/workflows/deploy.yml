@@ -3,10 +3,13 @@ name: Deploy Backend to Azure VM
 on:
   push:
     branches: [ "master" ]
+    paths:
+      - 'vueseum/**'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:     
 
 concurrency:
-  group: "vm-deploy"
+  group: "backend-deploy"
   cancel-in-progress: false
 
 
