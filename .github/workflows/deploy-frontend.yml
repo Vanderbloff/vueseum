@@ -3,83 +3,120 @@ name: Deploy Frontend to Azure VM
 on:
   push:
     branches: [ "master" ]
-  workflow_dispatch:
+  workflow_dispatch:     
+
+concurrency:
+  group: "vm-deploy"
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: vueseum-frontend
-
-        
+        working-directory: ./vueseum-frontend
+    
     steps:
       - uses: actions/checkout@v4
-
-      # Debugging: Confirm directory structure
-      - name: Debug - Verify Working Directory
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Files in repo:"
-          ls -R
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache-dependency-path: 'package-lock.json'
           cache: 'npm'
+          cache-dependency-path: './vueseum-frontend/package-lock.json'
           
       - name: Install dependencies
-        run: npm install
-          
+        run: npm ci
+        
       - name: Build
         run: npm run build
-        env:
-          # Adding environment variables for production build
-          VITE_API_URL: 'https://vueseum.io/api'
-          NODE_ENV: 'production'
-        
+      
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
       
-      - name: Deploy to VM
+      - name: Transfer and Deploy
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Create temporary directory
-            az vm run-command invoke \
+            # Create storage account if it doesn't exist
+            az storage account create \
+              --name vueseumdeploy \
               --resource-group vueseum-prod-rg \
-              --name vueseum-app-prod \
-              --command-id RunShellScript \
-              --scripts 'mkdir -p /tmp/frontend-deploy'
+              --sku Standard_LRS \
+              --kind StorageV2 \
+              2>/dev/null || true
+
+            # Create temporary container
+            CONTAINER_NAME="deploy-$(date +%s)"
+            az storage container create \
+              --account-name vueseumdeploy \
+              --name $CONTAINER_NAME \
+              --auth-mode login
+
+            # Create archive from build output
+            cd ${{ github.workspace }}/vueseum-frontend/build
+            tar -czf build.tar.gz *
             
-            # Copy build files to VM
+            # Upload archive
+            az storage blob upload \
+              --account-name vueseumdeploy \
+              --container-name $CONTAINER_NAME \
+              --name build.tar.gz \
+              --file build.tar.gz \
+              --auth-mode login
+
+            # Generate SAS token for the blob
+            END_TIME=$(date -u -d "30 minutes" '+%Y-%m-%dT%H:%MZ')
+            SAS_TOKEN=$(az storage blob generate-sas \
+              --account-name vueseumdeploy \
+              --container-name $CONTAINER_NAME \
+              --name build.tar.gz \
+              --permissions r \
+              --expiry $END_TIME \
+              --auth-mode login \
+              --as-user \
+              --output tsv)
+
+            # Get blob URL
+            BLOB_URL=$(az storage blob url \
+              --account-name vueseumdeploy \
+              --container-name $CONTAINER_NAME \
+              --name build.tar.gz \
+              --output tsv)
+
+            # Deploy on VM
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
-              --scripts "sudo cp -r ./build/* /tmp/frontend-deploy/"
-            
-            # Run frontend deployment script
-            az vm run-command invoke \
-              --resource-group vueseum-prod-rg \
-              --name vueseum-app-prod \
-              --command-id RunShellScript \
-              --scripts 'cd /opt/vueseum && sudo -u vueseum ./deploy-frontend.sh /tmp/frontend-deploy'
-            
-            # Cleanup
-            az vm run-command invoke \
-              --resource-group vueseum-prod-rg \
-              --name vueseum-app-prod \
-              --command-id RunShellScript \
-              --scripts 'rm -rf /tmp/frontend-deploy'
-      
-      - name: Verify Deployment
-        uses: azure/CLI@v1
-        with:
-          inlineScript: |
-            # Simple curl check to verify the site is responding
-            curl -I https://vueseum.io
+              --scripts "
+                # Create temp directory
+                mkdir -p /tmp/deploy
+                cd /tmp/deploy
+                
+                # Download and extract build
+                curl -o build.tar.gz '${BLOB_URL}?${SAS_TOKEN}'
+                tar -xzf build.tar.gz
+                
+                if [ -d /tmp/deploy ]; then
+                  # Run deployment script
+                  cd /opt/vueseum && ./deploy-frontend.sh /tmp/deploy
+                  
+                  # Cleanup
+                  rm -rf /tmp/deploy
+                  
+                  # Verify service
+                  systemctl is-active vueseum-frontend.service || echo 'Service check failed'
+                else
+                  echo 'Build files not found'
+                  exit 1
+                fi"
+
+            # Cleanup: Delete temporary container
+            az storage container delete \
+              --account-name vueseumdeploy \
+              --name $CONTAINER_NAME \
+              --auth-mode login
