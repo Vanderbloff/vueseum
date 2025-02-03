@@ -1,7 +1,6 @@
 package com.mvp.vueseum.exception;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,13 +8,12 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 @ControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
-
-    private final static Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ApiClientException.class)
     public ResponseEntity<StandardizedErrorResponse> handleApiClientException(ApiClientException e) {
-        logger.error("External API error: {}", e.getMessage(), e);
+        log.error("External API error: {}", e.getMessage(), e);
 
         StandardizedErrorResponse error = new StandardizedErrorResponse(
                 HttpStatus.BAD_GATEWAY.value(),
@@ -28,7 +26,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<StandardizedErrorResponse> handleResourceNotFoundException(ResourceNotFoundException e) {
-        logger.error("Resource not found: {}", e.getMessage(), e);
+        log.error("Resource not found: {}", e.getMessage(), e);
 
         StandardizedErrorResponse error = new StandardizedErrorResponse(
                 HttpStatus.NOT_FOUND.value(),
@@ -41,7 +39,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidRequestException.class)
     public ResponseEntity<StandardizedErrorResponse> handleInvalidRequestException(InvalidRequestException e) {
-        logger.error("Invalid request: {}", e.getMessage(), e);
+        log.error("Invalid request: {}", e.getMessage(), e);
 
         StandardizedErrorResponse error = new StandardizedErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
@@ -54,7 +52,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(PersistenceException.class)
     public ResponseEntity<StandardizedErrorResponse> handleExternalServiceException(PersistenceException e) {
-        logger.error("Database operation failed: {}", e.getMessage(), e);
+        log.error("Database operation failed: {}", e.getMessage(), e);
 
         StandardizedErrorResponse error = new StandardizedErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
@@ -67,7 +65,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(GenerationLimitExceededException.class)
     public ResponseEntity<StandardizedErrorResponse> handleGenerationLimitExceededException(GenerationLimitExceededException e) {
-        logger.error("Too many attempts at generating tours in a given period: {}", e.getMessage(), e);
+        log.error("Too many attempts at generating tours in a given period: {}", e.getMessage(), e);
 
         StandardizedErrorResponse error = new StandardizedErrorResponse(
                 HttpStatus.TOO_MANY_REQUESTS.value(),
@@ -81,7 +79,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AiProviderException.class)
     public ResponseEntity<StandardizedErrorResponse> handleAiProviderException(AiProviderException e) {
-        logger.error("AiProvider error: {}", e.getMessage(), e);
+        log.error("AiProvider error: {}", e.getMessage(), e);
 
         StandardizedErrorResponse error = new StandardizedErrorResponse(
                 HttpStatus.SERVICE_UNAVAILABLE.value(),
@@ -95,7 +93,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AiProviderAuthException.class)
     public ResponseEntity<StandardizedErrorResponse> handleAiAuthException (
             AiProviderAuthException e) {
-        logger.error("AI provider authentication error: {}", e.getMessage());
+        log.error("AI provider authentication error: {}", e.getMessage());
 
         StandardizedErrorResponse error = new StandardizedErrorResponse(
                 HttpStatus.SERVICE_UNAVAILABLE.value(),
@@ -109,7 +107,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AiProviderRateLimitException.class)
     public ResponseEntity<StandardizedErrorResponse> handleAiProviderRateLimitException (
             AiProviderRateLimitException e) {
-        logger.warn("AI provider rate limit exceeded: {}", e.getMessage());
+        log.warn("AI provider rate limit exceeded: {}", e.getMessage());
 
         HttpHeaders headers = new HttpHeaders();
         headers.add(
@@ -129,7 +127,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(TourLimitExceededException.class)
     public ResponseEntity<StandardizedErrorResponse> handleTourGenerationLimitExceededException (
             TourLimitExceededException e) {
-        logger.warn("Maximum number of tours in storage reached: {}", e.getMessage());
+        log.warn("Maximum number of tours in storage reached: {}", e.getMessage());
 
         StandardizedErrorResponse error = new StandardizedErrorResponse(
                 HttpStatus.INSUFFICIENT_STORAGE.value(),

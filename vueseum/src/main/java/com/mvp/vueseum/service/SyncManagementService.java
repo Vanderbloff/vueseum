@@ -6,8 +6,7 @@ import com.mvp.vueseum.exception.PersistenceException;
 import com.mvp.vueseum.exception.ResourceNotFoundException;
 import com.mvp.vueseum.repository.ArtworkRepository;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -19,10 +18,10 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SyncManagementService {
     private final List<MuseumApiClient> museumApiClients;
     private final ArtworkRepository artworkRepository;
-    protected final Logger logger = LoggerFactory.getLogger(SyncManagementService.class);
 
     @Scheduled(cron = "0 0 1 * * *")  // Run at 1 AM daily
     public void scheduledSync() {
@@ -32,15 +31,15 @@ public class SyncManagementService {
                 ? SyncOperation.monthly()
                 : SyncOperation.daily();
 
-        logger.info("Starting scheduled {} sync at {}",
+        log.info("Starting scheduled {} sync at {}",
                 operation.isFullSync() ? "full" : "incremental",
                 now);
 
         try {
             startSync(null, operation);
-            logger.info("Completed scheduled sync successfully");
+            log.info("Completed scheduled sync successfully");
         } catch (Exception e) {
-            logger.error("Scheduled sync failed", e);
+            log.error("Scheduled sync failed", e);
         }
     }
 
@@ -54,7 +53,7 @@ public class SyncManagementService {
                 try {
                     processSync(client, operation);
                 } catch (Exception e) {
-                    logger.error("Sync failed for museum {}", client.getMuseumId(), e);
+                    log.error("Sync failed for museum {}", client.getMuseumId(), e);
                     // Continue with next museum instead of rethrowing
                 }
             });
@@ -65,7 +64,7 @@ public class SyncManagementService {
         try {
             client.performSync(operation);
         } catch (PersistenceException e) {
-            logger.error("Sync failed for museum {}", client.getMuseumId(), e);
+            log.error("Sync failed for museum {}", client.getMuseumId(), e);
             throw e;
         }
     }

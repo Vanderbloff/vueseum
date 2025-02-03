@@ -13,8 +13,6 @@ import com.mvp.vueseum.util.RetryUtil;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestClient;
 
@@ -45,7 +43,6 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
     @Getter(AccessLevel.NONE)
     protected LocalDateTime syncStartTime;
 
-    protected final Logger logger = LoggerFactory.getLogger(BaseMuseumApiClient.class);
     protected final RetryUtil retryUtil;
     protected final RestClient restClient;
     protected final Environment environment;
@@ -79,7 +76,7 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
                     try {
                         ArtworkDetails details = fetchArtworkById(id);
                         if (details == null) {
-                            logger.debug("No valid details found for artwork {}, skipping", id);
+                            log.debug("No valid details found for artwork {}, skipping", id);
                             errorCount.incrementAndGet();
                             processedCount.incrementAndGet();
                             continue;
@@ -89,7 +86,7 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
                         processedCount.incrementAndGet();
 
                     } catch (Exception e) {
-                        logger.warn("Failed to process artwork ID: {}", id, e);
+                        log.warn("Failed to process artwork ID: {}", id, e);
                         artworkService.recordProcessingError(id, getMuseumId(), e);
                         errorCount.incrementAndGet();
                         processedCount.incrementAndGet();
@@ -100,13 +97,13 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
 
             } catch (Exception e) {
                 errorCount.incrementAndGet();
-                logger.error("Failed to process batch", e);
+                log.error("Failed to process batch", e);
             }
 
             getRateLimiter().acquire(batch.size());
         }
 
-        logger.info("Completed processing. Processed: {}, Errors: {}, Total time: {} minutes",
+        log.info("Completed processing. Processed: {}, Errors: {}, Total time: {} minutes",
                 processedCount.get(),
                 errorCount.get(),
                 ChronoUnit.MINUTES.between(syncStartTime, LocalDateTime.now()));
@@ -120,16 +117,16 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
         double processRate = currentProcessed / (double) Math.max(1, minutesElapsed);
         long estimatedMinutesRemaining = (long) ((totalIds - currentProcessed) / processRate);
 
-        logger.info("Sync Progress: {}% complete ({}/{} items)",
+        log.info("Sync Progress: {}% complete ({}/{} items)",
                 String.format("%.2f", percentComplete),
                 currentProcessed,
                 totalIds);
-        logger.info("Time elapsed: {} minutes, Estimated time remaining: {} minutes",
+        log.info("Time elapsed: {} minutes, Estimated time remaining: {} minutes",
                 minutesElapsed,
                 estimatedMinutesRemaining);
-        logger.info("Current processing rate: {} items/minute",
+        log.info("Current processing rate: {} items/minute",
                 String.format("%.2f", processRate));
-        logger.info("Errors encountered: {}", errorCount.get());
+        log.info("Errors encountered: {}", errorCount.get());
     }
 
     protected List<String> parseSearchResponse(String searchResponse, String nameOfIdParameter) {

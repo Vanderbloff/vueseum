@@ -14,8 +14,7 @@ import com.mvp.vueseum.service.museum.MuseumService;
 import com.mvp.vueseum.util.RetryUtil;
 import lombok.AccessLevel;
 import lombok.Getter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.env.Environment;
@@ -31,9 +30,9 @@ import java.util.stream.Collectors;
 @SuppressWarnings("UnstableApiUsage")
 @Service
 @Getter
+@Slf4j
 @PropertySource("classpath:museum.properties")
 public class MetMuseumApiClient extends BaseMuseumApiClient {
-    private static final Logger logger = LoggerFactory.getLogger(MetMuseumApiClient.class);
     private final Museum metMuseum;
 
     @Getter(AccessLevel.NONE)
@@ -83,7 +82,7 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
             // Check if artwork has a gallery number
             return !rootNode.path("GalleryNumber").asText().isBlank();
         } catch (JsonProcessingException e) {
-            logger.warn("Failed to parse artwork response", e);
+            log.warn("Failed to parse artwork response", e);
             return false;
         }
     }
@@ -138,7 +137,7 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
             return convertToArtworkDetails(response);
         }
         catch (HttpClientErrorException.NotFound e) {
-            logger.warn("Artwork with id {} not found", id, e);
+            log.warn("Artwork with id {} not found", id, e);
             return null;
         }
     }
@@ -212,7 +211,7 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
     public void performSync(SyncOperation operation) {
         try {
             syncStartTime = operation.getStartTime();
-            logger.info("Starting {} sync at {}",
+            log.info("Starting {} sync at {}",
                     operation.isFullSync() ? "full" : "incremental",
                     syncStartTime);
 
@@ -230,7 +229,7 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
 
             processDisplayedBatch(artworkIds);
         } catch (Exception e) {
-            logger.error("Failed to complete sync", e);
+            log.error("Failed to complete sync", e);
             throw new ApiClientException("Sync failed", e);
         }
     }
