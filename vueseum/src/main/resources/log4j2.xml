@@ -8,9 +8,9 @@
 
         <!-- Rolling File Appender -->
         <RollingFile name="RollingFile"
-                     fileName="logs/vueseum.log"
-                     filePattern="logs/vueseum-%d{yyyy-MM-dd}-%i.log">
-            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+                     fileName="/var/log/vueseum/vueseum.log"
+                     filePattern="/var/log/vueseum/vueseum-%d{yyyy-MM-dd}-%i.log">
+        <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
             <Policies>
                 <TimeBasedTriggeringPolicy />
                 <SizeBasedTriggeringPolicy size="10 MB"/>
