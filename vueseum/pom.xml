@@ -210,6 +210,11 @@
 			<artifactId>spring-cloud-starter</artifactId>
 			<version>4.2.0</version>
 		</dependency>
+		<dependency>
+			<groupId>org.codehaus.janino</groupId>
+			<artifactId>janino</artifactId>
+			<version>3.1.12</version>
+		</dependency>
 	</dependencies>
 
 	<build>
