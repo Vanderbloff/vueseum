@@ -25,7 +25,7 @@ import java.util.Arrays;
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
-    private final CorsProperties.Cors corsProperties;
+    private final CorsProperties corsProperties;
 
 
     /**
@@ -113,16 +113,16 @@ public class SecurityConfig {
         // Set which origins can access the API
         // In development, this might be localhost:3000
         // In production, this would be your frontend domain
-        configuration.setAllowedOrigins(Arrays.asList(corsProperties.allowedOrigins()));
+        configuration.setAllowedOrigins(Arrays.asList(corsProperties.getCors().allowedOrigins()));
 
         // Set which HTTP methods are allowed (GET, POST, etc.)
-        configuration.setAllowedMethods(Arrays.asList(corsProperties.allowedMethods()));
+        configuration.setAllowedMethods(Arrays.asList(corsProperties.getCors().allowedMethods()));
 
         // Set which headers are allowed in requests
-        configuration.setAllowedHeaders(Arrays.asList(corsProperties.allowedHeaders()));
+        configuration.setAllowedHeaders(Arrays.asList(corsProperties.getCors().allowedHeaders()));
 
         // How long the browser should cache the CORS response
-        configuration.setMaxAge(corsProperties.maxAge());
+        configuration.setMaxAge(corsProperties.getCors().maxAge());
 
         // Allow credentials (cookies, authorization headers)
         // This is needed for CSRF tokens
