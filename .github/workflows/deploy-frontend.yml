@@ -106,7 +106,7 @@ jobs:
                 
                 # Download and extract build
                 curl -o build.tar.gz '${BLOB_URL}?${SAS_TOKEN}'
-                tar -xzf build.tar.gz
+                tar -xzf build.tar.gz -C /tmp/deploy
                 
                 if [ -d /tmp/deploy ]; then
                   # Run deployment script
