@@ -11,8 +11,20 @@ public class StartupCheck {
     @Value("${spring.datasource.url}")
     private String dbUrl;
 
+    @Value("${spring.datasource.username:not-found}")
+    private String dbUsername;
+
+    @Value("${prod-db-url:not-found}")
+    private String rawDbUrl;
+
+    @Value("${management.endpoints.web.cors.allowed-headers:not-found}")
+    private String corsHeaders;
+
     @PostConstruct
     public void logConfig() {
-        log.info("Database URL being used: {}", dbUrl);
+        log.info("Raw DB URL from Key Vault: {}", rawDbUrl);
+        log.info("Resolved Database URL: {}", dbUrl);
+        log.info("Database Username: {}", dbUsername);
+        log.info("CORS Headers (known working): {}", corsHeaders);
     }
 }
