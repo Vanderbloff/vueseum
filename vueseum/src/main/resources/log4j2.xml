@@ -31,6 +31,11 @@
             <AppenderRef ref="RollingFile"/>
         </Logger>
 
+        <Logger name="com.azure.spring" level="DEBUG" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="RollingFile"/>
+        </Logger>
+
         <!-- Root Logger -->
         <Root level="WARN">
             <AppenderRef ref="Console"/>
