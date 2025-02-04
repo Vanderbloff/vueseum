@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Setter
 @Getter
-@ConfigurationProperties(prefix = "management.endpoints.web.cors")
+@ConfigurationProperties(prefix = "management.endpoints.web")
 @Configuration
 public class CorsProperties {
     private Cors cors = new Cors(null, null, null, 0);
