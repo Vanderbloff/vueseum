@@ -106,6 +106,9 @@ jobs:
                 # Ensure clean deployment directory
                 rm -rf /tmp/deploy
                 mkdir -p /tmp/deploy
+                chown vueseum:vueseum /tmp/deploy
+
+                sudo -u vueseum bash << 'EOF'
                 cd /tmp/deploy
                 
                 echo 'Downloading build archive...'
@@ -155,7 +158,8 @@ jobs:
                   exit 1
                 fi
                 
-                echo 'Deployment completed successfully'"
+                echo 'Deployment completed successfully'
+                EOF"
 
             # Cleanup: Delete temporary container
             az storage container delete \
