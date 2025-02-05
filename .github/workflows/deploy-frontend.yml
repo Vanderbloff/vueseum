@@ -35,10 +35,16 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Create Build Archive
+      # Enhanced archive creation with verification
+      - name: Create and Verify Build Archive
         run: |
           cd build
+          echo "Build directory contents before archive:"
+          ls -la
           tar -czf ../build.tar.gz .
+          cd ..
+          echo "Archive created with size:"
+          ls -lh build.tar.gz
       
       - name: Azure Login
         uses: azure/login@v1
@@ -57,14 +63,14 @@ jobs:
               --kind StorageV2 \
               2>/dev/null || true
 
-            # Create temporary container
+            # Create temporary container with timestamp
             CONTAINER_NAME="deploy-$(date +%s)"
             az storage container create \
               --account-name vueseumdeploy \
               --name $CONTAINER_NAME \
               --auth-mode login
 
-            # Upload the pre-created archive
+            # Upload and verify the archive
             az storage blob upload \
               --account-name vueseumdeploy \
               --container-name $CONTAINER_NAME \
@@ -72,7 +78,7 @@ jobs:
               --file "${{ github.workspace }}/vueseum-frontend/build.tar.gz" \
               --auth-mode login
 
-            # Generate SAS token for the blob
+            # Generate SAS token
             END_TIME=$(date -u -d "30 minutes" '+%Y-%m-%dT%H:%MZ')
             SAS_TOKEN=$(az storage blob generate-sas \
               --account-name vueseumdeploy \
@@ -91,36 +97,69 @@ jobs:
               --name build.tar.gz \
               --output tsv)
 
-            # Deploy on VM
+            # Deploy on VM with enhanced logging and verification
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
-                # Ensure curl is installed
-                command -v curl >/dev/null 2>&1 || { apt-get update && apt-get install -y curl; }
-
-                # Create temp directory
+                # Ensure clean deployment directory
+                rm -rf /tmp/deploy
                 mkdir -p /tmp/deploy
+                chown vueseum:vueseum /tmp/deploy
+
+                sudo -u vueseum bash << 'EOF'
                 cd /tmp/deploy
                 
-                # Download and extract build
+                echo 'Downloading build archive...'
                 curl -o build.tar.gz '${BLOB_URL}?${SAS_TOKEN}'
-                tar -xzf build.tar.gz
                 
-                if [ -d /tmp/deploy ]; then
-                  # Run deployment script
-                  cd /opt/vueseum && ./deploy-frontend.sh /tmp/deploy
-                  
-                  # Cleanup
-                  rm -rf /tmp/deploy
-                  
-                  # Verify service
-                  systemctl is-active vueseum-frontend.service || echo 'Service check failed'
-                else
-                  echo 'Build files not found'
+                # Verify download
+                if [ ! -f build.tar.gz ]; then
+                  echo 'Failed to download archive'
                   exit 1
-                fi"
+                fi
+                
+                echo 'Archive size and contents:'
+                ls -lh build.tar.gz
+                
+                # Extract and verify
+                echo 'Extracting archive...'
+                mkdir -p /tmp/deploy/extracted
+                tar -xzf build.tar.gz -C /tmp/deploy/extracted
+                
+                echo 'Extracted contents:'
+                ls -la /tmp/deploy/extracted
+                
+                if [ ! -f /tmp/deploy/extracted/index.js ]; then
+                  echo 'Warning: index.js not found in extracted files'
+                fi
+                
+                # Deploy using the correct path
+                echo 'Running deployment script...'
+                cd /opt/vueseum && ./deploy-frontend.sh /tmp/deploy/extracted
+                
+                # Verify deployment
+                echo 'Deployment completed. Verifying service...'
+                systemctl status vueseum-frontend.service --no-pager
+                
+                # Check the current symlink
+                echo 'Checking current symlink:'
+                ls -la /opt/vueseum/frontend/current
+                
+                # Clean up
+                echo 'Cleaning up...'
+                rm -rf /tmp/deploy
+                
+                # Final service check
+                if ! systemctl is-active --quiet vueseum-frontend.service; then
+                  echo 'Service failed to start'
+                  journalctl -u vueseum-frontend.service --no-pager -n 50
+                  exit 1
+                fi
+                
+                echo 'Deployment completed successfully'
+                EOF"
 
             # Cleanup: Delete temporary container
             az storage container delete \
