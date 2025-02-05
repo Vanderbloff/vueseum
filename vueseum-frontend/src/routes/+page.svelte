@@ -25,6 +25,7 @@
 	let { data } = $props();
 
 	const state = $state({
+		isInitialized: false,
 		selectedArtwork: null as Artwork | null,
 		isModalOpen: false,
 		artworksLoading: false,
@@ -236,6 +237,8 @@
 	// URL synchronization - maintains URL state as filters change
 	// Enables bookmarking and sharing of search results
 	$effect(() => {
+		if (!state.isInitialized) return;
+
 		// Don't update URL during SSR
 		if (typeof window === 'undefined') return;
 
@@ -274,6 +277,7 @@
 	$effect(() => {
 		if (typeof window === 'undefined') return;
 		if (data.initialTab !== 'artworks') return;
+		if (state.isInitialized) return;
 
 		// Initialize state from URL
 		const url = new URL(window.location.href);
@@ -330,6 +334,7 @@
 				// After loading all filter options, perform the search
 				state.loading.results = true;
 				await handleSearch(filters);
+				state.isInitialized = true;
 			} catch (error) {
 				console.error('Error loading initial filters:', error);
 				state.error = {
