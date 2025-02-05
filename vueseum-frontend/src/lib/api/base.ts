@@ -1,4 +1,6 @@
 // Create new file: src/lib/api/base.ts
+import { API_BASE_URL } from '$lib/config';
+
 export class ApiError extends Error {
 	constructor(
 		public status: number,
@@ -15,7 +17,11 @@ export class BaseApiClient {
 		options: RequestInit = {}
 	): Promise<T> {
 		try {
-			const response = await fetch(endpoint, {
+			const url = endpoint.startsWith('http')
+				? endpoint
+				: new URL(endpoint, API_BASE_URL).toString();
+
+			const response = await fetch(url, {
 				...options,
 				headers: {
 					'Content-Type': 'application/json',

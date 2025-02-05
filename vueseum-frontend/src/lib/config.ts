@@ -1,3 +1,13 @@
-export const API_BASE_URL = import.meta.env.DEV
-	? 'http://localhost:3001'  // Development API URL
-	: '/api/v1';              // Production API URL
+export const API_BASE_URL = (() => {
+	if (import.meta.env.DEV) {
+		return 'http://localhost:3001';
+	}
+
+	// During SSR, use relative URL
+	if (typeof window === 'undefined') {
+		return '/api/v1';
+	}
+
+	// In browser, use absolute URL
+	return `${window.location.origin}/api/v1`;
+})();
