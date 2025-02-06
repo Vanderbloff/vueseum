@@ -37,6 +37,7 @@ jobs:
 
       - name: Create and Verify Build Archive
         run: |
+          cp package.json build/
           cd build
           echo "Build directory contents before archive:"
           ls -la
