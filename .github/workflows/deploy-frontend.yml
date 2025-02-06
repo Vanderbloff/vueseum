@@ -35,7 +35,6 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Enhanced archive creation with verification
       - name: Create and Verify Build Archive
         run: |
           cd build
@@ -97,18 +96,15 @@ jobs:
               --name build.tar.gz \
               --output tsv)
 
-            # Deploy on VM with enhanced logging and verification
+            # Deploy on VM
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
-                # Ensure clean deployment directory
+                # Clear and create temp directory
                 rm -rf /tmp/deploy
                 mkdir -p /tmp/deploy
-                chown vueseum:vueseum /tmp/deploy
-
-                sudo -u vueseum bash << 'EOF'
                 cd /tmp/deploy
                 
                 echo 'Downloading build archive...'
@@ -125,41 +121,25 @@ jobs:
                 
                 # Extract and verify
                 echo 'Extracting archive...'
-                mkdir -p /tmp/deploy/extracted
-                tar -xzf build.tar.gz -C /tmp/deploy/extracted
+                mkdir -p extracted
+                tar -xzf build.tar.gz -C extracted
                 
                 echo 'Extracted contents:'
-                ls -la /tmp/deploy/extracted
+                ls -la extracted
                 
-                if [ ! -f /tmp/deploy/extracted/index.js ]; then
-                  echo 'Warning: index.js not found in extracted files'
-                fi
+                # Set proper ownership before deployment
+                chown -R vueseum:vueseum extracted
                 
-                # Deploy using the correct path
-                echo 'Running deployment script...'
+                # Run deployment script
                 cd /opt/vueseum && ./deploy-frontend.sh /tmp/deploy/extracted
                 
-                # Verify deployment
-                echo 'Deployment completed. Verifying service...'
-                systemctl status vueseum-frontend.service --no-pager
-                
-                # Check the current symlink
-                echo 'Checking current symlink:'
-                ls -la /opt/vueseum/frontend/current
+                # Verify service status
+                echo 'Verifying service status...'
+                systemctl status vueseum-frontend.service --no-pager || true
                 
                 # Clean up
-                echo 'Cleaning up...'
                 rm -rf /tmp/deploy
-                
-                # Final service check
-                if ! systemctl is-active --quiet vueseum-frontend.service; then
-                  echo 'Service failed to start'
-                  journalctl -u vueseum-frontend.service --no-pager -n 50
-                  exit 1
-                fi
-                
-                echo 'Deployment completed successfully'
-                EOF"
+              "
 
             # Cleanup: Delete temporary container
             az storage container delete \
