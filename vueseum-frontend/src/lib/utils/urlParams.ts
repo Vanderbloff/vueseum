@@ -1,7 +1,8 @@
 // src/lib/utils/urlParams.ts
 export function updateUrlParams(params: Record<string, string | string[] | boolean | null>) {
-	const url = new URL(window.location.href);
+	if (typeof window === 'undefined') return;
 
+	const url = new URL(window.location.href);
 	const tab = url.searchParams.get('tab');
 	url.search = '';
 	if (tab) url.searchParams.set('tab', tab);
@@ -24,6 +25,8 @@ export function updateUrlParams(params: Record<string, string | string[] | boole
 }
 
 export function getUrlParams(): Record<string, string[]> {
+	if (typeof window === 'undefined') return {};
+
 	const url = new URL(window.location.href);
 	const params: Record<string, string[]> = {};
 
