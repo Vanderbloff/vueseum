@@ -25,7 +25,6 @@ export default defineConfig({
 		target: 'esnext',
 		minify: 'esbuild',
 		rollupOptions: {
-			input: '/src/app.html',
 			output: {
 				manualChunks: {
 					vendor: ['svelte']
