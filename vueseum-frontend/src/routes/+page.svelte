@@ -5,7 +5,7 @@
 	import ArtworkFilters from '$lib/components/homepage/artwork/ArtworkFilters.svelte';
 	import ArtworkModal from '$lib/components/homepage/artwork/ArtworkModal.svelte';
 	import TourList from '$lib/components/tour/TourList.svelte';
-	import type { Artwork } from '$lib/types/artwork';
+	import type { Artwork, PaginatedResponse } from '$lib/types/artwork';
 	import { goto } from '$app/navigation';
 	import {
 		Pagination,
@@ -28,8 +28,8 @@
 		isInitialized: false,
 		selectedArtwork: null as Artwork | null,
 		isModalOpen: false,
-		artworksLoading: false,
-		artworksData: data.artworks,
+		artworksLoading: true,
+		artworksData: null as PaginatedResponse<Artwork> | null,
 		currentPage: 1,
 		pageSize: 12,
 		error: null as {
@@ -273,7 +273,6 @@
 	});
 
 	// Initial state setup and URL-based loading
-	// Handles initialization of filters and loading states from URL parameters
 	$effect(() => {
 		if (typeof window === 'undefined') return;
 		if (data.initialTab !== 'artworks') return;
@@ -300,7 +299,6 @@
 				country?: string[];
 				region?: string[];
 			}) => {
-				// Create a key to track this specific load operation
 				const key = JSON.stringify(criteria);
 				if (!loadedOptions.has(key)) {
 					loadedOptions.add(key);
@@ -315,6 +313,7 @@
 
 			try {
 				const filters = state.currentFilters.filters;
+
 				// Load dependent filters in order
 				if (filters.objectType.length > 0) {
 					await loadOptionsIfNeeded({ objectType: filters.objectType });
@@ -331,9 +330,20 @@
 					}
 				}
 
-				// After loading all filter options, perform the search
 				state.loading.results = true;
-				await handleSearch(filters);
+
+				if (data.initialTab === 'artworks') {
+					state.artworksData = await artworkApi.searchArtworks(
+						filters,
+						state.currentPage - 1,
+						state.pageSize,
+						state.currentFilters.sort.field !== 'relevance' ? {
+							field: state.currentFilters.sort.field,
+							direction: state.currentFilters.sort.direction
+						} : undefined
+					);
+				}
+
 				state.isInitialized = true;
 			} catch (error) {
 				console.error('Error loading initial filters:', error);
