@@ -51,9 +51,14 @@ jobs:
           action: "upload"
           app_location: "/"
           api_location: ""
-          output_location: ".svelte-kit/output"
+          output_location: "build"
           app_build_command: "npm run build"
+          skip_app_build: false
           github_id_token: ${{ steps.idtoken.outputs.result }}
+
+      - name: Debug Output
+        run: ls -R build
+
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
