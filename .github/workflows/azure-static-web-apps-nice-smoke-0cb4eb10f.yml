@@ -42,7 +42,23 @@ jobs:
                const coredemo = require('@actions/core')
                return await coredemo.getIDToken()
            result-encoding: string
-           
+
+      - name: Debug Pre-build
+        run: |
+          pwd
+          ls -la
+          cat svelte.config.js
+          cat vite.config.ts
+
+      - name: Build With Debug
+        run: npm run build --verbose
+      
+      - name: Debug Post-build
+        run: |
+          ls -la
+          ls -la build || echo "build directory not created"
+          ls -la .svelte-kit || echo ".svelte-kit directory not created"
+          
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -52,7 +68,7 @@ jobs:
           app_location: "/"
           api_location: ""
           output_location: "build"
-          app_build_command: "npm run build"
+          app_build_command: "npm run build --verbose"
           skip_app_build: false
           github_id_token: ${{ steps.idtoken.outputs.result }}
 
