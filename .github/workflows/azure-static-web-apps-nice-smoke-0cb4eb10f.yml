@@ -43,17 +43,24 @@ jobs:
                return await coredemo.getIDToken()
            result-encoding: string
 
+      - name: Install dependencies
+        working-directory: ./vueseum-frontend
+        run: npm ci
+      
       - name: Debug Pre-build
+        working-directory: ./vueseum-frontend
         run: |
           pwd
           ls -la
           cat svelte.config.js
           cat vite.config.ts
-
+      
       - name: Build With Debug
+        working-directory: ./vueseum-frontend
         run: npm run build --verbose
       
       - name: Debug Post-build
+        working-directory: ./vueseum-frontend
         run: |
           ls -la
           ls -la build || echo "build directory not created"
@@ -65,16 +72,15 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_NICE_SMOKE_0CB4EB10F }}
           action: "upload"
-          app_location: "/"
+          app_location: "./vueseum-frontend"
           api_location: ""
           output_location: "build"
-          app_build_command: "npm run build --verbose"
+          app_build_command: "npm run build"
           skip_app_build: false
           github_id_token: ${{ steps.idtoken.outputs.result }}
 
       - name: Debug Output
         run: ls -R build
-
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
