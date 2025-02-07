@@ -12,8 +12,9 @@
 		DropdownMenuTrigger,
 		DropdownMenuSeparator
 	} from "$lib/components/ui/dropdown-menu";
-
 	import DisclaimerAlert from '$lib/components/shared/DisclaimerAlert.svelte';
+
+	export const ssr = false;
 
 	let { children } = $props();
 	const state = $state({
