@@ -7,11 +7,10 @@ const config = {
 	kit: {
 		adapter: adapter({
 			fallback: 'index.html',
-			precompress: false,
-			strict: true
 		}),
-		paths: {
-			base: ''
+		prerender: {
+			handleHttpError: 'warn',
+			handleMissingId: 'warn'
 		}
 	}
 };
