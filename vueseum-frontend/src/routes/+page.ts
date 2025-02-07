@@ -4,7 +4,30 @@ import type { Load } from '@sveltejs/kit';
 export const prerender = true;
 
 export const load: Load = async ({ url }) => {
-	// Only return initial state configuration
+	if (typeof window === 'undefined') {
+		// During prerendering, return default values
+		return {
+			initialTab: 'artworks',
+			initialFilters: {
+				searchTerm: [''],
+				searchField: 'all',
+				objectType: [],
+				materials: [],
+				country: [],
+				region: [],
+				culture: [],
+				era: [],
+				hasImage: true,
+				museumId: []
+			},
+			initialSort: {
+				field: 'relevance',
+				direction: 'asc'
+			}
+		};
+	}
+
+	// Client-side, return URL parameter values
 	return {
 		initialTab: url.searchParams.get('tab') || 'artworks',
 		initialFilters: {
