@@ -3,11 +3,5 @@ export const API_BASE_URL = (() => {
 		return 'http://localhost:3001';
 	}
 
-	// During SSR, use relative URL
-	if (typeof window === 'undefined') {
-		return '/api/v1';
-	}
-
-	// In browser, use absolute URL
-	return `${window.location.origin}/api/v1`;
+	return 'https://vueseum-app-prod.eastus.cloudapp.azure.com/api/v1';
 })();
