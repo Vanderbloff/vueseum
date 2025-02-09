@@ -2,7 +2,7 @@
 	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$lib/components/ui/tabs';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import ArtworkCard from '$lib/components/homepage/artwork/ArtworkCard.svelte';
-	import ArtworkFilters from '$lib/components/homepage/artwork/ArtworkFilters.svelte';
+	import ArtworkFilters, { type SearchField } from '$lib/components/homepage/artwork/ArtworkFilters.svelte';
 	import ArtworkModal from '$lib/components/homepage/artwork/ArtworkModal.svelte';
 	import TourList from '$lib/components/tour/TourList.svelte';
 	import type { Artwork, PaginatedResponse } from '$lib/types/artwork';
@@ -21,8 +21,10 @@
 	import GridSkeleton from '$lib/components/shared/GridSkeleton.svelte';
 	import { artworkApi } from '$lib/api/artwork';
 	import { updateUrlParams } from '$lib/utils/urlParams';
+	import type { PageData } from './+page';
+	import { StorageManager } from '$lib/utils/storage'
 
-	let { data } = $props();
+	let { data } = $props<{ data: PageData }>();
 
 	const state = $state({
 		isInitialized: false,
@@ -234,6 +236,30 @@
 		}
 	});
 
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		const url = new URL(window.location.href);
+
+		// Update initial state based on URL parameters
+		state.currentFilters.filters = {
+			searchTerm: [url.searchParams.get('q') ?? ''],
+			searchField: (url.searchParams.get('searchField') ?? 'all') as SearchField,
+			objectType: url.searchParams.getAll('objectType'),
+			materials: url.searchParams.getAll('medium'),
+			country: url.searchParams.getAll('country'),
+			region: url.searchParams.getAll('region'),
+			culture: url.searchParams.getAll('culture'),
+			era: url.searchParams.getAll('period'),
+			hasImage: true,
+			museumId: url.searchParams.getAll('museumId')
+		};
+
+		state.currentFilters.sort = {
+			field: (url.searchParams.get('sortBy') ?? 'relevance') as 'relevance' | 'title' | 'artist' | 'date',
+			direction: (url.searchParams.get('sortDirection') ?? 'asc') as 'asc' | 'desc'
+		};
+	});
+
 	// URL synchronization - maintains URL state as filters change
 	// Enables bookmarking and sharing of search results
 	$effect(() => {
@@ -382,6 +408,24 @@
 		return () => {
 			window.removeEventListener('resize', updatePageSize);
 		};
+	});
+
+	// Load saved filters on mount
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+
+		const savedFilters = StorageManager.get<ArtworkFilters>('lastFilters', state.currentFilters.filters);
+		if (savedFilters && !state.isInitialized) {
+			state.currentFilters.filters = savedFilters;
+		}
+	});
+
+	// Save filters when they change
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		if (!state.isInitialized) return;
+
+		StorageManager.set('lastFilters', state.currentFilters.filters);
 	});
 </script>
 
