@@ -1,18 +1,64 @@
 <!-- src/routes/tours/[id]/+page.svelte -->
 <script lang="ts">
-	import { Badge } from "$lib/components/ui/badge";
-	import { Separator } from "$lib/components/ui/separator";
+	import { Badge } from '$lib/components/ui/badge';
+	import { Separator } from '$lib/components/ui/separator';
 	import TourView from '$lib/components/tour/TourView.svelte';
-	import { Button } from "$lib/components/ui/button";
+	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { ArrowLeft } from 'lucide-svelte';
+	import { page } from '$app/state';
+	import type { PageData } from './$types';
+	import { tourApi } from '$lib/api/tour';
+	import type { Tour } from '$lib/types/tour';
 
-	let { data } = $props();
-	let returnUrl = '/?tab=tours';
+	let { data } = $props<{ data: PageData }>();
+
+	const state = $state({
+		isLoading: false,
+		error: null as string | null,
+		tour: null as Tour | null
+	});
 
 	function handleBack() {
-		goto(returnUrl);
+		// If we came from the tours list, go back
+		if (document.referrer.includes('/?tab=tours')) {
+			window.history.back();
+		} else {
+			// Otherwise, go to tours list
+			goto('/?tab=tours');
+		}
 	}
+
+	$effect(() => {
+		if (page.error) {
+			console.error('Tour page error:', page.error);
+		}
+	});
+
+	async function loadTour(tourId: string) {
+		try {
+			state.isLoading = true;
+			const parsedId = parseInt(tourId);
+			if (isNaN(parsedId)) {
+				throw new Error('Invalid tour ID');
+			}
+
+			state.tour = await tourApi.getTourById(parsedId);
+			state.error = null;
+		} catch (e) {
+			console.error('Error loading tour:', e);
+			state.error = e instanceof Error ? e.message : 'An unexpected error occurred';
+			state.tour = null;
+		} finally {
+			state.isLoading = false;
+		}
+	}
+
+	// Effect triggers load but doesn't try to handle async directly
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		loadTour(data.tourId);
+	});
 </script>
 
 {#if data.loadError}
