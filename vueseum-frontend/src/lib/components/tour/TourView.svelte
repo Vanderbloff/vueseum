@@ -21,6 +21,8 @@
 		currentStop: 0,
 		progress: 0,
 		api: undefined as CarouselAPI | undefined,
+		loading: false,
+		error: null as string | null
 	});
 
 	function handleApiChange(newApi: CarouselAPI | undefined) {
