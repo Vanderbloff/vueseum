@@ -14,15 +14,15 @@
 	} from "$lib/components/ui/dropdown-menu";
 	import DisclaimerAlert from '$lib/components/shared/DisclaimerAlert.svelte';
 
-	export const ssr = false;
-
 	let { children } = $props();
 	const state = $state({
-		hasSeenDisclaimer: false
+		hasSeenDisclaimer: false,
+		isHydrated: false
 	});
 
 	$effect(() => {
 		if (typeof window !== 'undefined') {
+			state.isHydrated = true;
 			state.hasSeenDisclaimer = localStorage.getItem('hasSeenDisclaimer') === 'true';
 		}
 	});
