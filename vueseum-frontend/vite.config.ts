@@ -26,10 +26,19 @@ export default defineConfig({
 		minify: 'esbuild',
 		rollupOptions: {
 			output: {
-				manualChunks: {
-					vendor: ['svelte']
+				manualChunks: (id) => {
+					if (id.includes('node_modules')) {
+						if (id.includes('@sveltejs/kit')) {
+							return 'vendor-sveltekit';
+						}
+						return 'vendor';
+					}
 				}
 			}
-		}
+		},
+		chunkSizeWarningLimit: 1000,
+		assetsInlineLimit: 4096,
+		reportCompressedSize: true,
+		sourcemap: true
 	}
 });
