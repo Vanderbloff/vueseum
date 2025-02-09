@@ -1,5 +1,5 @@
-// Create new file: src/lib/api/base.ts
-import { API_BASE_URL } from '$lib/config';
+// src/lib/api/base.ts
+import { API_BASE_URL } from '../config';
 
 export class ApiError extends Error {
 	constructor(
@@ -33,8 +33,22 @@ export class BaseApiClient {
 				throw new ApiError(response.status, await response.text());
 			}
 
-			return response.json();
+			return await response.json();
 		} catch (error) {
+			// Handle fetch errors (network issues)
+			if (error instanceof TypeError && error.message === 'Failed to fetch') {
+				throw new ApiError(
+					0,
+					'Unable to connect to the server. Please try again.'
+				);
+			}
+
+			// Re-throw API errors as is
+			if (error instanceof ApiError) {
+				throw error;
+			}
+
+			// Log and re-throw other errors
 			console.error(`API Error: ${endpoint}`, error);
 			throw error;
 		}
