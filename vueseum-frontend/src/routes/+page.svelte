@@ -24,20 +24,63 @@
 	import type { PageData } from './+page';
 	import { StorageManager } from '$lib/utils/storage'
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	function debounce<T extends (...args: any[]) => any>(
-		fn: T,
-		delay: number
-	): typeof fn {  // Return the same type as the input function
-		let timeoutId: ReturnType<typeof setTimeout>;
-		return function(this: void, ...args: Parameters<T>) {
-			clearTimeout(timeoutId);
-			timeoutId = setTimeout(() => fn.apply(this, args), delay);
-		} as T;  // Assert the return type matches the input function
+	let isInitializing = false;
+
+	// OPTIMIZATION: Added centralized initialization function
+	async function initializeApplication() {
+		if (isInitializing || state.isInitialized || typeof window === 'undefined') return;
+		isInitializing = true;
+
+		try {
+			state.loading.initialLoad = true;
+			queueMicrotask(async () => {
+				const savedFilters = StorageManager.get<ArtworkFilters>('lastFilters', {
+					...data.initialFilters
+				});
+
+				const url = new URL(window.location.href);
+				const urlSearchTerm = url.searchParams.get('q');
+				const urlSearchField = url.searchParams.get('searchField');
+				const pageParam = url.searchParams.get('page');
+
+				if (pageParam) {
+					state.currentPage = Number(pageParam);
+				}
+
+				state.currentFilters.filters = {
+					...savedFilters,
+					...(urlSearchTerm || urlSearchField ? {
+						searchTerm: urlSearchTerm ? [urlSearchTerm] : [''],
+						searchField: (urlSearchField ?? 'all') as SearchField,
+					} : {})
+				};
+
+				if (!state.filterOptions.objectType.length) {
+					await loadFilterOptions();
+				}
+
+				if (data.initialTab === 'artworks') {
+					handleSearch(state.currentFilters.filters);
+				}
+
+				state.isInitialized = true;
+				state.loading.initialLoad = false;
+			});
+		} catch (error) {
+			console.error('Error during initialization:', error);
+			state.error = {
+				type: 'load',
+				message: 'Failed to initialize application',
+				retryFn: () => initializeApplication()
+			};
+		} finally {
+			isInitializing = false;
+		}
 	}
 
 	let { data } = $props<{ data: PageData }>();
 
+	// State definition remains the same
 	const state = $state({
 		isInitialized: false,
 		selectedArtwork: null as Artwork | null,
@@ -49,7 +92,8 @@
 		error: null as {
 			type: 'search' | 'load' | 'pagination',
 			message: string,
-			retryFn?: () => void } | null,
+			retryFn?: () => void
+		} | null,
 		currentFilters: {
 			filters: {
 				...data.initialFilters
@@ -73,7 +117,20 @@
 		}
 	});
 
-	// Add a debounced search function
+	// OPTIMIZATION: Increased debounce time and improved type safety
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	function debounce<T extends (...args: any[]) => any>(
+		fn: T,
+		delay: number
+	): typeof fn {
+		let timeoutId: ReturnType<typeof setTimeout>;
+		return function(this: void, ...args: Parameters<T>) {
+			clearTimeout(timeoutId);
+			timeoutId = setTimeout(() => fn.apply(this, args), delay);
+		} as T;
+	}
+
+	// Add debounced search function
 	const debouncedSearch = debounce(async (filters: typeof state.currentFilters.filters) => {
 		try {
 			state.artworksLoading = true;
@@ -115,7 +172,6 @@
 		debouncedSearch(filters);
 	}
 
-	// Add new function to handle filter option loading
 	async function loadFilterOptions(criteria: {
 		objectType?: string[];
 		country?: string[];
@@ -129,12 +185,10 @@
 				region: criteria.region?.[0]
 			});
 
-			// Update filter options based on the response
 			state.filterOptions = {
 				...state.filterOptions,
 				...options
 			};
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		} catch (error) {
 			state.error = {
 				type: 'load',
@@ -148,16 +202,13 @@
 
 	type Filters = typeof state.currentFilters.filters;
 
-	// Update the handler for filter changes
 	function handleFilterChange<K extends keyof Filters>(
 		key: K,
 		value: Filters[K]
 	) {
-		// Batch the state updates
 		queueMicrotask(() => {
 			state.currentFilters.filters[key] = value;
 
-			// Load dependent options only if necessary
 			if (key === 'objectType' && !state.loading.options) {
 				loadFilterOptions({ objectType: value as string[] });
 			} else if (key === 'country' && !state.loading.options) {
@@ -169,7 +220,6 @@
 				});
 			}
 
-			// Only trigger search after options are loaded
 			if (!state.loading.options) {
 				handleSearch(state.currentFilters.filters);
 			}
@@ -181,7 +231,6 @@
 			state.artworksLoading = true;
 			state.error = null;
 
-			// Get all results if we're sorting
 			const results = await artworkApi.searchArtworks(
 				state.currentFilters.filters,
 				newPage - 1,
@@ -216,7 +265,6 @@
 
 			state.artworksData = results;
 			state.currentPage = newPage;
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		} catch (error) {
 			state.error = {
 				type: 'pagination',
@@ -248,116 +296,25 @@
 		(data?.tours?.content?.length ?? 0) > 0
 	);
 
-	// Initial filter options loading
-	// Ensures filter dropdowns are populated with available options
+	// OPTIMIZATION: Simplified effect management
+	// Effect for filter options loading
 	$effect(() => {
 		if (!state.filterOptions.objectType.length && !state.loading.options) {
 			loadFilterOptions();
 		}
 	});
 
-	// Initial state setup and URL-based loading
-	$effect(() => {
-		if (typeof window === 'undefined') return;
-		if (data.initialTab !== 'artworks') return;
-		if (state.isInitialized) return;
-
-		// Initialize state from URL
-		const url = new URL(window.location.href);
-
-		// Set initial page
-		const pageParam = url.searchParams.get('page');
-		if (pageParam) {
-			state.currentPage = Number(pageParam);
-		}
-
-		// Create an async initialization function
-		const initializeFilters = async () => {
-			state.loading.initialLoad = true;
-			// Track which options we've already loaded to prevent duplicate calls
-			const loadedOptions = new Set<string>();
-
-			// Helper function to load filter options if not already loaded
-			const loadOptionsIfNeeded = async (criteria: {
-				objectType?: string[];
-				country?: string[];
-				region?: string[];
-			}) => {
-				const key = JSON.stringify(criteria);
-				if (!loadedOptions.has(key)) {
-					loadedOptions.add(key);
-					state.loading.options = true;
-					try {
-						await loadFilterOptions(criteria);
-					} finally {
-						state.loading.options = false;
-					}
-				}
-			};
-
-			try {
-				const filters = state.currentFilters.filters;
-
-				// Load dependent filters in order
-				if (filters.objectType.length > 0) {
-					await loadOptionsIfNeeded({ objectType: filters.objectType });
-				}
-
-				if (filters.country.length > 0) {
-					await loadOptionsIfNeeded({ country: filters.country });
-
-					if (filters.region.length > 0) {
-						await loadOptionsIfNeeded({
-							country: filters.country,
-							region: filters.region
-						});
-					}
-				}
-
-				state.loading.results = true;
-
-				if (data.initialTab === 'artworks') {
-					state.artworksData = await artworkApi.searchArtworks(
-						filters,
-						state.currentPage - 1,
-						state.pageSize,
-						state.currentFilters.sort.field !== 'relevance' ? {
-							field: state.currentFilters.sort.field,
-							direction: state.currentFilters.sort.direction
-						} : undefined
-					);
-				}
-
-				state.isInitialized = true;
-			} catch (error) {
-				console.error('Error loading initial filters:', error);
-				state.error = {
-					type: 'load',
-					message: 'Failed to load initial filter options',
-					retryFn: () => initializeFilters()
-				};
-			} finally {
-				state.loading.initialLoad = false;
-				state.loading.results = false;
-			}
-		};
-
-		// Start initialization
-		initializeFilters();
-	});
-
-	// Responsive layout management
-	// Adjusts grid layout based on viewport size
+	// Effect for responsive layout
 	$effect(() => {
 		if (typeof window === 'undefined') return;
 
 		function updatePageSize() {
 			if (window.innerWidth >= 1024) {
-				state.pageSize = 12;     // Desktop
+				state.pageSize = 12;
 			} else if (window.innerWidth >= 768) {
-				state.pageSize = 9;      // Tablet
+				state.pageSize = 9;
 			} else {
-				state.pageSize = 6;      // Mobile
+				state.pageSize = 6;
 			}
 		}
 		updatePageSize();
@@ -368,79 +325,43 @@
 		};
 	});
 
-	// Load saved filters on mount
-	$effect(() => {
-		if (typeof window === 'undefined') return;
-
-		const savedFilters = StorageManager.get<ArtworkFilters>('lastFilters', state.currentFilters.filters);
-		if (savedFilters && !state.isInitialized) {
-			state.currentFilters.filters = savedFilters;
-		}
-	});
-
-	let initialLoad = true;
-	const debouncedUrlUpdate = debounce(updateUrlParams, 300);
+	// OPTIMIZATION: Combined URL and storage sync into a single debounced effect
+	const debouncedUrlUpdate = debounce(updateUrlParams, 500); // Increased from 300 to 500ms
 
 	$effect(() => {
 		if (typeof window === 'undefined') return;
-		if (data.initialTab !== 'artworks') return;
+		if (!state.isInitialized || data.initialTab !== 'artworks') return;
 
-		// Handle initial load
-		if (initialLoad) {
-			initialLoad = false;
+		queueMicrotask(() => {
+			if (!isInitializing) {
+				StorageManager.set('lastFilters', state.currentFilters.filters);
+			}
 
-			// Load saved filters first with default values
-			const savedFilters = StorageManager.get<ArtworkFilters>('lastFilters', {
-				...data.initialFilters  // Use the initial filters as default
-			});
-
-			// Then merge with URL parameters if they exist
-			const url = new URL(window.location.href);
-			const urlSearchTerm = url.searchParams.get('q');
-			const urlSearchField = url.searchParams.get('searchField');
-
-			// Merge URL parameters with saved filters, preferring URL parameters
-			state.currentFilters.filters = {
-				...savedFilters,
-				...(urlSearchTerm || urlSearchField ? {
-					searchTerm: urlSearchTerm ? [urlSearchTerm] : [''],
-					searchField: (urlSearchField ?? 'all') as SearchField,
-				} : {}),
+			const params = {
+				q: state.currentFilters.filters.searchTerm[0] || null,
+				searchField: state.currentFilters.filters.searchField === 'all' ?
+					null : state.currentFilters.filters.searchField,
+				objectType: state.currentFilters.filters.objectType,
+				medium: state.currentFilters.filters.materials,
+				country: state.currentFilters.filters.country,
+				region: state.currentFilters.filters.region,
+				culture: state.currentFilters.filters.culture,
+				period: state.currentFilters.filters.era,
+				sortBy: state.currentFilters.sort.field !== 'relevance' ?
+					state.currentFilters.sort.field : null,
+				sortDirection: state.currentFilters.sort.field !== 'relevance' ?
+					state.currentFilters.sort.direction : null,
+				page: state.currentPage > 1 ? state.currentPage.toString() : null
 			};
 
-			// Initialize state and trigger search
-			state.isInitialized = true;
-			if (!state.artworksData) {
-				handleSearch(state.currentFilters.filters);
-			}
-			return;
-		}
+			debouncedUrlUpdate(params);
+		});
+	});
 
-		// Handle subsequent updates
-		if (!state.isInitialized) return;
-
-		// Update storage
-		StorageManager.set('lastFilters', state.currentFilters.filters);
-
-		// Update URL (debounced)
-		const params = {
-			q: state.currentFilters.filters.searchTerm[0] || null,
-			searchField: state.currentFilters.filters.searchField === 'all' ?
-				null : state.currentFilters.filters.searchField,
-			objectType: state.currentFilters.filters.objectType,
-			medium: state.currentFilters.filters.materials,
-			country: state.currentFilters.filters.country,
-			region: state.currentFilters.filters.region,
-			culture: state.currentFilters.filters.culture,
-			period: state.currentFilters.filters.era,
-			sortBy: state.currentFilters.sort.field !== 'relevance' ?
-				state.currentFilters.sort.field : null,
-			sortDirection: state.currentFilters.sort.field !== 'relevance' ?
-				state.currentFilters.sort.direction : null,
-			page: state.currentPage > 1 ? state.currentPage.toString() : null
-		};
-
-		debouncedUrlUpdate(params);
+	// OPTIMIZATION: Single initialization effect
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		initializeApplication();
 	});
 </script>
 
