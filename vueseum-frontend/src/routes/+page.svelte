@@ -39,15 +39,66 @@
 		}
 	});
 
-	type Filters = typeof state.currentFilters.filters;
+	function handleClassificationChange(classification: string | undefined) {
+		handleFilterChange('objectType', classification ? [classification] : [], [
+			{ field: 'materials', reset: true }
+		]);
+	}
 
-	// Update the handler for filter changes
+	function handleCountryChange(country: string | undefined) {
+		handleFilterChange('country', country ? [country] : [], [
+			{ field: 'region', reset: true },
+			{ field: 'culture', reset: true }
+		]);
+	}
+
+	function handleRegionChange(region: string | undefined) {
+		handleFilterChange('region', region ? [region] : [], [
+			{ field: 'culture', reset: true }
+		]);
+	}
+
+	function handleCultureChange(culture: string | undefined) {
+		handleFilterChange('culture', culture ? [culture] : []);
+	}
+
+	type Filters = typeof state.currentFilters.filters;
 	function handleFilterChange<K extends keyof Filters>(
 		key: K,
-		value: Filters[K]
+		value: Filters[K],
+		dependentFields?: Array<{ field: keyof Filters; reset: true }>
 	) {
 		console.log('Filter changed:', key, value);
 		state.currentFilters.filters[key] = value;
+
+		// Reset dependent fields if specified
+		dependentFields?.forEach(({ field }) => {
+			switch (field) {
+				case 'era':
+					state.currentFilters.filters.era = [];
+					break;
+				case 'hasImage':
+					state.currentFilters.filters.hasImage = true;
+					break;
+				case 'searchField':
+					state.currentFilters.filters.searchField = 'all';
+					break;
+				case 'searchTerm':
+				case 'objectType':
+				case 'materials':
+				case 'country':
+				case 'region':
+				case 'culture':
+				case 'museumId':
+					state.currentFilters.filters[field] = [];
+					break;
+			}
+		});
+
+		// Load dependent options if needed
+		if (key === 'objectType' || key === 'country' || key === 'region') {
+			loadFilterOptions(value ? { [key]: value as string[] } : {});
+		}
 	}
 
 	function handleTabChange(value: string) {
