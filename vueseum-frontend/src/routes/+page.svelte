@@ -24,6 +24,18 @@
 	import type { PageData } from './+page';
 	import { StorageManager } from '$lib/utils/storage'
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	function debounce<T extends (...args: any[]) => any>(
+		fn: T,
+		delay: number
+	): typeof fn {  // Return the same type as the input function
+		let timeoutId: ReturnType<typeof setTimeout>;
+		return function(this: void, ...args: Parameters<T>) {
+			clearTimeout(timeoutId);
+			timeoutId = setTimeout(() => fn.apply(this, args), delay);
+		} as T;  // Assert the return type matches the input function
+	}
+
 	let { data } = $props<{ data: PageData }>();
 
 	const state = $state({
@@ -61,15 +73,16 @@
 		}
 	});
 
-	async function handleSearch(filters: typeof state.currentFilters.filters) {
-		state.artworksLoading = true;
-		state.error = null;
-		state.currentPage = 1;
-
+	// Add a debounced search function
+	const debouncedSearch = debounce(async (filters: typeof state.currentFilters.filters) => {
 		try {
+			state.artworksLoading = true;
+			state.error = null;
+			state.currentPage = 1;
+
 			const results = await artworkApi.searchArtworks(
 				filters,
-				0,  // first page
+				0,
 				state.pageSize,
 				state.currentFilters.sort.field !== 'relevance' ? {
 					field: state.currentFilters.sort.field,
@@ -84,6 +97,7 @@
 				};
 				return;
 			}
+
 			state.artworksData = results;
 		} catch (error) {
 			console.error('Error performing search:', error);
@@ -95,6 +109,10 @@
 		} finally {
 			state.artworksLoading = false;
 		}
+	}, 300);
+
+	function handleSearch(filters: typeof state.currentFilters.filters) {
+		debouncedSearch(filters);
 	}
 
 	// Add new function to handle filter option loading
@@ -135,25 +153,27 @@
 		key: K,
 		value: Filters[K]
 	) {
-		state.currentFilters.filters[key] = value;
+		// Batch the state updates
+		queueMicrotask(() => {
+			state.currentFilters.filters[key] = value;
 
-		// Load dependent options based on the changed filter
-		if (key === 'objectType') {
-			// Load materials for selected object type
-			loadFilterOptions({ objectType: value as string[] });
-		} else if (key === 'country') {
-			// Load regions for selected country
-			loadFilterOptions({ country: value as string[] });
-		} else if (key === 'region') {
-			// Load cultures for selected region and country
-			loadFilterOptions({
-				country: state.currentFilters.filters.country,
-				region: value as string[]
-			});
-		}
+			// Load dependent options only if necessary
+			if (key === 'objectType' && !state.loading.options) {
+				loadFilterOptions({ objectType: value as string[] });
+			} else if (key === 'country' && !state.loading.options) {
+				loadFilterOptions({ country: value as string[] });
+			} else if (key === 'region' && !state.loading.options) {
+				loadFilterOptions({
+					country: state.currentFilters.filters.country,
+					region: value as string[]
+				});
+			}
 
-		// Trigger search with updated filters
-		handleSearch(state.currentFilters.filters);
+			// Only trigger search after options are loaded
+			if (!state.loading.options) {
+				handleSearch(state.currentFilters.filters);
+			}
+		});
 	}
 
 	async function handlePageChange(newPage: number) {
@@ -234,68 +254,6 @@
 		if (!state.filterOptions.objectType.length && !state.loading.options) {
 			loadFilterOptions();
 		}
-	});
-
-	$effect(() => {
-		if (typeof window === 'undefined') return;
-		const url = new URL(window.location.href);
-
-		// Update initial state based on URL parameters
-		state.currentFilters.filters = {
-			searchTerm: [url.searchParams.get('q') ?? ''],
-			searchField: (url.searchParams.get('searchField') ?? 'all') as SearchField,
-			objectType: url.searchParams.getAll('objectType'),
-			materials: url.searchParams.getAll('medium'),
-			country: url.searchParams.getAll('country'),
-			region: url.searchParams.getAll('region'),
-			culture: url.searchParams.getAll('culture'),
-			era: url.searchParams.getAll('period'),
-			hasImage: true,
-			museumId: url.searchParams.getAll('museumId')
-		};
-
-		state.currentFilters.sort = {
-			field: (url.searchParams.get('sortBy') ?? 'relevance') as 'relevance' | 'title' | 'artist' | 'date',
-			direction: (url.searchParams.get('sortDirection') ?? 'asc') as 'asc' | 'desc'
-		};
-	});
-
-	// URL synchronization - maintains URL state as filters change
-	// Enables bookmarking and sharing of search results
-	$effect(() => {
-		if (!state.isInitialized) return;
-
-		// Don't update URL during SSR
-		if (typeof window === 'undefined') return;
-
-		// Only update if we're on the artworks tab
-		if (data.initialTab !== 'artworks') return;
-
-		const params = {
-			// Search parameters
-			q: state.currentFilters.filters.searchTerm[0] || null,
-			searchField: state.currentFilters.filters.searchField === 'all' ?
-				null : state.currentFilters.filters.searchField,
-
-			// Filter parameters
-			objectType: state.currentFilters.filters.objectType,
-			medium: state.currentFilters.filters.materials,
-			country: state.currentFilters.filters.country,
-			region: state.currentFilters.filters.region,
-			culture: state.currentFilters.filters.culture,
-			period: state.currentFilters.filters.era,
-
-			// Sort parameters
-			sortBy: state.currentFilters.sort.field !== 'relevance' ?
-				state.currentFilters.sort.field : null,
-			sortDirection: state.currentFilters.sort.field !== 'relevance' ?
-				state.currentFilters.sort.direction : null,
-
-			// Pagination
-			page: state.currentPage > 1 ? state.currentPage.toString() : null
-		};
-
-		updateUrlParams(params);
 	});
 
 	// Initial state setup and URL-based loading
@@ -420,12 +378,69 @@
 		}
 	});
 
-	// Save filters when they change
+	let initialLoad = true;
+	const debouncedUrlUpdate = debounce(updateUrlParams, 300);
+
 	$effect(() => {
 		if (typeof window === 'undefined') return;
+		if (data.initialTab !== 'artworks') return;
+
+		// Handle initial load
+		if (initialLoad) {
+			initialLoad = false;
+
+			// Load saved filters first with default values
+			const savedFilters = StorageManager.get<ArtworkFilters>('lastFilters', {
+				...data.initialFilters  // Use the initial filters as default
+			});
+
+			// Then merge with URL parameters if they exist
+			const url = new URL(window.location.href);
+			const urlSearchTerm = url.searchParams.get('q');
+			const urlSearchField = url.searchParams.get('searchField');
+
+			// Merge URL parameters with saved filters, preferring URL parameters
+			state.currentFilters.filters = {
+				...savedFilters,
+				...(urlSearchTerm || urlSearchField ? {
+					searchTerm: urlSearchTerm ? [urlSearchTerm] : [''],
+					searchField: (urlSearchField ?? 'all') as SearchField,
+				} : {}),
+			};
+
+			// Initialize state and trigger search
+			state.isInitialized = true;
+			if (!state.artworksData) {
+				handleSearch(state.currentFilters.filters);
+			}
+			return;
+		}
+
+		// Handle subsequent updates
 		if (!state.isInitialized) return;
 
+		// Update storage
 		StorageManager.set('lastFilters', state.currentFilters.filters);
+
+		// Update URL (debounced)
+		const params = {
+			q: state.currentFilters.filters.searchTerm[0] || null,
+			searchField: state.currentFilters.filters.searchField === 'all' ?
+				null : state.currentFilters.filters.searchField,
+			objectType: state.currentFilters.filters.objectType,
+			medium: state.currentFilters.filters.materials,
+			country: state.currentFilters.filters.country,
+			region: state.currentFilters.filters.region,
+			culture: state.currentFilters.filters.culture,
+			period: state.currentFilters.filters.era,
+			sortBy: state.currentFilters.sort.field !== 'relevance' ?
+				state.currentFilters.sort.field : null,
+			sortDirection: state.currentFilters.sort.field !== 'relevance' ?
+				state.currentFilters.sort.direction : null,
+			page: state.currentPage > 1 ? state.currentPage.toString() : null
+		};
+
+		debouncedUrlUpdate(params);
 	});
 </script>
 
