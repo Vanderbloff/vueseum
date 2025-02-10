@@ -8,7 +8,9 @@
 	let { data } = $props<{ data: PageData }>();
 
 	const state = $state({
+		isInitialized: false,
 		isLoading: false,
+		artworksLoading: true,
 		error: null as string | null,
 		currentFilters: {
 			filters: {
@@ -30,6 +32,10 @@
 			countries: [] as string[],
 			regions: [] as string[],
 			cultures: [] as string[]
+		},
+		loading: {
+			options: false,
+			initialLoad: true
 		}
 	});
 
@@ -52,6 +58,71 @@
 		console.log('Search triggered with filters:', filters);
 		// TODO: Implement actual search functionality
 	}
+
+	async function loadFilterOptions(criteria: {
+		objectType?: string[];
+		country?: string[];
+		region?: string[];
+	} = {}) {
+		try {
+			state.loading.options = true;
+			// Temporarily mock the API call
+			await new Promise(resolve => setTimeout(resolve, 500));
+
+			state.filterOptions = {
+				objectType: ['Painting', 'Sculpture'],
+				materials: ['Oil paint', 'Bronze'],
+				countries: ['France', 'Italy'],
+				regions: ['Europe', 'Asia'],
+				cultures: ['French', 'Italian']
+			};
+		} catch (error) {
+			state.error = 'Failed to load filter options';
+			console.error('Error loading filter options:', error);
+		} finally {
+			state.loading.options = false;
+		}
+	}
+
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		if (data.initialTab !== 'artworks') return;
+		if (state.isInitialized) return;
+
+		const initializeFilters = async () => {
+			state.loading.initialLoad = true;
+			const loadedOptions = new Set<string>();
+
+			const loadOptionsIfNeeded = async (criteria: {
+				objectType?: string[];
+				country?: string[];
+				region?: string[];
+			}) => {
+				const key = JSON.stringify(criteria);
+				if (!loadedOptions.has(key)) {
+					loadedOptions.add(key);
+					state.loading.options = true;
+					try {
+						await loadFilterOptions(criteria);
+					} finally {
+						state.loading.options = false;
+					}
+				}
+			};
+
+			try {
+				await loadOptionsIfNeeded({});
+				state.isInitialized = true;
+			} catch (error) {
+				console.error('Error loading initial filters:', error);
+				state.error = 'Failed to load initial filter options';
+			} finally {
+				state.loading.initialLoad = false;
+			}
+		};
+
+		initializeFilters();
+	});
 </script>
 
 <main class="container mx-auto p-4">
@@ -65,23 +136,31 @@
 
 		<TabsContent value="artworks">
 			<div class="w-full max-w-4xl mx-auto">
-				<Card>
-					<CardContent>
-						<ArtworkFilters
-							filters={state.currentFilters.filters}
-							filterOptions={state.filterOptions}
-							loading={{ options: false }}
-							error={null}
-							onFilterChange={handleFilterChange}
-							onSearch={handleSearch}
-						/>
-					</CardContent>
-				</Card>
-				<div class="mt-4">
-                    <pre class="text-sm">
-                        Current Filters: {JSON.stringify(state.currentFilters.filters, null, 2)}
-                    </pre>
-				</div>
+				{#if state.loading.initialLoad}
+					<div class="mt-6 text-center">
+						<p class="text-sm text-muted-foreground">
+							Loading initial artwork data...
+						</p>
+					</div>
+				{:else}
+					<Card>
+						<CardContent>
+							<ArtworkFilters
+								filters={state.currentFilters.filters}
+								filterOptions={state.filterOptions}
+								loading={{ options: state.loading.options }}
+								error={state.error}
+								onFilterChange={handleFilterChange}
+								onSearch={handleSearch}
+							/>
+						</CardContent>
+					</Card>
+					<div class="mt-4">
+                <pre class="text-sm">
+                    Current Filters: {JSON.stringify(state.currentFilters.filters, null, 2)}
+                </pre>
+					</div>
+				{/if}
 			</div>
 		</TabsContent>
 
