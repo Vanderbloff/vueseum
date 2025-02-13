@@ -1,4 +1,6 @@
-// Create new file: src/lib/api/base.ts
+// src/lib/api/base.ts
+import { API_BASE_URL } from '$lib/config';
+
 export class ApiError extends Error {
 	constructor(
 		public status: number,
@@ -10,12 +12,21 @@ export class ApiError extends Error {
 }
 
 export class BaseApiClient {
+	protected readonly basePath: string;
+
+	constructor(endpoint: string) {
+		this.basePath = endpoint;
+	}
+
 	protected async fetchWithError<T>(
-		endpoint: string,
+		path: string,
 		options: RequestInit = {}
 	): Promise<T> {
+		const fullUrl = `${API_BASE_URL}${this.basePath}${path}`;
+		console.log('Attempting to fetch:', fullUrl);
+
 		try {
-			const response = await fetch(endpoint, {
+			const response = await fetch(fullUrl, {
 				...options,
 				headers: {
 					'Content-Type': 'application/json',
@@ -24,12 +35,17 @@ export class BaseApiClient {
 			});
 
 			if (!response.ok) {
+				console.log('Response not OK:', {
+					status: response.status,
+					statusText: response.statusText,
+					url: response.url
+				});
 				throw new ApiError(response.status, await response.text());
 			}
 
 			return response.json();
 		} catch (error) {
-			console.error(`API Error: ${endpoint}`, error);
+			console.error(`API Error: ${fullUrl}`, error);
 			throw error;
 		}
 	}
