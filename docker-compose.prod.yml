@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: 
+      context: ./vueseum-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/log/vueseum/frontend:/var/log/vueseum
+      - /etc/letsencrypt/live/vueseum.io:/etc/letsencrypt/live/vueseum.io:ro
+      - /etc/letsencrypt/archive/vueseum.io:/etc/letsencrypt/archive/vueseum.io:ro
+    environment:
+      - NODE_ENV=production
+      - ORIGIN=https://vueseum.io
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - backend
+    networks:
+      - vueseum-network
+
+  backend:
+    build: 
+      context: ./vueseum
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/log/vueseum/backend:/var/log/vueseum
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - vueseum-network
+
+networks:
+  vueseum-network:
+    driver: bridge
+
+volumes:
+  frontend_logs:
+    driver: local
+  backend_logs:
+    driver: local
