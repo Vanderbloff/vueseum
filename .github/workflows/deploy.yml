@@ -47,19 +47,29 @@ jobs:
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
-                # Create directory and copy Dockerfile
-                mkdir -p /opt/vueseum/backend
-                cat > /opt/vueseum/backend/Dockerfile << 'EOF'
+                # Create directory and copy Dockerfile with sudo
+                sudo mkdir -p /opt/vueseum/backend
+                sudo cat > /opt/vueseum/backend/Dockerfile << 'EOF'
                 $(cat ${{ github.workspace }}/vueseum/Dockerfile)
                 EOF
 
                 # Copy compose file if it doesn't exist
                 if [ ! -f /opt/vueseum/docker-compose.prod.yml ]; then
-                  cat > /opt/vueseum/docker-compose.prod.yml << 'EOF'
+                  sudo cat > /opt/vueseum/docker-compose.prod.yml << 'EOF'
                   $(cat ${{ github.workspace }}/docker-compose.prod.yml)
                   EOF
                 fi
 
+                # Set permissions with sudo
+                sudo chown -R vueseum:vueseum /opt/vueseum/backend
+                sudo chmod 755 /opt/vueseum/backend
+                sudo chmod 644 /opt/vueseum/backend/Dockerfile
+                
+                if [ ! -f /opt/vueseum/docker-compose.prod.yml ]; then
+                  sudo chown vueseum:vueseum /opt/vueseum/docker-compose.prod.yml
+                  sudo chmod 644 /opt/vueseum/docker-compose.prod.yml
+                fi
+
                 # Run deployment script
-                cd /opt/vueseum && ./deploy-containers.sh
+                cd /opt/vueseum && sudo ./deploy-containers.sh
                 "
