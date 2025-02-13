@@ -1,6 +1,5 @@
 // src/lib/api/admin.ts
 import { BaseApiClient } from './base';
-import { API_BASE_URL } from '../config';
 
 export interface SyncStatus {
 	totalArtworksInDb: number;
@@ -10,19 +9,19 @@ export interface SyncStatus {
 }
 
 export class AdminApiClient extends BaseApiClient {
-	private readonly baseUrl = `${API_BASE_URL}/admin`;
+	constructor() {
+		super('/admin');
+	}
 
 	async startSync(): Promise<void> {
 		await this.fetchWithError(
-			`${this.baseUrl}/sync/start`,
+			'/sync/start',
 			{ method: 'POST' }
 		);
 	}
 
 	async getSyncStatus(): Promise<SyncStatus> {
-		return this.fetchWithError(
-			`${this.baseUrl}/sync/status`
-		);
+		return this.fetchWithError('/sync/status');
 	}
 }
 

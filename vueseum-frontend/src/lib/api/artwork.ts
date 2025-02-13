@@ -3,7 +3,6 @@
 import type { ArtworkSearchCriteria } from '$lib/types/search';
 import { criteriaToUrlParams, mapFiltersToSearchCriteria } from '$lib/types/filterMapping';
 import type { Artwork, PaginatedResponse } from '$lib/types/artwork';
-import { API_BASE_URL } from '../config';
 import { BaseApiClient } from '$lib/api/base';
 import type { ArtworkFilters } from '$lib/components/homepage/artwork/ArtworkFilters.svelte';
 import { DateUtils } from '$lib/utils/dateUtils';
@@ -27,9 +26,11 @@ export interface FilterOptions {
  * and filtering.
  */
 export class ArtworkApiClient extends BaseApiClient {
-	private readonly baseUrl = `${API_BASE_URL}/artworks`;
-	private cachedArtworks: Artwork[] | null = null;
+	constructor() {
+		super('/artworks');  // This sets up the base URL correctly
+	}
 
+	private cachedArtworks: Artwork[] | null = null;
 	async searchArtworks(
 		filters: ArtworkFilters,
 		page: number = 0,
@@ -39,9 +40,7 @@ export class ArtworkApiClient extends BaseApiClient {
 		if (import.meta.env.DEV) {
 			// Fetch all artworks
 			// Apply filters
-			let filteredData = await this.fetchWithError<Artwork[]>(
-				`${this.baseUrl}`
-			);
+			let filteredData = await this.fetchWithError<Artwork[]>('');
 
 			filteredData = ArtworkUtils.filterArtworks(filteredData, filters);
 
@@ -116,21 +115,15 @@ export class ArtworkApiClient extends BaseApiClient {
 
 		const criteria = mapFiltersToSearchCriteria(filters);
 		const params = criteriaToUrlParams(criteria, page, size);
-		return this.fetchWithError<PaginatedResponse<Artwork>>(
-			`${this.baseUrl}?${params}`
-		);
+		return this.fetchWithError<PaginatedResponse<Artwork>>(`?${params}`);
 	}
 
 	async getArtwork(id: string, museumId: number): Promise<Artwork> {
 		if (import.meta.env.DEV) {
 			// JSON Server supports direct ID lookup
-			return this.fetchWithError<Artwork>(
-				`${this.baseUrl}/${id}`
-			);
+			return this.fetchWithError<Artwork>(`/${id}`);
 		}
-		return this.fetchWithError<Artwork>(
-			`${this.baseUrl}/${id}?museumId=${museumId}`
-		);
+		return this.fetchWithError<Artwork>(`/${id}?museumId=${museumId}`);
 	}
 
 	async getFilterOptions(
@@ -139,7 +132,7 @@ export class ArtworkApiClient extends BaseApiClient {
 		if (import.meta.env.DEV) {
 			// Cache artworks to prevent multiple fetches during initialization
 			if (!this.cachedArtworks) {
-				this.cachedArtworks = await this.fetchWithError<Artwork[]>(`${this.baseUrl}`);
+				this.cachedArtworks = await this.fetchWithError<Artwork[]>('');
 			}
 			const artworks = this.cachedArtworks;
 
@@ -224,9 +217,7 @@ export class ArtworkApiClient extends BaseApiClient {
 			}
 		});
 
-		return this.fetchWithError<FilterOptions>(
-			`${this.baseUrl}/filter-options?${params}`
-		);
+		return this.fetchWithError<FilterOptions>(`/filter-options?${params}`);
 	}
 }
 

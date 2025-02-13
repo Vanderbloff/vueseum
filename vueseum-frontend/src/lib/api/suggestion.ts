@@ -27,7 +27,9 @@ interface ArtworkData {
 }
 
 class SuggestionApiClient extends BaseApiClient {
-	private readonly baseUrl = '/api/v1/suggestions';
+	constructor() {
+		super('/suggestions');
+	}
 
 	async getSuggestions(
 		prefix: string,
@@ -61,7 +63,7 @@ class SuggestionApiClient extends BaseApiClient {
 			params.append('preferredPeriods', preferences.preferredPeriods.join(','));
 		}
 
-		return this.fetchWithError<Suggestion[]>(`${this.baseUrl}?${params}`);
+		return this.fetchWithError(`?${params}`);
 	}
 
 	private async getDevSuggestions(

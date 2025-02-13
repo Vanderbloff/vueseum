@@ -17,15 +17,14 @@ interface TourPreferences {
 }
 
 export class TourApiClient extends BaseApiClient {
-	private readonly baseUrl = `${API_BASE_URL}/tours`;
+	constructor() {
+		super('/tours');
+	}
 
 	async getTours(page: number = 0, size: number = 10): Promise<PaginatedResponse<Tour>> {
 		if (import.meta.env.DEV) {
-			// Check if we're in a browser environment
 			if (typeof window !== 'undefined') {
-				// Get tours from localStorage
 				const storedTours = JSON.parse(localStorage.getItem('devTours') || '[]');
-
 				const start = page * size;
 				const end = start + size;
 				const paginatedTours = storedTours.slice(start, end);
@@ -38,19 +37,10 @@ export class TourApiClient extends BaseApiClient {
 					number: page
 				};
 			}
-
-			// Return empty response for SSR
-			return {
-				content: [],
-				totalElements: 0,
-				totalPages: 0,
-				size: size,
-				number: page
-			};
+			return this.getEmptyPaginatedResponse(size, page);
 		}
-		return this.fetchWithError<PaginatedResponse<Tour>>(
-			`${this.baseUrl}?page=${page}&size=${size}`
-		);
+
+		return this.fetchWithError<PaginatedResponse<Tour>>(`?page=${page}&size=${size}`);
 	}
 
 	async getTourById(id: number): Promise<Tour> {
@@ -65,11 +55,12 @@ export class TourApiClient extends BaseApiClient {
 			}
 			throw new Error('Tour not found');
 		}
-		const response = await this.fetchWithError<Tour>(`${this.baseUrl}/${id}`);
-		if (!response) {
+
+		const tour = await this.fetchWithError<Tour>(`/${id}`);
+		if (!tour) {
 			throw new Error('Tour not found');
 		}
-		return response;
+		return tour;
 	}
 
 	async deleteTour(id: number): Promise<void> {
@@ -82,11 +73,10 @@ export class TourApiClient extends BaseApiClient {
 			}
 			throw new Error('Tour not found');
 		}
-		await this.fetchWithError(
-			`${this.baseUrl}/${id}`,
-			{ method: 'DELETE' }
-		);
+
+		await this.fetchWithError(`/${id}`, { method: 'DELETE' });
 	}
+
 	async updateTour(
 		id: number,
 		updates: { name?: string; description?: string }
@@ -112,8 +102,9 @@ export class TourApiClient extends BaseApiClient {
 			}
 			throw new Error('Tour not found');
 		}
+
 		return this.fetchWithError<Tour>(
-			`${this.baseUrl}/${id}`,
+			`/${id}`,
 			{
 				method: 'PATCH',
 				body: JSON.stringify(updates)
@@ -128,7 +119,7 @@ export class TourApiClient extends BaseApiClient {
 
 		try {
 			return await this.fetchWithError<Tour>(
-				`${this.baseUrl}/generate`,
+				'/generate',
 				{
 					method: 'POST',
 					body: JSON.stringify({
@@ -171,24 +162,21 @@ export class TourApiClient extends BaseApiClient {
 					throw new Error('Tour not found');
 				}
 
-				// Generate validation results if not already present
 				if (!storedTours[tourIndex].unavailableArtworks) {
 					const unavailableArtworks = storedTours[tourIndex].stops
 						.filter(() => Math.random() < 0.2)
-						.map((stop: { artwork: { id: number; title: string; galleryNumber: number } }) => ({
+						.map((stop: { artwork: { id: number; title: string; galleryNumber: string } }) => ({
 							id: stop.artwork.id,
 							title: stop.artwork.title,
 							galleryNumber: stop.artwork.galleryNumber
 						}));
 
-					// Update the tour with validation results
 					storedTours[tourIndex] = {
 						...storedTours[tourIndex],
 						unavailableArtworks,
 						lastValidated: new Date().toISOString()
 					};
 
-					// Save back to localStorage
 					localStorage.setItem('devTours', JSON.stringify(storedTours));
 				}
 
@@ -200,10 +188,18 @@ export class TourApiClient extends BaseApiClient {
 			}
 			throw new Error('Tour not found');
 		}
-		
-		return this.fetchWithError<TourValidationResult>(
-			`${this.baseUrl}/${id}/validate`
-		);
+
+		return this.fetchWithError<TourValidationResult>(`/${id}/validate`);
+	}
+
+	private getEmptyPaginatedResponse(size: number, page: number): PaginatedResponse<Tour> {
+		return {
+			content: [],
+			totalElements: 0,
+			totalPages: 0,
+			size,
+			number: page
+		};
 	}
 
 	private async generateDevTour(preferences: TourPreferences): Promise<Tour> {
