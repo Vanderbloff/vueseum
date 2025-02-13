@@ -4,7 +4,8 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "concurrently \"npm run mock-api\" \"vite dev\"",
+		"dev": "vite dev",
+		"dev:mock": "concurrently \"npm run mock-api\" \"vite dev\"",
 		"build": "vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
