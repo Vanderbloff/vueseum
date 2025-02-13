@@ -1,3 +1,5 @@
-export const API_BASE_URL = import.meta.env.DEV
-	? 'http://localhost:3001'  // Development API URL
-	: '/api/v1';              // Production API URL
+// src/lib/config.ts
+const DEV_API_URL = 'http://localhost:3001';
+const PROD_API_URL = 'https://vueseum.io/api/v1';
+
+export const API_BASE_URL = import.meta.env.DEV ? DEV_API_URL : PROD_API_URL;
