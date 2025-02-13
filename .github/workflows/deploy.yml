@@ -42,22 +42,18 @@ jobs:
         with:
           inlineScript: |
             # Debug: Show current location and structure
-            echo "Current directory:"
             pwd
-            echo "Directory contents:"
             ls -la
-            echo "Target directory contents:"
-            ls -la ${{ github.workspace }}/vueseum/target/
             
             # Find the JAR file
             JAR_FILE=$(find ${{ github.workspace }}/vueseum/target -name "*.jar" -type f)
             if [ -z "$JAR_FILE" ]; then
               echo "No JAR file found in target directory"
-              ls -la ./target
+              ls -la ./target  # Debug: show contents of target directory
               exit 1
             fi
             echo "Found JAR file: $JAR_FILE"
-            
+
             # Create storage account if it doesn't exist
             az storage account create \
               --name vueseumdeploy \
@@ -66,7 +62,7 @@ jobs:
               --kind StorageV2 \
               2>/dev/null || true
 
-            # Create temporary container with timestamp
+            # Create temporary container
             CONTAINER_NAME="deploy-$(date +%s)"
             az storage container create \
               --account-name vueseumdeploy \
@@ -74,32 +70,25 @@ jobs:
               --auth-mode login
 
             # Upload JAR
+            echo "Uploading JAR to blob storage..."
             az storage blob upload \
               --account-name vueseumdeploy \
               --container-name $CONTAINER_NAME \
-              --name app.jar \
+              --name vueseum.jar \
               --file "$JAR_FILE" \
               --auth-mode login
-      
-            # Verify upload
-            echo "Verifying blob upload..."
-            az storage blob show \
-              --account-name vueseumdeploy \
-              --container-name $CONTAINER_NAME \
-              --name app.jar \
-              --auth-mode login
 
-            # Generate SAS token
+            # Generate SAS token for the specific blob
             END_TIME=$(date -u -d "30 minutes" '+%Y-%m-%dT%H:%MZ')
             BLOB_URL=$(az storage blob url \
               --account-name vueseumdeploy \
               --container-name $CONTAINER_NAME \
-              --name app.jar \
+              --name vueseum.jar \
               --output tsv)
             SAS_TOKEN=$(az storage blob generate-sas \
               --account-name vueseumdeploy \
               --container-name $CONTAINER_NAME \
-              --name app.jar \
+              --name vueseum.jar \
               --permissions r \
               --expiry $END_TIME \
               --auth-mode login \
@@ -113,24 +102,21 @@ jobs:
               --command-id RunShellScript \
               --scripts "
                 # Create temp directory for deployment
-                sudo mkdir -p /tmp/deploy
+                mkdir -p /tmp/deploy
+                echo 'Created temporary directory for deployment'
                 
-                echo 'Downloading JAR file...'
                 # Download JAR using curl and SAS token
-                sudo curl -v -o /tmp/deploy/app.jar '${BLOB_URL}?${SAS_TOKEN}'
+                echo 'Downloading JAR file...'
+                curl -o /tmp/deploy/vueseum.jar '${BLOB_URL}?${SAS_TOKEN}'
                 
-                echo 'Checking downloaded file...'
-                ls -l /tmp/deploy/
-                
-                if [ -f /tmp/deploy/app.jar ]; then
+                if [ -f /tmp/deploy/vueseum.jar ]; then
                   echo 'JAR file downloaded successfully'
-                  
                   # Update backend directory
                   sudo mkdir -p /opt/vueseum/backend
                   sudo rm -rf /opt/vueseum/backend/*
                   
-                  echo 'Moving JAR file to backend directory...'
-                  sudo mv /tmp/deploy/app.jar /opt/vueseum/backend/
+                  # Move files to backend directory
+                  sudo mv /tmp/deploy/vueseum.jar /opt/vueseum/backend/app.jar
                   
                   # Copy Dockerfile
                   sudo cat > /opt/vueseum/backend/Dockerfile << 'EOF'
@@ -145,13 +131,14 @@ jobs:
                   # Run deployment
                   cd /opt/vueseum && sudo ./deploy-containers.sh
                   
-                  # Cleanup
-                  sudo rm -rf /tmp/deploy
+                  # Clean up temp directory
+                  rm -rf /tmp/deploy
+                  echo 'Deployment completed'
                 else
-                  echo 'JAR file not found after download'
+                  echo 'JAR file not found in /tmp/deploy'
+                  ls -la /tmp/deploy
                   exit 1
-                fi
-                "
+                fi"
 
             # Cleanup: Delete temporary container
             az storage container delete \
