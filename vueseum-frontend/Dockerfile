@@ -1,36 +1,46 @@
-# Build and development stage
-FROM node:20-slim AS base
-
+# Build stage
+FROM node:20-slim AS builder
 WORKDIR /app
 
-# First copy just the lock files to leverage caching
-COPY package-lock.json package.json ./
-
-# Now install dependencies
+# Copy package files
+COPY package*.json ./
 RUN npm ci
-
-# Install TypeScript and its dependencies explicitly
-RUN npm install -D typescript @tsconfig/svelte @types/node
-
-# Set development or production setup
-FROM base AS final
-WORKDIR /app
 
 # Copy source code
 COPY . .
 
-# Set default to production, can be overridden in compose
-ENV NODE_ENV=production
-ENV PORT=3000
+# Build application
+RUN npm run build
 
-# Expose ports
-EXPOSE 3000
-EXPOSE 24678
+# Final stage with Nginx
+FROM nginx:stable-alpine
+WORKDIR /app
 
-# Set up entrypoint
+# Install Node.js in final stage (needed for adapter-node)
+RUN apk add --update nodejs npm
+
+# Copy built application
+COPY --from=builder /app/build /app
+COPY --from=builder /app/package*.json /app/
+
+# Install production dependencies
+RUN npm ci --production
+
+# Copy Nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Create directory for SSL certificates
+RUN mkdir -p /etc/letsencrypt/live/vueseum.io \
+    && mkdir -p /etc/letsencrypt/archive/vueseum.io
+
+# Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Expose ports
+EXPOSE 80 443
+
 ENTRYPOINT ["docker-entrypoint.sh"]
 
-# Default to production start
-CMD ["node", "build"]
+# Start both Nginx and Node.js application
+CMD ["sh", "-c", "nginx && node build"]
