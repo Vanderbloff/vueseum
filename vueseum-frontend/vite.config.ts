@@ -9,17 +9,20 @@ export default defineConfig({
 		include: ['src/**/*.{test,spec}.{js,ts}']
 	},
 	server: {
-		// Development proxy configuration
 		proxy: {
-			'/api': {
+			'/api/v1': {
 				target: 'http://localhost:3001',
 				changeOrigin: true,
-				rewrite: (path) => path.replace(/^\/api/, '')
 			}
 		},
-		// Production settings
+		host: '0.0.0.0',
 		port: 3000,
 		strictPort: true,
+		hmr: {
+			host: 'localhost',
+			port: 24678,
+			protocol: 'ws'
+		}
 	},
 	build: {
 		target: 'esnext',
