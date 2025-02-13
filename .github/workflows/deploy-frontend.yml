@@ -35,8 +35,18 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Debug step to verify build output
+      - name: Verify build output
+        run: |
+          echo "Checking build directory contents:"
+          ls -la build/
+          
       - name: Create deployment archive
-        run: tar -czf frontend-deploy.tar.gz build/ package*.json svelte.config.js Dockerfile docker-entrypoint.sh nginx.conf
+        run: |
+          echo "Creating deployment archive..."
+          tar -czf frontend-deploy.tar.gz build/ package*.json svelte.config.js Dockerfile docker-entrypoint.sh nginx.conf
+          echo "Checking archive contents:"
+          tar -tvf frontend-deploy.tar.gz
       
       - name: Azure Login
         uses: azure/login@v1
@@ -47,28 +57,98 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Convert the tar.gz to base64 for transfer
-            DEPLOY_PACKAGE=$(base64 -w 0 ./vueseum-frontend/frontend-deploy.tar.gz)
+            # Debug: Show current location and structure
+            pwd
+            ls -la
             
+            # Verify archive exists
+            if [ ! -f ./vueseum-frontend/frontend-deploy.tar.gz ]; then
+              echo "Deployment archive not found"
+              exit 1
+            fi
+            echo "Found deployment archive"
+
+            # Create storage account if it doesn't exist
+            az storage account create \
+              --name vueseumdeploy \
+              --resource-group vueseum-prod-rg \
+              --sku Standard_LRS \
+              --kind StorageV2 \
+              2>/dev/null || true
+
+            # Create temporary container with timestamp
+            CONTAINER_NAME="frontend-deploy-$(date +%s)"
+            az storage container create \
+              --account-name vueseumdeploy \
+              --name $CONTAINER_NAME \
+              --auth-mode login
+
+            # Upload archive
+            az storage blob upload \
+              --account-name vueseumdeploy \
+              --container-name $CONTAINER_NAME \
+              --name frontend-deploy.tar.gz \
+              --file ./vueseum-frontend/frontend-deploy.tar.gz \
+              --auth-mode login
+
+            # Generate SAS token
+            END_TIME=$(date -u -d "30 minutes" '+%Y-%m-%dT%H:%MZ')
+            BLOB_URL=$(az storage blob url \
+              --account-name vueseumdeploy \
+              --container-name $CONTAINER_NAME \
+              --name frontend-deploy.tar.gz \
+              --output tsv)
+            SAS_TOKEN=$(az storage blob generate-sas \
+              --account-name vueseumdeploy \
+              --container-name $CONTAINER_NAME \
+              --name frontend-deploy.tar.gz \
+              --permissions r \
+              --expiry $END_TIME \
+              --auth-mode login \
+              --as-user \
+              --output tsv)
+
+            # Deploy to VM
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
-                # Clean old files and create directory
-                sudo rm -rf /opt/vueseum/frontend/*
-                sudo mkdir -p /opt/vueseum/frontend
+                # Create temp directory for deployment
+                sudo mkdir -p /tmp/deploy
                 
-                # Decode and extract the deployment package
-                echo '$DEPLOY_PACKAGE' | base64 -d | sudo tee /opt/vueseum/frontend/frontend-deploy.tar.gz >/dev/null
-                cd /opt/vueseum/frontend && sudo tar xzf frontend-deploy.tar.gz
-                sudo rm frontend-deploy.tar.gz
+                # Download archive using curl and SAS token
+                echo 'Downloading deployment archive...'
+                sudo curl -o /tmp/deploy/frontend-deploy.tar.gz '${BLOB_URL}?${SAS_TOKEN}'
                 
-                # Set permissions
-                sudo chown -R vueseum:vueseum /opt/vueseum/frontend
-                sudo chmod -R 755 /opt/vueseum/frontend
-                sudo chmod +x /opt/vueseum/frontend/docker-entrypoint.sh
+                if [ -f /tmp/deploy/frontend-deploy.tar.gz ]; then
+                  echo 'Deployment archive downloaded successfully'
+                  
+                  # Update frontend directory
+                  sudo mkdir -p /opt/vueseum/frontend
+                  sudo rm -rf /opt/vueseum/frontend/*
+                  
+                  # Extract archive
+                  cd /opt/vueseum/frontend
+                  sudo tar xzf /tmp/deploy/frontend-deploy.tar.gz
+                  
+                  # Set permissions
+                  sudo chown -R vueseum:vueseum /opt/vueseum/frontend
+                  sudo chmod -R 755 /opt/vueseum/frontend
+                  sudo chmod +x /opt/vueseum/frontend/docker-entrypoint.sh
+                  
+                  # Run deployment
+                  cd /opt/vueseum && sudo ./deploy-containers.sh
+                  
+                  # Cleanup
+                  sudo rm -rf /tmp/deploy
+                else
+                  echo 'Deployment archive not found after download'
+                  exit 1
+                fi"
 
-                # Run deployment script
-                cd /opt/vueseum && sudo ./deploy-containers.sh
-                "
+            # Cleanup: Delete temporary container
+            az storage container delete \
+              --account-name vueseumdeploy \
+              --name $CONTAINER_NAME \
+              --auth-mode login
