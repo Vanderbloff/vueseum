@@ -49,81 +49,28 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Create storage account if it doesn't exist
-            az storage account create \
-              --name vueseumdeploy \
-              --resource-group vueseum-prod-rg \
-              --sku Standard_LRS \
-              --kind StorageV2 \
-              2>/dev/null || true
-
-            # Create temporary container
-            CONTAINER_NAME="deploy-$(date +%s)"
-            az storage container create \
-              --account-name vueseumdeploy \
-              --name $CONTAINER_NAME \
-              --auth-mode login
-
-            # Upload the pre-created archive
-            az storage blob upload \
-              --account-name vueseumdeploy \
-              --container-name $CONTAINER_NAME \
-              --name build.tar.gz \
-              --file "${{ github.workspace }}/vueseum-frontend/build.tar.gz" \
-              --auth-mode login
-
-            # Generate SAS token for the blob
-            END_TIME=$(date -u -d "30 minutes" '+%Y-%m-%dT%H:%MZ')
-            SAS_TOKEN=$(az storage blob generate-sas \
-              --account-name vueseumdeploy \
-              --container-name $CONTAINER_NAME \
-              --name build.tar.gz \
-              --permissions r \
-              --expiry $END_TIME \
-              --auth-mode login \
-              --as-user \
-              --output tsv)
-
-            # Get blob URL
-            BLOB_URL=$(az storage blob url \
-              --account-name vueseumdeploy \
-              --container-name $CONTAINER_NAME \
-              --name build.tar.gz \
-              --output tsv)
-
-            # Deploy on VM
+            # Copy Dockerfile and docker-compose.yml to VM
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
-                # Ensure curl is installed
-                command -v curl >/dev/null 2>&1 || { apt-get update && apt-get install -y curl; }
-
-                # Create temp directory
-                mkdir -p /tmp/deploy
-                cd /tmp/deploy
+                # Create directories if they don't exist
+                mkdir -p /opt/vueseum/frontend
                 
-                # Download and extract build
-                curl -o build.tar.gz '${BLOB_URL}?${SAS_TOKEN}'
-                tar -xzf build.tar.gz
+                # Copy Dockerfile from repo
+                cat > /opt/vueseum/frontend/Dockerfile << 'EOF'
+                $(cat ${{ github.workspace }}/vueseum-frontend/Dockerfile)
+                EOF
                 
-                if [ -d /tmp/deploy ]; then
-                  # Run deployment script
-                  cd /opt/vueseum && ./deploy-frontend.sh /tmp/deploy
-                  
-                  # Cleanup
-                  rm -rf /tmp/deploy
-                  
-                  # Verify service
-                  systemctl is-active vueseum-frontend.service || echo 'Service check failed'
-                else
-                  echo 'Build files not found'
-                  exit 1
-                fi"
-
-            # Cleanup: Delete temporary container
-            az storage container delete \
-              --account-name vueseumdeploy \
-              --name $CONTAINER_NAME \
-              --auth-mode login
+                # Copy docker-compose if it doesn't exist
+                if [ ! -f /opt/vueseum/docker-compose.prod.yml ]; then
+                  cat > /opt/vueseum/docker-compose.prod.yml << 'EOF'
+                  $(cat ${{ github.workspace }}/docker-compose.prod.yml)
+                  EOF
+                fi
+                
+                # Build and deploy using docker-compose
+                cd /opt/vueseum
+                docker-compose -f docker-compose.prod.yml up -d --build frontend
+                "
