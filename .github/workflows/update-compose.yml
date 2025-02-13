@@ -29,10 +29,14 @@ jobs:
               --command-id RunShellScript \
               --scripts "
                 # Update compose file
-                cat > /opt/vueseum/docker-compose.prod.yml << 'EOF'
+                sudo cat > /opt/vueseum/docker-compose.prod.yml << 'EOF'
                 $(cat ${{ github.workspace }}/docker-compose.prod.yml)
                 EOF
 
+                # Set permissions with sudo
+                sudo chown vueseum:vueseum /opt/vueseum/docker-compose.prod.yml
+                sudo chmod 644 /opt/vueseum/docker-compose.prod.yml
+
                 # Run deployment script
-                cd /opt/vueseum && ./deploy-containers.sh
+                cd /opt/vueseum && sudo ./deploy-containers.sh
                 "
