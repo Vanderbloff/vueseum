@@ -12,7 +12,7 @@
       "medium": "Oil on canvas",
       "classification": "Paintings",
       "culture": "Dutch",
-      "imageUrl": "/api/placeholder/400/300",
+      "imageUrl": "/api/v1//placeholder/400/300",
       "description": "A night scene showing a Dutch village with a prominent church spire outlined against a night sky.",
       "country": "Netherlands",
       "region": "North Holland",
@@ -37,7 +37,7 @@
       "medium": "Oil on poplar panel",
       "classification": "Paintings",
       "culture": "Italian",
-      "imageUrl": "/api/placeholder/400/301",
+      "imageUrl": "/api/v1/placeholder/400/301",
       "description": "A portrait of a woman with a mysterious smile, featuring a backdrop of an imaginary landscape.",
       "country": "Italy",
       "region": "Tuscany",
@@ -62,7 +62,7 @@
       "medium": "Oil on canvas",
       "classification": "Paintings",
       "culture": "Spanish",
-      "imageUrl": "/api/placeholder/400/302",
+      "imageUrl": "/api/v1/placeholder/400/302",
       "description": "A surreal landscape featuring melting clocks draped over various objects.",
       "country": "Spain",
       "region": "Catalonia",
@@ -87,7 +87,7 @@
       "medium": "Oil and gold leaf on canvas",
       "classification": "Watercolor",
       "culture": "Austrian",
-      "imageUrl": "/api/placeholder/400/303",
+      "imageUrl": "/api/v1/placeholder/400/303",
       "description": "A couple embracing, wrapped in elaborate gold and floral patterns.",
       "country": "Austria",
       "region": "Vienna Region",
@@ -112,7 +112,7 @@
       "medium": "Oil on canvas",
       "classification": "Acrylic",
       "culture": "Dutch",
-      "imageUrl": "/api/placeholder/400/304",
+      "imageUrl": "/api/v1/placeholder/400/304",
       "description": "A portrait of a young girl wearing a blue and yellow turban with a pearl earring.",
       "country": "Netherlands",
       "region": "North Holland",
@@ -126,6 +126,13 @@
       "tags": ["Baroque", "Portrait", "Dutch Golden Age"]
     }
   ],
+  "filter-options": {
+    "classifications": ["Paintings", "Watercolor", "Acrylic"],
+    "cultures": ["Dutch", "Italian", "Spanish", "Austrian"],
+    "mediums": ["Oil on canvas", "Oil on poplar panel", "Oil and gold leaf on canvas"],
+    "countries": ["Netherlands", "Italy", "Spain", "Austria"],
+    "regions": ["North Holland", "Tuscany", "Catalonia", "Vienna Region"]
+  },
   "tours": [
     {
       "id": 1,
