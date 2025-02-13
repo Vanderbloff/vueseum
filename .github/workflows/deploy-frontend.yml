@@ -35,10 +35,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Create Build Archive
-        run: |
-          cd build
-          tar -czf ../build.tar.gz .
+      - name: Create deployment archive
+        run: tar -czf frontend-deploy.tar.gz build/ package*.json svelte.config.js Dockerfile docker-entrypoint.sh nginx.conf
       
       - name: Azure Login
         uses: azure/login@v1
@@ -49,33 +47,27 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
+            # Convert the tar.gz to base64 for transfer
+            DEPLOY_PACKAGE=$(base64 -w 0 ./vueseum-frontend/frontend-deploy.tar.gz)
+            
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
-                # Create directory and copy Dockerfile with sudo
+                # Clean old files and create directory
+                sudo rm -rf /opt/vueseum/frontend/*
                 sudo mkdir -p /opt/vueseum/frontend
-                sudo cat > /opt/vueseum/frontend/Dockerfile << 'EOF'
-                $(cat ${{ github.workspace }}/vueseum-frontend/Dockerfile)
-                EOF
-
-                # Copy compose file if it doesn't exist
-                if [ ! -f /opt/vueseum/docker-compose.prod.yml ]; then
-                  sudo cat > /opt/vueseum/docker-compose.prod.yml << 'EOF'
-                  $(cat ${{ github.workspace }}/docker-compose.prod.yml)
-                  EOF
-                fi
-
-                # Set permissions with sudo
-                sudo chown -R vueseum:vueseum /opt/vueseum/frontend
-                sudo chmod 755 /opt/vueseum/frontend
-                sudo chmod 644 /opt/vueseum/frontend/Dockerfile
                 
-                if [ ! -f /opt/vueseum/docker-compose.prod.yml ]; then
-                  sudo chown vueseum:vueseum /opt/vueseum/docker-compose.prod.yml
-                  sudo chmod 644 /opt/vueseum/docker-compose.prod.yml
-                fi
+                # Decode and extract the deployment package
+                echo '$DEPLOY_PACKAGE' | base64 -d | sudo tee /opt/vueseum/frontend/frontend-deploy.tar.gz >/dev/null
+                cd /opt/vueseum/frontend && sudo tar xzf frontend-deploy.tar.gz
+                sudo rm frontend-deploy.tar.gz
+                
+                # Set permissions
+                sudo chown -R vueseum:vueseum /opt/vueseum/frontend
+                sudo chmod -R 755 /opt/vueseum/frontend
+                sudo chmod +x /opt/vueseum/frontend/docker-entrypoint.sh
 
                 # Run deployment script
                 cd /opt/vueseum && sudo ./deploy-containers.sh
