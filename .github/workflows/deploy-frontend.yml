@@ -49,28 +49,24 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Copy Dockerfile and docker-compose.yml to VM
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
-                # Create directories if they don't exist
+                # Create directory and copy Dockerfile
                 mkdir -p /opt/vueseum/frontend
-                
-                # Copy Dockerfile from repo
                 cat > /opt/vueseum/frontend/Dockerfile << 'EOF'
                 $(cat ${{ github.workspace }}/vueseum-frontend/Dockerfile)
                 EOF
-                
-                # Copy docker-compose if it doesn't exist
+
+                # Copy compose file if it doesn't exist
                 if [ ! -f /opt/vueseum/docker-compose.prod.yml ]; then
                   cat > /opt/vueseum/docker-compose.prod.yml << 'EOF'
                   $(cat ${{ github.workspace }}/docker-compose.prod.yml)
                   EOF
                 fi
-                
-                # Build and deploy using docker-compose
-                cd /opt/vueseum
-                docker-compose -f docker-compose.prod.yml up -d --build frontend
+
+                # Run deployment script
+                cd /opt/vueseum && ./deploy-containers.sh
                 "
