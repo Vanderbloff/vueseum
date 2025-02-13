@@ -132,9 +132,7 @@ jobs:
                   echo 'Moving JAR file to backend directory...'
                   sudo mv /tmp/deploy/app.jar /opt/vueseum/backend/
                   
-                  echo 'Verifying backend directory contents...'
-                  ls -l /opt/vueseum/backend/
-                  
+                  # Copy Dockerfile
                   sudo cat > /opt/vueseum/backend/Dockerfile << 'EOF'
                   $(cat ${{ github.workspace }}/vueseum/Dockerfile)
                   EOF
@@ -152,7 +150,8 @@ jobs:
                 else
                   echo 'JAR file not found after download'
                   exit 1
-                fi"
+                fi
+                "
 
             # Cleanup: Delete temporary container
             az storage container delete \
