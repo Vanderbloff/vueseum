@@ -42,8 +42,12 @@ jobs:
         with:
           inlineScript: |
             # Debug: Show current location and structure
+            echo "Current directory:"
             pwd
+            echo "Directory contents:"
             ls -la
+            echo "Target directory contents:"
+            ls -la ${{ github.workspace }}/vueseum/target/
             
             # Find the JAR file
             JAR_FILE=$(find ${{ github.workspace }}/vueseum/target -name "*.jar" -type f)
@@ -53,7 +57,7 @@ jobs:
               exit 1
             fi
             echo "Found JAR file: $JAR_FILE"
-
+            
             # Create storage account if it doesn't exist
             az storage account create \
               --name vueseumdeploy \
@@ -75,6 +79,14 @@ jobs:
               --container-name $CONTAINER_NAME \
               --name app.jar \
               --file "$JAR_FILE" \
+              --auth-mode login
+      
+            # Verify upload
+            echo "Verifying blob upload..."
+            az storage blob show \
+              --account-name vueseumdeploy \
+              --container-name $CONTAINER_NAME \
+              --name app.jar \
               --auth-mode login
 
             # Generate SAS token
@@ -103,16 +115,26 @@ jobs:
                 # Create temp directory for deployment
                 sudo mkdir -p /tmp/deploy
                 
+                echo 'Downloading JAR file...'
                 # Download JAR using curl and SAS token
-                sudo curl -o /tmp/deploy/app.jar '${BLOB_URL}?${SAS_TOKEN}'
+                sudo curl -v -o /tmp/deploy/app.jar '${BLOB_URL}?${SAS_TOKEN}'
+                
+                echo 'Checking downloaded file...'
+                ls -l /tmp/deploy/
                 
                 if [ -f /tmp/deploy/app.jar ]; then
+                  echo 'JAR file downloaded successfully'
+                  
                   # Update backend directory
                   sudo mkdir -p /opt/vueseum/backend
                   sudo rm -rf /opt/vueseum/backend/*
                   
-                  # Copy files
+                  echo 'Moving JAR file to backend directory...'
                   sudo mv /tmp/deploy/app.jar /opt/vueseum/backend/
+                  
+                  echo 'Verifying backend directory contents...'
+                  ls -l /opt/vueseum/backend/
+                  
                   sudo cat > /opt/vueseum/backend/Dockerfile << 'EOF'
                   $(cat ${{ github.workspace }}/vueseum/Dockerfile)
                   EOF
