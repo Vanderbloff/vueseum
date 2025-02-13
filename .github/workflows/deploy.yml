@@ -31,7 +31,7 @@ jobs:
       
       - name: Build with Maven
         run: mvn -B package --file pom.xml
-
+      
       - name: Azure Login
         uses: azure/login@v1
         with:
@@ -41,31 +41,99 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Create base64 of just the JAR file
-            DEPLOY_PACKAGE=$(base64 -w 0 ./vueseum/target/*.jar)
+            # Debug: Show current location and structure
+            pwd
+            ls -la
             
+            # Find the JAR file
+            JAR_FILE=$(find ${{ github.workspace }}/vueseum/target -name "*.jar" -type f)
+            if [ -z "$JAR_FILE" ]; then
+              echo "No JAR file found in target directory"
+              ls -la ./target
+              exit 1
+            fi
+            echo "Found JAR file: $JAR_FILE"
+
+            # Create storage account if it doesn't exist
+            az storage account create \
+              --name vueseumdeploy \
+              --resource-group vueseum-prod-rg \
+              --sku Standard_LRS \
+              --kind StorageV2 \
+              2>/dev/null || true
+
+            # Create temporary container with timestamp
+            CONTAINER_NAME="deploy-$(date +%s)"
+            az storage container create \
+              --account-name vueseumdeploy \
+              --name $CONTAINER_NAME \
+              --auth-mode login
+
+            # Upload JAR
+            az storage blob upload \
+              --account-name vueseumdeploy \
+              --container-name $CONTAINER_NAME \
+              --name app.jar \
+              --file "$JAR_FILE" \
+              --auth-mode login
+
+            # Generate SAS token
+            END_TIME=$(date -u -d "30 minutes" '+%Y-%m-%dT%H:%MZ')
+            BLOB_URL=$(az storage blob url \
+              --account-name vueseumdeploy \
+              --container-name $CONTAINER_NAME \
+              --name app.jar \
+              --output tsv)
+            SAS_TOKEN=$(az storage blob generate-sas \
+              --account-name vueseumdeploy \
+              --container-name $CONTAINER_NAME \
+              --name app.jar \
+              --permissions r \
+              --expiry $END_TIME \
+              --auth-mode login \
+              --as-user \
+              --output tsv)
+
+            # Deploy to VM
             az vm run-command invoke \
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
-                # Clean and prepare directory
-                sudo rm -rf /opt/vueseum/backend/*
-                sudo mkdir -p /opt/vueseum/backend
+                # Create temp directory for deployment
+                sudo mkdir -p /tmp/deploy
                 
-                # Copy Dockerfile
-                sudo cat > /opt/vueseum/backend/Dockerfile << 'EOF'
-                $(cat ${{ github.workspace }}/vueseum/Dockerfile)
-                EOF
+                # Download JAR using curl and SAS token
+                sudo curl -o /tmp/deploy/app.jar '${BLOB_URL}?${SAS_TOKEN}'
                 
-                # Decode and save the JAR
-                echo '$DEPLOY_PACKAGE' | base64 -d | sudo tee /opt/vueseum/backend/app.jar >/dev/null
-                
-                # Set permissions
-                sudo chown -R vueseum:vueseum /opt/vueseum/backend
-                sudo chmod -R 755 /opt/vueseum/backend
-                sudo chmod 644 /opt/vueseum/backend/app.jar
+                if [ -f /tmp/deploy/app.jar ]; then
+                  # Update backend directory
+                  sudo mkdir -p /opt/vueseum/backend
+                  sudo rm -rf /opt/vueseum/backend/*
+                  
+                  # Copy files
+                  sudo mv /tmp/deploy/app.jar /opt/vueseum/backend/
+                  sudo cat > /opt/vueseum/backend/Dockerfile << 'EOF'
+                  $(cat ${{ github.workspace }}/vueseum/Dockerfile)
+                  EOF
+                  
+                  # Set permissions
+                  sudo chown -R vueseum:vueseum /opt/vueseum/backend
+                  sudo chmod 644 /opt/vueseum/backend/app.jar
+                  sudo chmod 755 /opt/vueseum/backend
+                  
+                  # Run deployment
+                  cd /opt/vueseum && sudo ./deploy-containers.sh
+                  
+                  # Cleanup
+                  sudo rm -rf /tmp/deploy
+                else
+                  echo 'JAR file not found after download'
+                  exit 1
+                fi"
 
-                # Run deployment script
-                cd /opt/vueseum && sudo ./deploy-containers.sh
-                "
+            # Cleanup: Delete temporary container
+            az storage container delete \
+              --account-name vueseumdeploy \
+              --name $CONTAINER_NAME \
+              --auth-mode login
