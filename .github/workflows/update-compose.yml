@@ -20,7 +20,18 @@ jobs:
         with:
           creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
       
-      - name: Update Compose File and Deploy
+      - name: Copy Compose File to VM
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            # Create temporary file with compose content
+            az vm run-command invoke \
+              --resource-group vueseum-prod-rg \
+              --name vueseum-app-prod \
+              --command-id RunShellScript \
+              --scripts "echo '$(cat ${{ github.workspace }}/docker-compose.prod.yml)' > /opt/vueseum/docker-compose.prod.yml"
+
+      - name: Set Permissions and Deploy
         uses: azure/CLI@v1
         with:
           inlineScript: |
@@ -28,13 +39,8 @@ jobs:
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
-              --scripts '
-                cat > /opt/vueseum/docker-compose.prod.yml << "COMPOSE_EOF"
-                '"$(cat ${{ github.workspace }}/docker-compose.prod.yml)"'
-                COMPOSE_EOF
-
+              --scripts "
                 chown vueseum:vueseum /opt/vueseum/docker-compose.prod.yml
                 chmod 644 /opt/vueseum/docker-compose.prod.yml
-
                 cd /opt/vueseum && ./deploy-containers.sh
-              '
+              "
