@@ -4,18 +4,18 @@ services:
       context: /opt/vueseum/frontend
       dockerfile: /opt/vueseum/frontend/Dockerfile
     ports:
-      - "80:80"
+      - "80:3000"
       - "443:443"
     volumes:
       - /var/log/vueseum/frontend:/var/log/vueseum
-      - /etc/letsencrypt/live/vueseum.io:/etc/letsencrypt/live/vueseum.io:ro
-      - /etc/letsencrypt/archive/vueseum.io:/etc/letsencrypt/archive/vueseum.io:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     environment:
       - NODE_ENV=production
       - ORIGIN=https://vueseum.io
+      - PORT=3000
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
