@@ -2,16 +2,17 @@
 FROM node:20-slim AS builder
 WORKDIR /app
 
+# Debug: Show build context
+RUN pwd
+RUN ls -la /app
+
 # Copy package files
 COPY package*.json ./
-RUN npm ci
+RUN ls -la /app  # Show what got copied
 
 # Copy source code
 COPY . .
-
-# Debug: Let's see what files are present
-RUN ls -la
-RUN ls -la src/
+RUN ls -la /app  # Show everything that got copied
 
 # Build application
 RUN npm run build --verbose
