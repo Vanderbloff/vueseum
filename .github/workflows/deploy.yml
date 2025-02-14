@@ -68,7 +68,7 @@ jobs:
               --account-name vueseumdeploy \
               --container-name $CONTAINER_NAME \
               --name backend-deploy.tar.gz \
-              --file backend-deploy.tar.gz \
+              --file ${{ github.workspace }}/vueseum/backend-deploy.tar.gz \
               --auth-mode login
 
             # Generate SAS token
