@@ -106,9 +106,10 @@ jobs:
                   sudo tar xzf /tmp/deploy/backend-deploy.tar.gz
                   
                   sudo chown -R vueseum:vueseum /opt/vueseum/backend
-                  sudo chmod 644 /opt/vueseum/backend/app.jar
-                  sudo chmod 644 /opt/vueseum/backend/Dockerfile
-                  sudo chmod 755 /opt/vueseum/backend
+                  sudo find /opt/vueseum/backend -type f -exec chmod 644 {} \;
+                  sudo find /opt/vueseum/backend -type d -exec chmod 755 {} \;
+                  sudo chmod 755 /opt/vueseum/backend/mvnw
+                  sudo chmod 755 /opt/vueseum/backend/app.jar
                   
                   cd /opt/vueseum && sudo ./deploy-containers.sh
                   rm -rf /tmp/deploy
