@@ -7,6 +7,12 @@ const config = {
 
 	kit: {
 		adapter: adapter(),
+		server: {
+			https: {
+				cert: '/etc/letsencrypt/live/vueseum.io/fullchain.pem',
+				key: '/etc/letsencrypt/live/vueseum.io/privkey.pem'
+			}
+		}
 	}
 };
 
