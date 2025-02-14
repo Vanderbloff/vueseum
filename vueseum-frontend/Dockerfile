@@ -9,8 +9,12 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Debug: Let's see what files are present
+RUN ls -la
+RUN ls -la src/
+
 # Build application
-RUN npm run build
+RUN npm run build --verbose
 
 # Final stage with Nginx
 FROM nginx:stable-alpine
@@ -43,5 +47,5 @@ EXPOSE 80 443
 ENTRYPOINT ["docker-entrypoint.sh"]
 
 # Start both Nginx and Node.js application
-# CMD ["sh", "-c", "nginx && node build"]
-CMD ["sh", "-c", "nginx & exec node build"]
+CMD ["sh", "-c", "nginx && node build"]
+# CMD ["sh", "-c", "nginx & exec node build"]
