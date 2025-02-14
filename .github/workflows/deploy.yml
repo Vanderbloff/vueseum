@@ -35,7 +35,10 @@ jobs:
       - name: Create deployment archive
         run: |
           mkdir -p deploy-tmp
-          cp target/*.jar deploy-tmp/app.jar
+          cp -r src deploy-tmp/
+          cp pom.xml deploy-tmp/
+          cp -r .mvn deploy-tmp/
+          cp mvnw deploy-tmp/
           cp Dockerfile deploy-tmp/
           tar -czf backend-deploy.tar.gz -C deploy-tmp .
       
