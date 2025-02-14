@@ -43,4 +43,5 @@ EXPOSE 80 443
 ENTRYPOINT ["docker-entrypoint.sh"]
 
 # Start both Nginx and Node.js application
-CMD ["sh", "-c", "nginx && node build"]
+# CMD ["sh", "-c", "nginx && node build"]
+CMD ["sh", "-c", "nginx & exec node build"]

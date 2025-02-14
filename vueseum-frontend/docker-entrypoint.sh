@@ -6,6 +6,6 @@ if [ "$NODE_ENV" = "development" ]; then
     exec npm run dev -- --host 0.0.0.0
 else
     echo "Starting in production mode..."
-    npm run build
+    # npm run build
     exec "$@"
 fi
