@@ -134,8 +134,12 @@ jobs:
                   
                   # Set permissions
                   sudo chown -R vueseum:vueseum /opt/vueseum/frontend
-                  sudo chmod -R 755 /opt/vueseum/frontend
-                  sudo chmod +x /opt/vueseum/frontend/docker-entrypoint.sh
+                  sudo chmod 644 /opt/vueseum/frontend/Dockerfile
+                  sudo chmod 644 /opt/vueseum/frontend/package*.json
+                  sudo chmod 644 /opt/vueseum/frontend/svelte.config.js
+                  sudo chmod 644 /opt/vueseum/frontend/nginx.conf
+                  sudo chmod 755 /opt/vueseum/frontend/docker-entrypoint.sh
+                  sudo chmod -R 755 /opt/vueseum/frontend/build
                   
                   # Run deployment
                   cd /opt/vueseum && sudo ./deploy-containers.sh
