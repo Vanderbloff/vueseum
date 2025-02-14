@@ -31,6 +31,13 @@ jobs:
       
       - name: Build with Maven
         run: mvn -B package --file pom.xml
+        
+      - name: Create deployment archive
+        run: |
+          mkdir -p deploy-tmp
+          cp target/*.jar deploy-tmp/app.jar
+          cp Dockerfile deploy-tmp/
+          tar -czf backend-deploy.tar.gz -C deploy-tmp .
       
       - name: Azure Login
         uses: azure/login@v1
@@ -41,13 +48,6 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Create deployment archive with JAR and Dockerfile
-            JAR_FILE=$(find ${{ github.workspace }}/vueseum/target -name "*.jar" -type f)
-            mkdir -p deploy-tmp
-            cp "$JAR_FILE" deploy-tmp/app.jar
-            cp ${{ github.workspace }}/vueseum/Dockerfile deploy-tmp/
-            tar -czf backend-deploy.tar.gz -C deploy-tmp .
-
             # Create storage account if it doesn't exist
             az storage account create \
               --name vueseumdeploy \
@@ -116,6 +116,3 @@ jobs:
               --account-name vueseumdeploy \
               --name $CONTAINER_NAME \
               --auth-mode login
-
-            # Remove temporary local files
-            rm -rf deploy-tmp backend-deploy.tar.gz
