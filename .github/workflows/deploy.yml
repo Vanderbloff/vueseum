@@ -41,19 +41,9 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Debug: Show current location and structure
-            pwd
-            ls -la
-            
             # Find the JAR file
             JAR_FILE=$(find ${{ github.workspace }}/vueseum/target -name "*.jar" -type f)
-            if [ -z "$JAR_FILE" ]; then
-              echo "No JAR file found in target directory"
-              ls -la ./target  # Debug: show contents of target directory
-              exit 1
-            fi
-            echo "Found JAR file: $JAR_FILE"
-
+            
             # Create storage account if it doesn't exist
             az storage account create \
               --name vueseumdeploy \
@@ -70,7 +60,6 @@ jobs:
               --auth-mode login
 
             # Upload JAR
-            echo "Uploading JAR to blob storage..."
             az storage blob upload \
               --account-name vueseumdeploy \
               --container-name $CONTAINER_NAME \
@@ -78,7 +67,7 @@ jobs:
               --file "$JAR_FILE" \
               --auth-mode login
 
-            # Generate SAS token for the specific blob
+            # Generate SAS token
             END_TIME=$(date -u -d "30 minutes" '+%Y-%m-%dT%H:%MZ')
             BLOB_URL=$(az storage blob url \
               --account-name vueseumdeploy \
@@ -101,52 +90,31 @@ jobs:
               --name vueseum-app-prod \
               --command-id RunShellScript \
               --scripts "
-                set -x  # Enable command tracing
-                
-                # Create temp directory for deployment
                 sudo mkdir -p /tmp/deploy
-                echo '[Deploy] Created temp directory'
-                ls -la /tmp/deploy
-                
-                # Download JAR using curl and SAS token
-                echo '[Deploy] Attempting to download JAR file...'
-                sudo curl -v -o /tmp/deploy/vueseum.jar '${BLOB_URL}?${SAS_TOKEN}'
-                
-                echo '[Deploy] Checking downloaded file'
-                ls -la /tmp/deploy
+                sudo curl -o /tmp/deploy/vueseum.jar '${BLOB_URL}?${SAS_TOKEN}'
                 
                 if [ -f /tmp/deploy/vueseum.jar ]; then
-                  echo '[Deploy] JAR file downloaded successfully'
-                  
-                  echo '[Deploy] Current backend directory contents:'
-                  ls -la /opt/vueseum/backend/
-                  
-                  # Update backend directory
                   sudo mkdir -p /opt/vueseum/backend
-                  sudo rm -rf /opt/vueseum/backend/*
+                  sudo mv /tmp/deploy/vueseum.jar /opt/vueseum/backend/app.jar
                   
-                  echo '[Deploy] Moving JAR file...'
-                  sudo mv -v /tmp/deploy/vueseum.jar /opt/vueseum/backend/app.jar
+                  # Create Dockerfile
+                  sudo tee /opt/vueseum/backend/Dockerfile << 'EOF'
+                  FROM eclipse-temurin:21-jre
                   
-                  echo '[Deploy] Setting permissions...'
+                  WORKDIR /app
+                  COPY app.jar .
+                  
+                  EXPOSE 8080
+                  CMD [\"java\", \"-jar\", \"app.jar\"]
+                  EOF
+                  
                   sudo chown -R vueseum:vueseum /opt/vueseum/backend
                   sudo chmod 644 /opt/vueseum/backend/app.jar
+                  sudo chmod 644 /opt/vueseum/backend/Dockerfile
                   sudo chmod 755 /opt/vueseum/backend
                   
-                  echo '[Deploy] Final backend directory contents:'
-                  ls -la /opt/vueseum/backend/
-                  
-                  # Run deployment
                   cd /opt/vueseum && sudo ./deploy-containers.sh
-                  
-                  # Clean up temp directory
                   rm -rf /tmp/deploy
-                  echo '[Deploy] Deployment completed'
-                else
-                  echo '[Deploy] ERROR: JAR file not found in /tmp/deploy'
-                  ls -la /tmp/deploy
-                  find /tmp/deploy -type f -exec file {} \;
-                  exit 1
                 fi"
 
             # Cleanup: Delete temporary container
