@@ -44,7 +44,7 @@ jobs:
       - name: Create deployment archive
         run: |
           echo "Creating deployment archive..."
-          tar -czf frontend-deploy.tar.gz build/ package*.json svelte.config.js Dockerfile docker-entrypoint.sh nginx.conf
+          tar -czf frontend-deploy.tar.gz build/ package*.json svelte.config.js Dockerfile
           echo "Checking archive contents:"
           tar -tvf frontend-deploy.tar.gz
       
@@ -137,8 +137,6 @@ jobs:
                   sudo chmod 644 /opt/vueseum/frontend/Dockerfile
                   sudo chmod 644 /opt/vueseum/frontend/package*.json
                   sudo chmod 644 /opt/vueseum/frontend/svelte.config.js
-                  sudo chmod 644 /opt/vueseum/frontend/nginx.conf
-                  sudo chmod 755 /opt/vueseum/frontend/docker-entrypoint.sh
                   sudo chmod -R 755 /opt/vueseum/frontend/build
                   
                   # Run deployment
