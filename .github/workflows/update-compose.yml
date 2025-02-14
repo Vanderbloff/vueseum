@@ -28,16 +28,13 @@ jobs:
               --resource-group vueseum-prod-rg \
               --name vueseum-app-prod \
               --command-id RunShellScript \
-              --scripts "
-                # Update compose file
-                sudo cat > /opt/vueseum/docker-compose.prod.yml << 'EOF'
-                $(cat ${{ github.workspace }}/docker-compose.prod.yml)
-                EOF
+              --scripts '
+                cat > /opt/vueseum/docker-compose.prod.yml << "COMPOSE_EOF"
+                '"$(cat ${{ github.workspace }}/docker-compose.prod.yml)"'
+                COMPOSE_EOF
 
-                # Set permissions with sudo
-                sudo chown vueseum:vueseum /opt/vueseum/docker-compose.prod.yml
-                sudo chmod 644 /opt/vueseum/docker-compose.prod.yml
+                chown vueseum:vueseum /opt/vueseum/docker-compose.prod.yml
+                chmod 644 /opt/vueseum/docker-compose.prod.yml
 
-                # Run deployment script
-                cd /opt/vueseum && sudo ./deploy-containers.sh
-                "
+                cd /opt/vueseum && ./deploy-containers.sh
+              '
