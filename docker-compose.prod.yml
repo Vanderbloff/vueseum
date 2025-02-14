@@ -3,12 +3,8 @@ services:
     build: 
       context: /opt/vueseum/frontend
       dockerfile: /opt/vueseum/frontend/Dockerfile
-    ports:
-      - "80:3000"
-      - "443:443"
-    volumes:
-      - /var/log/vueseum/frontend:/var/log/vueseum
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+    expose:
+      - "3000"
     environment:
       - NODE_ENV=production
       - ORIGIN=https://vueseum.io
@@ -21,6 +17,20 @@ services:
       retries: 3
     depends_on:
       - backend
+    networks:
+      - vueseum-network
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - frontend
     networks:
       - vueseum-network
 
