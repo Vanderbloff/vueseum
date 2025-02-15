@@ -22,7 +22,7 @@ export class BaseApiClient {
 		path: string,
 		options: RequestInit = {}
 	): Promise<T> {
-		const fullUrl = `${API_BASE_URL}${this.basePath}${path}`;
+		const fullUrl = `${API_BASE_URL}/api${this.basePath}${path}`;
 		console.log('Attempting to fetch:', fullUrl);
 
 		try {
