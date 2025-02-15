@@ -57,6 +57,7 @@ services:
 
 networks:
   vueseum-network:
+    name: vueseum-network
     driver: bridge
 
 volumes:
