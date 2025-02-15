@@ -40,11 +40,13 @@ jobs:
         run: |
           echo "Checking build directory contents:"
           ls -la build/
-          
+
       - name: Create deployment archive
         run: |
           echo "Creating deployment archive..."
-          tar -czf frontend-deploy.tar.gz build/ package*.json svelte.config.js vite.config.ts node_modules
+          tar -czf frontend-deploy.tar.gz build/ package*.json svelte.config.js Dockerfile vite.config.ts node_modules
+          echo "Checking archive contents:"
+          tar -tvf frontend-deploy.tar.gz
       
       - name: Azure Login
         uses: azure/login@v1
