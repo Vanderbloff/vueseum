@@ -51,7 +51,7 @@ jobs:
             svelte.config.js \
             vite.config.ts \
             tsconfig.json \
-            tailwind.config.js \
+            tailwind.config.ts \
             postcss.config.js \
             Dockerfile
       
