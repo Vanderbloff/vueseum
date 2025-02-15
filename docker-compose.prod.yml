@@ -42,6 +42,7 @@ services:
       - "8080:8080"
     volumes:
       - /var/log/vueseum/backend:/var/log/vueseum
+    user: "1000:1000"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
     restart: unless-stopped
