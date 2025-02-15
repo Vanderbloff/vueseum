@@ -28,8 +28,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
+      - /etc/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
       - frontend
     networks:
