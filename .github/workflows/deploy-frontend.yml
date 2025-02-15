@@ -44,9 +44,16 @@ jobs:
       - name: Create deployment archive
         run: |
           echo "Creating deployment archive..."
-          tar -czf frontend-deploy.tar.gz build/ package*.json svelte.config.js Dockerfile
-          echo "Checking archive contents:"
-          tar -tvf frontend-deploy.tar.gz
+          tar -czf frontend-deploy.tar.gz \
+            src/ \
+            build/ \
+            package*.json \
+            svelte.config.js \
+            vite.config.ts \
+            tsconfig.json \
+            tailwind.config.js \
+            postcss.config.js \
+            Dockerfile
       
       - name: Azure Login
         uses: azure/login@v1
