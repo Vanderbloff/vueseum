@@ -2,35 +2,34 @@
 FROM node:20-slim AS builder
 WORKDIR /app
 
-# Copy package files first
+# Copy package files
 COPY package*.json ./
-RUN npm ci --verbose
+RUN npm ci
 
-# Copy the entire project
+# Copy source code
 COPY . .
 
-# Ensure the src directory structure is correct
-RUN echo "Verifying source structure:" && \
-    ls -la src && \
-    ls -la src/routes
-
-# Build with specific environment setup
-ENV NODE_ENV="production"
-ENV VITE_BUILD_DEBUG="true"
-RUN npm run build --verbose
+# Build application
+RUN npm run build
 
 # Production stage
 FROM node:20-slim
 WORKDIR /app
 
-# Copy the built application
+# Copy built application and package files
 COPY --from=builder /app/build ./build
-COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package*.json ./
 
-# Install production dependencies
-RUN npm ci --production --verbose
+# Create SSL directory and copy certificates
+RUN mkdir -p /etc/letsencrypt
+COPY --from=builder /etc/letsencrypt/live/vueseum.io /etc/letsencrypt/live/vueseum.io
+COPY --from=builder /etc/letsencrypt/archive/vueseum.io /etc/letsencrypt/archive/vueseum.io
 
-EXPOSE 3000
+# Install only production dependencies
+RUN npm ci --production
+
+# Expose ports
+EXPOSE 80 443
 
 # Start the application
 CMD ["node", "build"]
