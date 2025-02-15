@@ -28,11 +28,6 @@ vite.config.ts.timestamp-*
 .vite/
 dist/
 
-# Tailwind CSS
-tailwind.config.js
-tailwind.config.cjs
-tailwind.config.ts
-
 # TypeScript build artifacts
 *.d.ts
 *.d.ts.map
