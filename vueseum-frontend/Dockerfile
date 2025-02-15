@@ -11,5 +11,5 @@ RUN npm ci --production
 # Expose port
 EXPOSE 3000
 
-# Start the application
-CMD ["node", "build"]
+# Start the application (modified to be more explicit)
+CMD ["node", "build/index.js"]
