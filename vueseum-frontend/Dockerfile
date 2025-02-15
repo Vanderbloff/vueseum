@@ -4,13 +4,24 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-RUN npm ci
+
+# Install dependencies with verbose logging
+RUN npm ci --verbose
 
 # Copy source code
 COPY . .
 
-# Build application
-RUN npm run build
+# Add verbose logging for build process
+ENV NODE_OPTIONS="--trace-warnings --trace-deprecation"
+ENV NPM_CONFIG_LOGLEVEL="verbose"
+ENV VITE_LOG_LEVEL="debug"
+
+# Add specific build configurations
+ENV NODE_ENV="production"
+ENV VITE_BUILD_DEBUG="true"
+
+# Run build with detailed logging
+RUN set -x && npm run build --verbose
 
 # Production stage
 FROM node:20-slim
@@ -20,16 +31,12 @@ WORKDIR /app
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/package*.json ./
 
-# Create SSL directory and copy certificates
-RUN mkdir -p /etc/letsencrypt
-COPY --from=builder /etc/letsencrypt/live/vueseum.io /etc/letsencrypt/live/vueseum.io
-COPY --from=builder /etc/letsencrypt/archive/vueseum.io /etc/letsencrypt/archive/vueseum.io
+# Install only production dependencies with logging
+RUN npm ci --production --verbose
 
-# Install only production dependencies
-RUN npm ci --production
+# Expose port
+EXPOSE 3000
 
-# Expose ports
-EXPOSE 80 443
-
-# Start the application
+# Start with trace logging enabled
+ENV NODE_OPTIONS="--trace-warnings"
 CMD ["node", "build"]
