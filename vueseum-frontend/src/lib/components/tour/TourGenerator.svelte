@@ -88,8 +88,7 @@
 
 	const canGenerateTour = $derived(state.generatedToursToday < 3);
 	const museums = [
-		{ id: 1, name: "Metropolitan Museum of Art" },
-		{ id: 2, name: "Louvre Museum" }
+		{ id: 1, name: "Metropolitan Museum of Art" }
 	];
 
 	function handleMuseumSelect(value: string) {
