@@ -6,8 +6,9 @@ CREATE SEQUENCE id_sequence
     NO MAXVALUE
     CACHE 1;
 
--- Create base_entity table with proper audit fields
-CREATE TABLE base_entity (
+-- Create museums table
+CREATE TABLE museums (
+    -- Base entity fields
     id BIGINT PRIMARY KEY DEFAULT nextval('id_sequence'),
     version BIGINT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -15,12 +16,8 @@ CREATE TABLE base_entity (
     created_by VARCHAR(255),
     last_modified_by VARCHAR(255),
     is_deleted BOOLEAN NOT NULL DEFAULT false,
-    deleted_at TIMESTAMP
-);
-
--- Create museums table
-CREATE TABLE museums (
-    id BIGINT PRIMARY KEY REFERENCES base_entity(id),
+    deleted_at TIMESTAMP,
+    -- Museum-specific fields
     name VARCHAR(255) NOT NULL,
     location VARCHAR(255) NOT NULL,
     website_url VARCHAR(255),
@@ -31,7 +28,16 @@ CREATE TABLE museums (
 
 -- Create artists table
 CREATE TABLE artists (
-    id BIGINT PRIMARY KEY REFERENCES base_entity(id),
+    -- Base entity fields
+    id BIGINT PRIMARY KEY DEFAULT nextval('id_sequence'),
+    version BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255),
+    last_modified_by VARCHAR(255),
+    is_deleted BOOLEAN NOT NULL DEFAULT false,
+    deleted_at TIMESTAMP,
+    -- Artist-specific fields
     artist_name VARCHAR(255) NOT NULL,
     nationality VARCHAR(100),
     birth_date VARCHAR(4),
@@ -49,7 +55,16 @@ CREATE TABLE artists (
 
 -- Create artworks table
 CREATE TABLE artworks (
-    id BIGINT PRIMARY KEY REFERENCES base_entity(id),
+    -- Base entity fields
+    id BIGINT PRIMARY KEY DEFAULT nextval('id_sequence'),
+    version BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255),
+    last_modified_by VARCHAR(255),
+    is_deleted BOOLEAN NOT NULL DEFAULT false,
+    deleted_at TIMESTAMP,
+    -- Artwork-specific fields
     title VARCHAR(255) NOT NULL,
     external_id VARCHAR(100) NOT NULL,
     artist_id BIGINT REFERENCES artists(id),
@@ -78,20 +93,38 @@ CREATE TABLE artworks (
 
 -- Create tours table
 CREATE TABLE tours (
-    id BIGINT PRIMARY KEY REFERENCES base_entity(id),
+    -- Base entity fields
+    id BIGINT PRIMARY KEY DEFAULT nextval('id_sequence'),
+    version BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255),
+    last_modified_by VARCHAR(255),
+    is_deleted BOOLEAN NOT NULL DEFAULT false,
+    deleted_at TIMESTAMP,
+    -- Tour-specific fields
     device_fingerprint VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
     metadata JSONB DEFAULT '{}',
     museum_id BIGINT NOT NULL REFERENCES museums(id),
     generation_prompt TEXT,
-    tour_theme VARCHAR(50)
+    tour_theme VARCHAR(50),
     last_validated TIMESTAMP
 );
 
 -- Create tour_stops table
 CREATE TABLE tour_stops (
-    id BIGINT PRIMARY KEY REFERENCES base_entity(id),
+    -- Base entity fields
+    id BIGINT PRIMARY KEY DEFAULT nextval('id_sequence'),
+    version BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255),
+    last_modified_by VARCHAR(255),
+    is_deleted BOOLEAN NOT NULL DEFAULT false,
+    deleted_at TIMESTAMP,
+    -- Tour stop-specific fields
     tour_id BIGINT NOT NULL REFERENCES tours(id),
     artwork_id BIGINT NOT NULL REFERENCES artworks(id),
     sequence_number INTEGER NOT NULL,
@@ -114,8 +147,12 @@ CREATE INDEX idx_artwork_culture_country ON artworks(culture, country);
 CREATE INDEX idx_artwork_geography ON artworks(country, region, sub_region);
 CREATE INDEX idx_tour_device_fingerprint ON tours(device_fingerprint);
 
--- Add indices for soft delete queries
-CREATE INDEX idx_base_entity_deleted ON base_entity(is_deleted);
+-- Create indices for soft delete queries
+CREATE INDEX idx_museums_deleted ON museums(is_deleted);
+CREATE INDEX idx_artists_deleted ON artists(is_deleted);
+CREATE INDEX idx_artworks_deleted ON artworks(is_deleted);
+CREATE INDEX idx_tours_deleted ON tours(is_deleted);
+CREATE INDEX idx_tour_stops_deleted ON tour_stops(is_deleted);
 
 -- Create trigger function for updating the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -126,9 +163,29 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Create trigger for base_entity
-CREATE TRIGGER update_base_entity_updated_at
-    BEFORE UPDATE ON base_entity
+-- Create triggers for each table
+CREATE TRIGGER update_museums_updated_at
+    BEFORE UPDATE ON museums
+    FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_artists_updated_at
+    BEFORE UPDATE ON artists
+    FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_artworks_updated_at
+    BEFORE UPDATE ON artworks
+    FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_tours_updated_at
+    BEFORE UPDATE ON tours
+    FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_tour_stops_updated_at
+    BEFORE UPDATE ON tour_stops
     FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
 
@@ -142,9 +199,33 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Create trigger for soft delete
-CREATE TRIGGER soft_delete_trigger
-    BEFORE UPDATE OF is_deleted ON base_entity
+-- Create soft delete triggers for each table
+CREATE TRIGGER museums_soft_delete_trigger
+    BEFORE UPDATE OF is_deleted ON museums
+    FOR EACH ROW
+    WHEN (OLD.is_deleted = false AND NEW.is_deleted = true)
+EXECUTE FUNCTION soft_delete();
+
+CREATE TRIGGER artists_soft_delete_trigger
+    BEFORE UPDATE OF is_deleted ON artists
+    FOR EACH ROW
+    WHEN (OLD.is_deleted = false AND NEW.is_deleted = true)
+EXECUTE FUNCTION soft_delete();
+
+CREATE TRIGGER artworks_soft_delete_trigger
+    BEFORE UPDATE OF is_deleted ON artworks
+    FOR EACH ROW
+    WHEN (OLD.is_deleted = false AND NEW.is_deleted = true)
+EXECUTE FUNCTION soft_delete();
+
+CREATE TRIGGER tours_soft_delete_trigger
+    BEFORE UPDATE OF is_deleted ON tours
+    FOR EACH ROW
+    WHEN (OLD.is_deleted = false AND NEW.is_deleted = true)
+EXECUTE FUNCTION soft_delete();
+
+CREATE TRIGGER tour_stops_soft_delete_trigger
+    BEFORE UPDATE OF is_deleted ON tour_stops
     FOR EACH ROW
     WHEN (OLD.is_deleted = false AND NEW.is_deleted = true)
 EXECUTE FUNCTION soft_delete();
