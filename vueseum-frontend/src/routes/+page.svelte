@@ -21,6 +21,7 @@
 	import GridSkeleton from '$lib/components/shared/GridSkeleton.svelte';
 	import { artworkApi } from '$lib/api/artwork';
 	import { updateUrlParams } from '$lib/utils/urlParams';
+	import { debounce } from '$lib/utils/debounce';
 
 	let { data } = $props();
 
@@ -56,7 +57,8 @@
 			options: false,
 			results: false,
 			initialLoad: true
-		}
+		},
+		pendingRequests: new Set<string>()
 	});
 
 	async function handleSearch(filters: typeof state.currentFilters.filters) {
@@ -95,26 +97,41 @@
 		}
 	}
 
-	// Add new function to handle filter option loading
 	async function loadFilterOptions(criteria: {
 		objectType?: string[];
 		country?: string[];
 		region?: string[];
 	} = {}) {
+		// Create a request identifier
+		const requestId = JSON.stringify(criteria);
+
+		// Skips if this exact request is already in flight
+		if (state.pendingRequests.has(requestId)) {
+			return;
+		}
+
 		try {
+			state.pendingRequests.add(requestId);
 			state.loading.options = true;
+
 			const options = await artworkApi.getFilterOptions({
 				artworkType: criteria.objectType?.[0],
 				country: criteria.country?.[0],
 				region: criteria.region?.[0]
 			});
 
-			// Update filter options based on the response
+			// Update only the relevant filter options
 			state.filterOptions = {
 				...state.filterOptions,
-				...options
+				...(criteria.objectType ? { materials: options.materials } : {}),
+				...(criteria.country ? { regions: options.regions } : {}),
+				...(criteria.region ? { cultures: options.cultures } : {}),
+				// Always update base options if no criteria
+				...(!Object.keys(criteria).length ? {
+					objectType: options.objectType,
+					countries: options.countries
+				} : {})
 			};
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		} catch (error) {
 			state.error = {
 				type: 'load',
@@ -123,9 +140,11 @@
 			};
 		} finally {
 			state.loading.options = false;
+			state.pendingRequests.delete(requestId);
 		}
 	}
 
+	const debouncedLoadFilterOptions = debounce(loadFilterOptions, 300);
 	type Filters = typeof state.currentFilters.filters;
 
 	// Update the handler for filter changes
@@ -136,18 +155,32 @@
 		state.currentFilters.filters[key] = value;
 
 		// Load dependent options based on the changed filter
-		if (key === 'objectType') {
-			// Load materials for selected object type
-			loadFilterOptions({ objectType: value as string[] });
-		} else if (key === 'country') {
-			// Load regions for selected country
-			loadFilterOptions({ country: value as string[] });
-		} else if (key === 'region') {
-			// Load cultures for selected region and country
-			loadFilterOptions({
-				country: state.currentFilters.filters.country,
-				region: value as string[]
-			});
+		switch(key) {
+			case 'objectType':
+				if (value && (value as string[]).length > 0) {
+					debouncedLoadFilterOptions({ objectType: value as string[] });
+				}
+				break;
+			case 'country':
+				if (value && (value as string[]).length > 0) {
+					debouncedLoadFilterOptions({ country: value as string[] });
+				} else {
+					// Reset dependent filters when country is cleared
+					state.currentFilters.filters.region = [];
+					state.currentFilters.filters.culture = [];
+				}
+				break;
+			case 'region':
+				if (value && (value as string[]).length > 0) {
+					debouncedLoadFilterOptions({
+						country: state.currentFilters.filters.country,
+						region: value as string[]
+					});
+				} else {
+					// Reset dependent filters when region is cleared
+					state.currentFilters.filters.culture = [];
+				}
+				break;
 		}
 
 		// Trigger search with updated filters
@@ -288,50 +321,30 @@
 			state.currentPage = Number(pageParam);
 		}
 
-		// Create an async initialization function
 		const initializeFilters = async () => {
 			state.loading.initialLoad = true;
-			// Track which options we've already loaded to prevent duplicate calls
-			const loadedOptions = new Set<string>();
-
-			// Helper function to load filter options if not already loaded
-			const loadOptionsIfNeeded = async (criteria: {
-				objectType?: string[];
-				country?: string[];
-				region?: string[];
-			}) => {
-				// Create a key to track this specific load operation
-				const key = JSON.stringify(criteria);
-				if (!loadedOptions.has(key)) {
-					loadedOptions.add(key);
-					state.loading.options = true;
-					try {
-						await loadFilterOptions(criteria);
-					} finally {
-						state.loading.options = false;
-					}
-				}
-			};
-
 			try {
+				// Load initial base options
+				await loadFilterOptions();
+
 				const filters = state.currentFilters.filters;
-				// Load dependent filters in order
+				const loadPromises: Promise<void>[] = [];
+
 				if (filters.objectType.length > 0) {
-					await loadOptionsIfNeeded({ objectType: filters.objectType });
+					loadPromises.push(loadFilterOptions({
+						objectType: filters.objectType
+					}));
 				}
 
 				if (filters.country.length > 0) {
-					await loadOptionsIfNeeded({ country: filters.country });
-
-					if (filters.region.length > 0) {
-						await loadOptionsIfNeeded({
-							country: filters.country,
-							region: filters.region
-						});
-					}
+					loadPromises.push(loadFilterOptions({
+						country: filters.country,
+						...(filters.region.length > 0 ? { region: filters.region } : {})
+					}));
 				}
 
-				// After loading all filter options, perform the search
+				await Promise.all(loadPromises);
+
 				state.loading.results = true;
 				await handleSearch(filters);
 				state.isInitialized = true;
@@ -348,7 +361,6 @@
 			}
 		};
 
-		// Start initialization
 		initializeFilters();
 	});
 
