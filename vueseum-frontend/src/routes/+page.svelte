@@ -259,14 +259,6 @@
 		(data?.tours?.content?.length ?? 0) > 0
 	);
 
-	// Initial filter options loading
-	// Ensures filter dropdowns are populated with available options
-	$effect(() => {
-		if (!state.filterOptions.objectType.length && !state.loading.options) {
-			loadFilterOptions();
-		}
-	});
-
 	// URL synchronization - maintains URL state as filters change
 	// Enables bookmarking and sharing of search results
 	$effect(() => {
