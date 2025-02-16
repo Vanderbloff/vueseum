@@ -71,10 +71,9 @@
 			.some(([key]) => filterParams.includes(key));
 	}
 
-	async function handleSearch(filters: typeof state.currentFilters.filters) {
+	const debouncedSearch = debounce(async (filters: typeof state.currentFilters.filters) => {
 		state.artworksLoading = true;
 		state.error = null;
-		state.currentPage = 1;
 
 		try {
 			const results = await artworkApi.searchArtworks(
@@ -105,6 +104,10 @@
 		} finally {
 			state.artworksLoading = false;
 		}
+	}, 300);
+
+	async function handleSearch(filters: typeof state.currentFilters.filters) {
+		debouncedSearch(filters);
 	}
 
 	async function loadFilterOptions(criteria: {
