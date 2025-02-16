@@ -312,56 +312,60 @@
 		if (data.initialTab !== 'artworks') return;
 		if (state.isInitialized) return;
 
-		// Initialize state from URL
 		const url = new URL(window.location.href);
+		const hasFilters = Array.from(url.searchParams.entries()).length > 0;
 
-		// Set initial page
+		// Set initial page if it exists
 		const pageParam = url.searchParams.get('page');
 		if (pageParam) {
 			state.currentPage = Number(pageParam);
 		}
 
-		const initializeFilters = async () => {
-			state.loading.initialLoad = true;
-			try {
-				// Load initial base options
-				await loadFilterOptions();
+		// Only initialize filters if we have URL parameters (bookmarked/shared URL)
+		if (hasFilters) {
+			const initializeFilters = async () => {
+				state.loading.initialLoad = true;
+				try {
+					// Load initial base options
+					await loadFilterOptions();
 
-				const filters = state.currentFilters.filters;
-				const loadPromises: Promise<void>[] = [];
+					const filters = state.currentFilters.filters;
+					const loadPromises: Promise<void>[] = [];
 
-				if (filters.objectType.length > 0) {
-					loadPromises.push(loadFilterOptions({
-						objectType: filters.objectType
-					}));
+					if (filters.objectType.length > 0) {
+						loadPromises.push(loadFilterOptions({
+							objectType: filters.objectType
+						}));
+					}
+
+					if (filters.country.length > 0) {
+						loadPromises.push(loadFilterOptions({
+							country: filters.country,
+							...(filters.region.length > 0 ? { region: filters.region } : {})
+						}));
+					}
+
+					await Promise.all(loadPromises);
+
+					state.loading.results = true;
+					await handleSearch(filters);
+				} catch (error) {
+					console.error('Error loading initial filters:', error);
+					state.error = {
+						type: 'load',
+						message: 'Failed to load initial filter options',
+						retryFn: () => initializeFilters()
+					};
+				} finally {
+					state.loading.initialLoad = false;
+					state.loading.results = false;
 				}
+			};
 
-				if (filters.country.length > 0) {
-					loadPromises.push(loadFilterOptions({
-						country: filters.country,
-						...(filters.region.length > 0 ? { region: filters.region } : {})
-					}));
-				}
+			initializeFilters();
+		}
 
-				await Promise.all(loadPromises);
-
-				state.loading.results = true;
-				await handleSearch(filters);
-				state.isInitialized = true;
-			} catch (error) {
-				console.error('Error loading initial filters:', error);
-				state.error = {
-					type: 'load',
-					message: 'Failed to load initial filter options',
-					retryFn: () => initializeFilters()
-				};
-			} finally {
-				state.loading.initialLoad = false;
-				state.loading.results = false;
-			}
-		};
-
-		initializeFilters();
+		state.isInitialized = true;
 	});
 
 	// Responsive layout management
