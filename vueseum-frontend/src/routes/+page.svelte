@@ -56,10 +56,20 @@
 		loading: {
 			options: false,
 			results: false,
-			initialLoad: true
+			initialLoad: hasUrlParameters()
 		},
 		pendingRequests: new Set<string>()
 	});
+
+	function hasUrlParameters() {
+		if (typeof window === 'undefined') return false;
+		const url = new URL(window.location.href);
+		// Only count filter-related parameters, not tab or page parameters
+		const filterParams = ['q', 'searchField', 'objectType', 'medium', 'country',
+			'region', 'culture', 'period', 'sortBy', 'sortDirection'];
+		return Array.from(url.searchParams.entries())
+			.some(([key]) => filterParams.includes(key));
+	}
 
 	async function handleSearch(filters: typeof state.currentFilters.filters) {
 		state.artworksLoading = true;
