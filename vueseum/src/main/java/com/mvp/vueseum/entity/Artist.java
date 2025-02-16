@@ -1,6 +1,6 @@
 package com.mvp.vueseum.entity;
 
-import com.mvp.vueseum.entity.base.baseEntity;
+import com.mvp.vueseum.entity.base.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Pattern;
@@ -22,7 +22,7 @@ import java.util.Set;
 @NoArgsConstructor
 @Entity
 @Table(name = "artists")
-public class Artist extends baseEntity {
+public class Artist extends BaseEntity {
 
     @Column(name = "artist_name", nullable = false)
     private String artistName;

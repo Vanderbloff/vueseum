@@ -1,6 +1,6 @@
 package com.mvp.vueseum.entity;
 
-import com.mvp.vueseum.entity.base.baseEntity;
+import com.mvp.vueseum.entity.base.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,7 +15,7 @@ import lombok.Setter;
         })
 @Getter
 @Setter
-public class TourStop extends baseEntity {
+public class TourStop extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tour_id", nullable = false)

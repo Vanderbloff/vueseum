@@ -1,6 +1,6 @@
 package com.mvp.vueseum.entity;
 
-import com.mvp.vueseum.entity.base.baseEntity;
+import com.mvp.vueseum.entity.base.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -22,7 +22,7 @@ import java.util.Set;
 @Table(name = "artworks",
         uniqueConstraints = {@UniqueConstraint(name = "external_id_unique", columnNames = {"external_id", "museum_id"})
     })
-public class Artwork extends baseEntity {
+public class Artwork extends BaseEntity {
 
     private static final Set<String> UNCERTAINTY_PREFIXES = Set.of(
             "Attributed to", "Workshop of", "Circle of",

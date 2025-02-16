@@ -1,6 +1,6 @@
 package com.mvp.vueseum.entity;
 
-import com.mvp.vueseum.entity.base.baseEntity;
+import com.mvp.vueseum.entity.base.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,7 +18,7 @@ import java.util.Set;
 @NoArgsConstructor
 @Entity
 @Table(name = "museums")
-public class Museum extends baseEntity {
+public class Museum extends BaseEntity {
 
     @Column(nullable = false)
     private String name;

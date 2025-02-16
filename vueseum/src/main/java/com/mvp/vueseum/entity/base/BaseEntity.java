@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
-public abstract class baseEntity {
+public abstract class BaseEntity {
     @Id
     @SequenceGenerator(name = "id_sequence", sequenceName = "id_sequence")
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "id_sequence")

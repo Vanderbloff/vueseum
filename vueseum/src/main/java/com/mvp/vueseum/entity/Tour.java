@@ -1,6 +1,6 @@
 package com.mvp.vueseum.entity;
 
-import com.mvp.vueseum.entity.base.baseEntity;
+import com.mvp.vueseum.entity.base.BaseEntity;
 import com.mvp.vueseum.exception.AiProviderException;
 import com.mvp.vueseum.service.DescriptionGenerationService;
 import jakarta.persistence.*;
@@ -22,7 +22,7 @@ import java.util.*;
 @Slf4j
 @Table(name = "tours",
         indexes = @Index(name = "idx_device_fingerprint", columnList = "device_fingerprint"))
-public class Tour extends baseEntity {
+public class Tour extends BaseEntity {
 
     @Column(name = "device_fingerprint", nullable = false)
     private String deviceFingerprint;
