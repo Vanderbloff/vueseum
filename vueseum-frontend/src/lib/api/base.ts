@@ -28,8 +28,10 @@ export class BaseApiClient {
 		try {
 			const response = await fetch(fullUrl, {
 				...options,
+				credentials: 'include',
 				headers: {
 					'Content-Type': 'application/json',
+					...this.getAuthHeaders(),
 					...options.headers,
 				},
 			});
@@ -48,5 +50,22 @@ export class BaseApiClient {
 			console.error(`API Error: ${fullUrl}`, error);
 			throw error;
 		}
+	}
+
+	private getAuthHeaders(): HeadersInit {
+		if (this.basePath.includes('/admin')) {
+			const username = import.meta.env.VITE_ADMIN_USERNAME;
+			const password = import.meta.env.VITE_ADMIN_PASSWORD;
+
+			if (!username || !password) {
+				console.error('Admin credentials not configured');
+				return {};
+			}
+
+			return {
+				'Authorization': `Basic ${btoa(`${username}:${password}`)}`
+			};
+		}
+		return {};
 	}
 }
