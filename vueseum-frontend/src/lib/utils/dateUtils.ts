@@ -84,18 +84,23 @@ export class DateUtils {
 	}
 
 	static isYearInPeriod(year: number, periodStr: string): boolean {
-		if (periodStr.includes('B.C.')) {
-			const numbers = periodStr.split('-')
-				.map(p => parseInt(p.replace(/[^0-9]/g, '')));
-			return year <= -numbers[1] && year >= -numbers[0];
-		}
+		// Add logging to debug
+		console.log('Checking year:', year, 'against period:', periodStr);
 
-		const yearRange = periodStr
+		const [start, end] = periodStr
 			.replace('A.D. ', '')
+			.replace('B.C.', '')
 			.split('-')
+			.map(p => p.trim())
 			.map(p => p === 'present' ? new Date().getFullYear() : parseInt(p));
 
-		return year >= yearRange[0] && year <= yearRange[1];
+		console.log('Parsed range:', start, 'to', end);
+
+		if (periodStr.includes('B.C.')) {
+			return year <= -start && year >= -end;
+		}
+
+		return year >= start && year <= end;
 	}
 
 	static formatDate(dateString: string | null): string {
