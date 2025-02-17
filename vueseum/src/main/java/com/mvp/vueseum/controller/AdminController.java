@@ -4,7 +4,6 @@ import com.mvp.vueseum.event.SyncOperation;
 import com.mvp.vueseum.service.SyncManagementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
