@@ -318,7 +318,6 @@
 		if (state.isInitialized) return;
 
 		const url = new URL(window.location.href);
-		const hasFilters = Array.from(url.searchParams.entries()).length > 0;
 
 		// Set initial page if it exists
 		const pageParam = url.searchParams.get('page');
@@ -326,49 +325,46 @@
 			state.currentPage = Number(pageParam);
 		}
 
-		// Only initialize filters if we have URL parameters (bookmarked/shared URL)
-		if (hasFilters) {
-			const initializeFilters = async () => {
-				state.loading.initialLoad = true;
-				try {
-					// Load initial base options
-					await loadFilterOptions();
+		const initializeFilters = async () => {
+			state.loading.initialLoad = true;
+			try {
+				// Load initial base options
+				await loadFilterOptions();
 
-					const filters = state.currentFilters.filters;
-					const loadPromises: Promise<void>[] = [];
+				const filters = state.currentFilters.filters;
+				const loadPromises: Promise<void>[] = [];
 
-					if (filters.objectType.length > 0) {
-						loadPromises.push(loadFilterOptions({
-							objectType: filters.objectType
-						}));
-					}
-
-					if (filters.country.length > 0) {
-						loadPromises.push(loadFilterOptions({
-							country: filters.country,
-							...(filters.region.length > 0 ? { region: filters.region } : {})
-						}));
-					}
-
-					await Promise.all(loadPromises);
-
-					state.loading.results = true;
-					await handleSearch(filters);
-				} catch (error) {
-					console.error('Error loading initial filters:', error);
-					state.error = {
-						type: 'load',
-						message: 'Failed to load initial filter options',
-						retryFn: () => initializeFilters()
-					};
-				} finally {
-					state.loading.initialLoad = false;
-					state.loading.results = false;
+				if (filters.objectType.length > 0) {
+					loadPromises.push(loadFilterOptions({
+						objectType: filters.objectType
+					}));
 				}
-			};
 
-			initializeFilters();
-		}
+				if (filters.country.length > 0) {
+					loadPromises.push(loadFilterOptions({
+						country: filters.country,
+						...(filters.region.length > 0 ? { region: filters.region } : {})
+					}));
+				}
+
+				await Promise.all(loadPromises);
+
+				state.loading.results = true;
+				await handleSearch(filters);
+			} catch (error) {
+				console.error('Error loading initial filters:', error);
+				state.error = {
+					type: 'load',
+					message: 'Failed to load initial filter options',
+					retryFn: () => initializeFilters()
+				};
+			} finally {
+				state.loading.initialLoad = false;
+				state.loading.results = false;
+			}
+		};
+
+		initializeFilters();
 
 		state.isInitialized = true;
 	});
@@ -456,35 +452,37 @@
 						{/each}
 					</div>
 					{#if state.artworksData.totalPages > 1}
-						<div class="flex justify-center mt-6">
-							<Pagination
-								count={state.artworksData?.totalElements ?? 0}
-								perPage={state.pageSize}
-								page={state.currentPage}
-								onPageChange={(newPage) => {handlePageChange(newPage);}}
-							>
-							<PaginationContent>
-								<PaginationItem>
-									<PaginationPrevButton />
-								</PaginationItem>
+						<div class="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t py-4">
+							<div class="container flex justify-center">
+								<Pagination
+									count={state.artworksData?.totalElements ?? 0}
+									perPage={state.pageSize}
+									page={state.currentPage}
+									onPageChange={(newPage) => {handlePageChange(newPage);}}
+								>
+									<PaginationContent>
+										<PaginationItem>
+											<PaginationPrevButton />
+										</PaginationItem>
 
-								{#each Array(state.artworksData.totalPages) as _, i}
-									<PaginationItem>
-										<PaginationLink
-											page={{type: "page", value: i + 1}}
-											onclick={() => handlePageChange(i + 1)}
-											isActive={state.currentPage === i + 1}
-										>
-											{i + 1}
-										</PaginationLink>
-									</PaginationItem>
-								{/each}
+										{#each Array(state.artworksData.totalPages) as _, i}
+											<PaginationItem>
+												<PaginationLink
+													page={{type: "page", value: i + 1}}
+													onclick={() => handlePageChange(i + 1)}
+													isActive={state.currentPage === i + 1}
+												>
+													{i + 1}
+												</PaginationLink>
+											</PaginationItem>
+										{/each}
 
-								<PaginationItem>
-									<PaginationNextButton />
-								</PaginationItem>
-							</PaginationContent>
-							</Pagination>
+										<PaginationItem>
+											<PaginationNextButton />
+										</PaginationItem>
+									</PaginationContent>
+								</Pagination>
+							</div>
 						</div>
 					{/if}
 				{/if}
