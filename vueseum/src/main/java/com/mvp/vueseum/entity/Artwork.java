@@ -83,7 +83,7 @@ public class Artwork extends BaseEntity {
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> additionalMetadata = new HashMap<>();
 
-    @Column(name = "type")
+    @Column(name = "classification")
     private String classification;
 
     // Track processing status
