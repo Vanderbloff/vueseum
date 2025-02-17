@@ -6,29 +6,42 @@ import com.azure.security.keyvault.secrets.SecretClient;
 import com.azure.security.keyvault.secrets.SecretClientBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-class KeyVaultValidator {
+public class KeyVaultValidator {
+    private final Environment environment;
+
+    public KeyVaultValidator(Environment environment) {
+        this.environment = environment;
+    }
+
     @PostConstruct
     void validateKeyVault() {
+        if (isKeyVaultDisabled()) {
+            log.info("Skipping Key Vault validation in development mode.");
+            return;
+        }
+
         try {
-            // Try direct managed identity access, bypassing Spring's configuration
             DefaultAzureCredential credential = new DefaultAzureCredentialBuilder().build();
             SecretClient client = new SecretClientBuilder()
                     .vaultUrl("https://vueseum-kv-prod.vault.azure.net")
                     .credential(credential)
                     .buildClient();
 
-            // Try to get any secret
             log.info("Attempting direct Key Vault access...");
             client.listPropertiesOfSecrets().stream().findFirst().ifPresent(
-                    secretProperties -> log.info("Found secret with name: {}",
-                            secretProperties.getName())
+                    secretProperties -> log.info("Found secret with name: {}", secretProperties.getName())
             );
         } catch (Exception e) {
             log.error("Failed to access Key Vault directly: ", e);
         }
+    }
+
+    private boolean isKeyVaultDisabled() {
+        return environment.matchesProfiles("dev");
     }
 }
