@@ -8,9 +8,7 @@
 	import type { Artwork } from '$lib/types/artwork';
 	import { goto } from '$app/navigation';
 	import {
-		Pagination,
 		PaginationContent,
-		PaginationItem,
 		PaginationLink,
 		PaginationNextButton,
 		PaginationPrevButton
@@ -328,8 +326,16 @@
 		const initializeFilters = async () => {
 			state.loading.initialLoad = true;
 			try {
-				// Load initial base options
-				await loadFilterOptions();
+				// Load ALL base options immediately on initialization
+				const options = await artworkApi.getFilterOptions({});
+
+				state.filterOptions = {
+					objectType: options.objectType.sort(),
+					materials: options.materials.sort(),
+					countries: options.countries.sort(),
+					regions: options.regions,
+					cultures: options.cultures
+				};
 
 				const filters = state.currentFilters.filters;
 				const loadPromises: Promise<void>[] = [];
@@ -452,37 +458,56 @@
 						{/each}
 					</div>
 					{#if state.artworksData.totalPages > 1}
-						<div class="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t py-4">
-							<div class="container flex justify-center">
-								<Pagination
-									count={state.artworksData?.totalElements ?? 0}
-									perPage={state.pageSize}
-									page={state.currentPage}
-									onPageChange={(newPage) => {handlePageChange(newPage);}}
-								>
-									<PaginationContent>
-										<PaginationItem>
-											<PaginationPrevButton />
-										</PaginationItem>
+						<div class="flex justify-center mt-6 pb-8">
+							<nav aria-label="Pagination Navigation" class="inline-flex items-center gap-1">
+								<PaginationContent class="flex items-center gap-1">
+									<PaginationPrevButton />
 
+									{#if state.artworksData.totalPages <= 7}
 										{#each Array(state.artworksData.totalPages) as _, i}
-											<PaginationItem>
+											<PaginationLink
+												page={{type: "page", value: i + 1}}
+												onclick={() => handlePageChange(i + 1)}
+												isActive={state.currentPage === i + 1}
+											/>
+										{/each}
+									{:else}
+										<!-- First page -->
+										<PaginationLink
+											page={{type: "page", value: 1}}
+											isActive={state.currentPage === 1}
+										/>
+
+										<!-- Show ellipsis if needed -->
+										{#if state.currentPage > 3}
+											<span class="px-2">...</span>
+										{/if}
+
+										<!-- Pages around current -->
+										{#each Array(3) as _, i}
+											{#if state.currentPage - 1 + i > 1 && state.currentPage - 1 + i < state.artworksData.totalPages}
 												<PaginationLink
-													page={{type: "page", value: i + 1}}
-													onclick={() => handlePageChange(i + 1)}
-													isActive={state.currentPage === i + 1}
-												>
-													{i + 1}
-												</PaginationLink>
-											</PaginationItem>
+													page={{type: "page", value: state.currentPage - 1 + i}}
+													isActive={state.currentPage === state.currentPage - 1 + i}
+												/>
+											{/if}
 										{/each}
 
-										<PaginationItem>
-											<PaginationNextButton />
-										</PaginationItem>
-									</PaginationContent>
-								</Pagination>
-							</div>
+										<!-- Show ellipsis if needed -->
+										{#if state.currentPage < state.artworksData.totalPages - 2}
+											<span class="px-2">...</span>
+										{/if}
+
+										<!-- Last page -->
+										<PaginationLink
+											page={{type: "page", value: state.artworksData.totalPages}}
+											isActive={state.currentPage === state.artworksData.totalPages}
+										/>
+									{/if}
+
+									<PaginationNextButton />
+								</PaginationContent>
+							</nav>
 						</div>
 					{/if}
 				{/if}
