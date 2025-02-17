@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class StartupCheck {
-    @Value("${spring.datasource.url}")
+    @Value("${spring.datasource.url:not-found}")
     private String dbUrl;
 
     @Value("${spring.datasource.username:not-found}")
