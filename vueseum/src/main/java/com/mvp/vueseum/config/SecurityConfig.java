@@ -146,7 +146,7 @@ public class SecurityConfig {
     @Bean
     public UserDetailsService userDetailsService() {
         UserDetails admin = User.builder()
-                .username("admin")
+                .username(adminProperties.getUsername())
                 .password(passwordEncoder().encode(adminProperties.getPassword()))
                 .roles("ADMIN")
                 .build();
