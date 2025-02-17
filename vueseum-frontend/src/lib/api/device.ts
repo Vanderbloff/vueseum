@@ -12,16 +12,28 @@ export class DeviceFingerprintClient extends BaseApiClient {
 		}
 
 		try {
+			// Get screen resolution
+			const screenResolution = `${window.screen.width}x${window.screen.height}`;
+
+			// Get timezone
+			const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+			// Get language preferences
+			const languages = navigator.languages ?
+				navigator.languages.join(',') :
+				navigator.language || 'en';
+
 			return await this.fetchWithError('/fingerprint', {
 				headers: {
 					'User-Agent': navigator.userAgent,
-					'X-Screen-Resolution': `${window.screen.width}x${window.screen.height}`,
-					'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
-					'Accept-Language': navigator.languages.join(',')
+					'X-Screen-Resolution': screenResolution,
+					'X-Timezone': timezone,
+					'Accept-Language': languages
 				}
 			});
 		} catch (error) {
-			throw new Error('Failed to get device fingerprint');
+			console.error('Device fingerprint error:', error);
+			throw new Error('Failed to get device fingerprint. Please try again.');
 		}
 	}
 }
