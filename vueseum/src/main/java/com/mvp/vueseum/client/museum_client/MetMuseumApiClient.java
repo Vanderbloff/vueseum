@@ -33,7 +33,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @PropertySource("classpath:museum.properties")
 public class MetMuseumApiClient extends BaseMuseumApiClient {
-    private final Museum metMuseum;
+    private final MuseumService museumService;
+    private Museum metMuseum;
 
     @Getter(AccessLevel.NONE)
     private final RateLimiter rateLimiter;
@@ -46,7 +47,7 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
             ArtworkService artworkService
     ) {
         super(retryUtil, environment, baseUrl, artworkService);
-        this.metMuseum = museumService.findOrCreateMuseum("Metropolitan Museum of Art");
+        this.museumService = museumService;
         this.rateLimiter = RateLimiter.create(
                 Integer.parseInt(
                         environment.getProperty("museum.metropolitan.api.rateLimit", "80")
@@ -56,6 +57,9 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
 
     @Override
     public Long getMuseumId() {
+        if (metMuseum == null) {
+            metMuseum = museumService.findOrCreateMuseum("Metropolitan Museum of Art");
+        }
         return metMuseum.getId();
     }
 
