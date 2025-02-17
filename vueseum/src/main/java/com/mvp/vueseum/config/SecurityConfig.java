@@ -52,14 +52,11 @@ public class SecurityConfig {
 
                 // CSRF protection configuration
                 .csrf(csrf -> csrf
-                        // Disable CSRF for public endpoints and GET requests
-                        //  are "safe" methods that don't modify data
                         .ignoringRequestMatchers(
                                 new AntPathRequestMatcher("/api/v1/public/**"),
+                                new AntPathRequestMatcher("/api/v1/admin/**"),
                                 request -> request.getMethod().equals("GET")
                         )
-                        // Store CSRF token in a cookie that frontend can read
-                        // This cookie will be sent with each request
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 )
 
@@ -102,7 +99,7 @@ public class SecurityConfig {
                                 .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
                         )
 
-                        // Permissions Policy (modern implementation)
+                        // Permissions Policy
                         .addHeaderWriter(new StaticHeadersWriter(
                                 "Permissions-Policy",
                                 "geolocation=(), " +
