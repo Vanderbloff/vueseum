@@ -1,4 +1,3 @@
-// src/lib/components/admin/SyncManager.svelte
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
@@ -19,7 +18,7 @@
 			await adminApi.startSync();
 			// Start polling for status
 			state.polling = true;
-			pollStatus();
+			await pollStatus();
 		} catch (error) {
 			state.error = error instanceof Error ?
 				error.message :
