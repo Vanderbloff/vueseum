@@ -48,6 +48,11 @@ export class ArtworkUtils {
 		}
 
 		return artworks.filter((artwork) => {
+			// Has Image filter
+			if (filters.hasImage && (!artwork.imageUrl || artwork.imageUrl.trim() === '')) {
+				return false;
+			}
+
 			// Search term filter
 			if (filters.searchTerm.length > 0) {
 				const matchesTerm = filters.searchTerm.some((term: string) => {
@@ -115,8 +120,6 @@ export class ArtworkUtils {
 					return false;
 				}
 			}
-
-			if (filters.hasImage && !artwork.imageUrl) return false;
 
 			return true;
 		});
