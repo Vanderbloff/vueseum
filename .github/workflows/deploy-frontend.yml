@@ -15,6 +15,7 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: production
     defaults:
       run:
         working-directory: ./vueseum-frontend
@@ -33,6 +34,9 @@ jobs:
         run: npm ci
         
       - name: Build
+        env:
+          VITE_ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+          VITE_ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: npm run build
 
       # Debug step to verify build output
