@@ -8,6 +8,7 @@ import com.mvp.vueseum.repository.ArtworkRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -43,6 +44,7 @@ public class SyncManagementService {
         }
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public void startSync(Long museumId, SyncOperation operation) {
         if (museumId != null) {
             MuseumApiClient client = findClientForMuseum(museumId);
@@ -69,6 +71,7 @@ public class SyncManagementService {
         }
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> getAggregatedStatus() {
         Map<String, Object> status = new HashMap<>();
         status.put("totalDisplayedArtworks", artworkRepository.count());
@@ -81,6 +84,7 @@ public class SyncManagementService {
         return status;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> getSingleMuseumStatus(Long museumId) {
         return getClientStatus(findClientForMuseum(museumId));
     }

@@ -12,7 +12,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
     private final SyncManagementService syncService;
 
