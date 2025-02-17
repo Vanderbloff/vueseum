@@ -209,13 +209,13 @@
 					value={filters.objectType[0]}
 					onValueChange={handleClassificationChange}
 				>
-					<SelectTrigger>
+					<SelectTrigger class="max-w-[300px]">
 						<span class={!filters.objectType[0] ? "text-muted-foreground" : ""}>
-								{filters.objectType[0] || 'Object type'}
-						</span>
+            {filters.objectType[0] || 'Object type'}
+        </span>
 					</SelectTrigger>
 					<SelectContent>
-						{#each filterOptions.objectType || [] as type}
+						{#each (filterOptions.objectType || []).sort() as type}
 							<SelectItem value={type}>{type}</SelectItem>
 						{/each}
 					</SelectContent>
