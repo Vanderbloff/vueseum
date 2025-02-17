@@ -13,7 +13,8 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "admin")
 @Validated
 public class AdminProperties {
+    private String username;
+
     @NotBlank
     private String password;
-
 }
