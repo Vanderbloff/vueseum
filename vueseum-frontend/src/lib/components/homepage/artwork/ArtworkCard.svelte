@@ -37,19 +37,16 @@
 	<CardContent class="p-4 pt-0">
 		<p class="text-sm text-muted-foreground flex items-center gap-1">
 			{#if !artwork.isConfidentAttribution}
-    <span
-			class="text-muted-foreground/70 text-xs"
-			title="Attribution uncertainty"
-			aria-label="Attribution uncertainty indicator"
-		>(?)</span>
+        <span
+					class="text-muted-foreground/70 text-xs"
+					title="Attribution uncertainty"
+					aria-label="Attribution uncertainty indicator"
+				>(?)</span>
 			{/if}
-			{#if artwork.artistPrefix}
-				<span>{artwork.artistPrefix} </span>
-			{/if}
-			{artwork.artist}
-			{#if artwork.artistRole}
-				<span> ({artwork.artistRole})</span>
-			{/if}
+			{artwork.fullAttribution || artwork.artist}
+		</p>
+		<p class="text-sm text-muted-foreground">
+			{artwork.creationDate}
 		</p>
 	</CardContent>
 
