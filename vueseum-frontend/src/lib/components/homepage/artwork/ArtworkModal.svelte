@@ -49,11 +49,11 @@
 		>
 			<!-- Image container -->
 			<div class="relative">
-				<div class="max-h-[50vh] sm:max-h-[60vh] bg-muted overflow-hidden">
+				<div class="max-h-[60vh] bg-muted flex items-center justify-center">
 					<img
 						src={artwork.imageUrl}
 						alt={artwork.title}
-						class="w-full h-full object-contain"
+						class="max-w-full max-h-[60vh] w-auto h-auto object-contain"
 					/>
 				</div>
 			</div>
