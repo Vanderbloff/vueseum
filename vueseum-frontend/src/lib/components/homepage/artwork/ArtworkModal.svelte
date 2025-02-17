@@ -49,7 +49,7 @@
 		>
 			<!-- Image container -->
 			<div class="relative">
-				<div class="max-h-[50vh] sm:max-h-[60vh] bg-muted">
+				<div class="max-h-[50vh] sm:max-h-[60vh] bg-muted overflow-hidden">
 					<img
 						src={artwork.imageUrl}
 						alt={artwork.title}
