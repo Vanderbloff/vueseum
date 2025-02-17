@@ -65,6 +65,7 @@ public class SecurityConfig {
 
                 // Configure which URLs are accessible
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/v1/admin/**").authenticated()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().permitAll()
                 )
