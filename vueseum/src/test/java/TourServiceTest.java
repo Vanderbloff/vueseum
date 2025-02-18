@@ -60,7 +60,6 @@ class TourServiceTest {
     @Mock
     private HttpServletRequest httpRequest;
 
-    private Cache<String, String> descriptionCache;
     private TourService tourService;
     private Museum testMuseum;
     private List<Artwork> testArtworks;
@@ -69,7 +68,7 @@ class TourServiceTest {
     @BeforeEach
     void setUp() {
         // Initialize cache
-        descriptionCache = Caffeine.newBuilder()
+        Cache<String, String> descriptionCache = Caffeine.newBuilder()
                 .expireAfterWrite(Duration.ofMinutes(30))
                 .maximumSize(100)
                 .build();
@@ -253,7 +252,6 @@ class TourServiceTest {
     private TourGenerationRequest createTestRequest() {
         return TourGenerationRequest.builder()
                 .visitorId("test-visitor")
-                .museum(testMuseum)
                 .preferences(TourPreferences.builder()
                         .museumId(1L)
                         .theme(Tour.TourTheme.CHRONOLOGICAL)
