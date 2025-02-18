@@ -20,6 +20,10 @@ import java.util.Set;
 @Table(name = "museums")
 public class Museum extends BaseEntity {
 
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @Column(nullable = false)
     private String name;
 
