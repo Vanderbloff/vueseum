@@ -168,19 +168,8 @@ public class ArtworkService {
             pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
         }
 
-        // Use locked find to prevent concurrent modifications
-        Museum museum = museumService.findMuseumById(criteria.getMuseumId())
-                .orElseThrow(() -> new ResourceNotFoundException("Museum not found"));
-
-        // Create specification with the locked museum
         Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
-
-        // Execute search with proper pagination
-        Page<Artwork> results = artworkRepository.findAll(
-                spec.and((root, query, cb) ->
-                        cb.equal(root.get("museum"), museum)),
-                pageable
-        );
+        Page<Artwork> results = artworkRepository.findAll(spec, pageable);
 
         return new PageImpl<>(
                 results.getContent().stream()
