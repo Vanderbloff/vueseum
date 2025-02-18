@@ -10,6 +10,5 @@ import lombok.*;
 @Builder
 public class TourGenerationRequest {
     private String visitorId;
-    private Museum museum;
     private TourPreferences preferences;
 }

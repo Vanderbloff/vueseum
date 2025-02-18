@@ -114,7 +114,9 @@ public class TourService {
         if (request == null || request.getPreferences() == null) {
             throw new InvalidRequestException("Tour request and preferences are required");
         }
-        if (!museumService.isValidMuseum(request.getPreferences().getMuseumId())) {
+
+        Long museumId = request.getPreferences().getMuseumId();
+        if (!museumService.isValidMuseum(museumId)) {
             throw new InvalidRequestException("Invalid museum ID");
         }
         request.getPreferences().validate();
