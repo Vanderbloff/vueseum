@@ -42,6 +42,8 @@ public class ArtworkSearchCriteria {
 
     private Double accessionNumber;
 
+    private Long museumId;
+
     private List<String> museums;
 
     private List<String> tags;
