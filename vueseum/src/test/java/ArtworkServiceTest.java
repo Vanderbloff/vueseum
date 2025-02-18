@@ -128,7 +128,11 @@ class ArtworkServiceTest {
     void whenSearchingArtworks_thenAppliesCorrectCriteria() {
         ArtworkSearchCriteria criteria = new ArtworkSearchCriteria();
         criteria.setTitle("Test");
+        criteria.setMuseumId(1L);
         Pageable pageable = PageRequest.of(0, 10);
+
+        when(museumService.findMuseumById(1L))
+                .thenReturn(Optional.of(testMuseum));
 
         Page<Artwork> mockPage = new PageImpl<>(List.of(testArtwork));
         when(artworkRepository.findAll(any(Specification.class), any(Pageable.class)))
@@ -142,6 +146,8 @@ class ArtworkServiceTest {
         var firstArtwork = content.getFirst();
         assertThat(firstArtwork.getTitle()).isEqualTo("Test Artwork");
         assertThat(firstArtwork.getArtistName()).isEqualTo("Test Artist");
+
+        verify(museumService).findMuseumById(1L);
     }
 
     @Test
