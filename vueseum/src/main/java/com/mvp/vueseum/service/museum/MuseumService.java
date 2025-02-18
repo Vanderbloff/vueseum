@@ -25,8 +25,9 @@ public class MuseumService {
         return museumRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public Optional<Museum> findMuseumById(Long id) {
-        return museumRepository.findById(id);
+        return museumRepository.findByIdWithLock(id);
     }
 
     @Transactional(readOnly = true)
