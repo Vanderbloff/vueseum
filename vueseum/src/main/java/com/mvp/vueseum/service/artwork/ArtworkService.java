@@ -162,22 +162,32 @@ public class ArtworkService {
     }
 
 
+    @Transactional(readOnly = true)
     public Page<ArtworkDetails> searchArtworks(ArtworkSearchCriteria criteria, Pageable pageable) {
         if (criteria.getSortField().equals("relevance")) {
             pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
         }
 
-        Page<Artwork> localResults = artworkRepository.findAll(
-                ArtworkSpecifications.withSearchCriteria(criteria),
+        // Use locked find to prevent concurrent modifications
+        Museum museum = museumService.findMuseumById(criteria.getMuseumId())
+                .orElseThrow(() -> new ResourceNotFoundException("Museum not found"));
+
+        // Create specification with the locked museum
+        Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
+
+        // Execute search with proper pagination
+        Page<Artwork> results = artworkRepository.findAll(
+                spec.and((root, query, cb) ->
+                        cb.equal(root.get("museum"), museum)),
                 pageable
         );
 
         return new PageImpl<>(
-                localResults.getContent().stream()
+                results.getContent().stream()
                         .map(this::convertToArtworkDetails)
                         .collect(Collectors.toList()),
                 pageable,
-                localResults.getTotalElements()
+                results.getTotalElements()
         );
     }
 
