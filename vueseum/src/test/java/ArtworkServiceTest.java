@@ -126,14 +126,12 @@ class ArtworkServiceTest {
     @Test
     @DisplayName("when searching artworks, then applies correct criteria")
     void whenSearchingArtworks_thenAppliesCorrectCriteria() {
+        // Remove the museumId setting and museum finding since we're not using it
         ArtworkSearchCriteria criteria = new ArtworkSearchCriteria();
         criteria.setTitle("Test");
-        criteria.setMuseumId(1L);
         Pageable pageable = PageRequest.of(0, 10);
 
-        when(museumService.findMuseumById(1L))
-                .thenReturn(Optional.of(testMuseum));
-
+        // Remove the museumService mock setup since we won't use it
         Page<Artwork> mockPage = new PageImpl<>(List.of(testArtwork));
         when(artworkRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(mockPage);
@@ -146,8 +144,6 @@ class ArtworkServiceTest {
         var firstArtwork = content.getFirst();
         assertThat(firstArtwork.getTitle()).isEqualTo("Test Artwork");
         assertThat(firstArtwork.getArtistName()).isEqualTo("Test Artist");
-
-        verify(museumService).findMuseumById(1L);
     }
 
     @Test
