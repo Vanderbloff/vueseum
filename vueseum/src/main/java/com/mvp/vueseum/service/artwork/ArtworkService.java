@@ -399,7 +399,7 @@ public class ArtworkService {
      */
     @Transactional
     public void removeNonDisplayedArtworks(Set<String> displayedIds, Long museumId) {
-        museumService.findMuseumById(museumId)
+        museumService.findMuseumByIdForSync(museumId)
                 .orElseThrow(() -> new ResourceNotFoundException("Museum not found"));
 
         findAllWithArtistsAndMuseums().stream()

@@ -26,7 +26,12 @@ public class MuseumService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<Museum> findMuseumById(Long id) {
+    public Optional<Museum> findMuseumById (Long id) {
+        return museumRepository.findById(id);
+    }
+
+    @Transactional
+    public Optional<Museum> findMuseumByIdForSync(Long id) {
         return museumRepository.findByIdWithLock(id);
     }
 
