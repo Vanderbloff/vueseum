@@ -36,11 +36,23 @@ export const load: Load = async ({ url }) => {
 				ArtworkUtils.getDefaultFilters(),
 				artworkPage
 			)
-			: null;
+			: {
+				content: [],
+				totalElements: 0,
+				totalPages: 0,
+				size: 20,
+				number: 0
+			};
 
 		const toursPromise = initialTab === 'tours' || initialTab === null
 			? await tourApi.getTours(tourPage)
-			: null;
+			: {
+				content: [],
+				totalElements: 0,
+				totalPages: 0,
+				size: 10,
+				number: 0
+			};
 
 		const [artworks, tours] = await Promise.all([
 			artworksPromise,
