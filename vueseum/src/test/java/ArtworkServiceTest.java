@@ -209,13 +209,14 @@ class ArtworkServiceTest {
         nonDisplayedArtwork.setExternalId("NOT-DISPLAYED-001");
         nonDisplayedArtwork.setMuseum(testMuseum);
 
-        when(museumService.findMuseumById(1L))
+        when(museumService.findMuseumByIdForSync(1L))
                 .thenReturn(Optional.of(testMuseum));
+
         when(artworkRepository.findAllWithArtistsAndMuseums())
                 .thenReturn(List.of(displayedArtwork, nonDisplayedArtwork));
 
         artworkService.removeNonDisplayedArtworks(
-                Set.of("DISPLAYED-001"), // Only include the displayed artwork's ID
+                Set.of("DISPLAYED-001"),
                 1L
         );
 
@@ -227,7 +228,7 @@ class ArtworkServiceTest {
     @Test
     @DisplayName("when removing artworks with invalid museum id, then throws exception")
     void whenRemovingArtworksWithInvalidMuseumId_thenThrowsException() {
-        when(museumService.findMuseumById(999L))
+        when(museumService.findMuseumByIdForSync(999L))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() ->
@@ -236,7 +237,7 @@ class ArtworkServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Museum not found");
 
-        verify(artworkRepository, never()).delete((Artwork) any());
+        verify(artworkRepository, never()).delete(any(Artwork.class));
     }
 
     @Test
