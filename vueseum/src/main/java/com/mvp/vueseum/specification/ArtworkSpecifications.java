@@ -25,7 +25,7 @@ public class ArtworkSpecifications {
             List<Predicate> predicates = new ArrayList<>();
 
             // Handle images
-            if (criteria.getHasImage()) {
+            if (criteria.getHasImage() != null) {
                 predicates.add(cb.and(
                         cb.or(
                                 cb.and(
