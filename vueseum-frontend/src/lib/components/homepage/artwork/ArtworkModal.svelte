@@ -50,12 +50,12 @@
 		>
 			<!-- Image container -->
 			<div class="relative">
-				<div class="max-h-[60vh] bg-muted flex items-center justify-center">
+				<div class="max-h-[80vh] bg-muted flex items-center justify-center p-4">
 					<ArtworkImage
 						primaryUrl={artwork.primaryImageUrl ?? null}
 						thumbnailUrl={artwork.thumbnailImageUrl ?? null}
 						alt={artwork.title}
-						className="max-w-full max-h-[60vh] w-auto h-auto object-contain"
+						className="max-w-full max-h-[80vh] w-auto h-auto object-contain"
 					/>
 				</div>
 			</div>
