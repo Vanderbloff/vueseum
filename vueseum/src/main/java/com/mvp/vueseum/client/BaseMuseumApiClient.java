@@ -150,16 +150,19 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
 
     protected boolean isValidImageUrl(String url) {
         if (StringUtils.isEmpty(url)) return false;
+
         try {
-            RestClient.builder()
-                    .build()
-                    .get()
-                    .uri(url)
+            RestClient restClient = RestClient.builder()
+                    .baseUrl(url)
+                    .build();
+
+            restClient.head()
                     .retrieve()
                     .toBodilessEntity();
+
             return true;
         } catch (Exception e) {
-            log.warn("Invalid image URL: {}", url);
+            log.warn("Failed to validate image URL: {}", url, e);
             return false;
         }
     }
