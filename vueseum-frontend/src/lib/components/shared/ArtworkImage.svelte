@@ -31,25 +31,47 @@
 	async function validateImage(url: string): Promise<boolean> {
 		if (!url) return false;
 		try {
-			const response = await fetch(url, { method: 'HEAD' });
+			const response = await fetch(url, {
+				method: 'HEAD',
+				headers: {
+					'Accept': 'image/jpeg,image/png,image/*'
+				}
+			});
+			console.log('Image validation response:', response.status, url);
 			return response.ok;
 		} catch (error) {
+			console.error('Image validation error:', error);
 			return false;
 		}
 	}
 
 	onMount(async () => {
+		console.log('Primary URL:', primaryUrl);
+		console.log('Thumbnail URL:', thumbnailUrl);
+
 		// Try primary URL first
-		if (primaryUrl && await validateImage(getProxiedUrl(primaryUrl)!)) {
-			state.currentUrl = primaryUrl;
+		if (primaryUrl) {
+			const proxiedUrl = getProxiedUrl(primaryUrl);
+			console.log('Attempting primary URL:', proxiedUrl);
+			if (await validateImage(proxiedUrl!)) {
+				state.currentUrl = primaryUrl;
+			}
 		}
+
 		// Fall back to thumbnail if primary fails
-		else if (thumbnailUrl && await validateImage(getProxiedUrl(thumbnailUrl)!)) {
-			state.currentUrl = thumbnailUrl;
+		if (!state.currentUrl && thumbnailUrl) {
+			const proxiedUrl = getProxiedUrl(thumbnailUrl);
+			console.log('Attempting thumbnail URL:', proxiedUrl);
+			if (await validateImage(proxiedUrl!)) {
+				state.currentUrl = thumbnailUrl;
+			}
 		}
-		else {
+
+		if (!state.currentUrl) {
 			state.hasError = true;
+			console.log('No valid image URL found');
 		}
+
 		state.isLoading = false;
 	});
 </script>
