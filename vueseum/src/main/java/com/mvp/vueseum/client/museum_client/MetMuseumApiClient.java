@@ -169,16 +169,20 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
             String primaryImageUrl = rootNode.path("primaryImage").asText("");
             String thumbnailImageUrl = rootNode.path("primaryImageSmall").asText("");
 
+            log.debug("Processing image URLs - Primary: {}, Thumbnail: {}", primaryImageUrl, thumbnailImageUrl);
+
             // Only set valid, non-empty URLs
             String validatedPrimaryUrl = null;
             String validatedThumbnailUrl = null;
 
-            if (StringUtils.hasText(primaryImageUrl) && isValidImageUrl(primaryImageUrl)) {
-                validatedPrimaryUrl = primaryImageUrl;
+            if (StringUtils.hasText(primaryImageUrl)) {
+                boolean isPrimaryValid = isValidImageUrl(primaryImageUrl);
+                log.debug("Primary URL validation result: {}", isPrimaryValid);
             }
 
-            if (StringUtils.hasText(thumbnailImageUrl) && isValidImageUrl(thumbnailImageUrl)) {
-                validatedThumbnailUrl = thumbnailImageUrl;
+            if (StringUtils.hasText(thumbnailImageUrl)) {
+                boolean isThumbnailValid = isValidImageUrl(thumbnailImageUrl);
+                log.debug("Thumbnail URL validation result: {}", isThumbnailValid);
             }
 
             return ArtworkDetails.builder()
