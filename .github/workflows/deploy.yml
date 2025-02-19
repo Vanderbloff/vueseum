@@ -111,9 +111,15 @@ jobs:
                   sudo chmod 755 /opt/vueseum/backend/mvnw
                   sudo chmod 755 /opt/vueseum/backend/app.jar
 
+                 # Ensure host directories exist with proper permissions
                   sudo mkdir -p /opt/vueseum/logs
-                  sudo chown -R vueseum:vueseum /opt/vueseum/logs
-                  sudo chmod 755 /opt/vueseum/logs
+                  sudo chown -R 1001:root /opt/vueseum 
+                  sudo chmod -R 755 /opt/vueseum/logs
+    
+                  # Ensure logs directory persists between deployments
+                  sudo mkdir -p /var/log/vueseum
+                  sudo chown -R 1001:root /var/log/vueseum
+                  sudo chmod -R 755 /var/log/vueseum
                   
                   cd /opt/vueseum && sudo ./deploy-containers.sh
                   rm -rf /tmp/deploy
