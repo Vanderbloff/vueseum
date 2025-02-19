@@ -21,6 +21,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClient;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -57,6 +58,11 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                 )
         );
     }
+
+    private record ImageValidationResult(
+            String validPrimaryUrl,
+            String validThumbnailUrl
+    ) {}
 
     @Override
     public Long getMuseumId() {
@@ -157,6 +163,45 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                 .body(String.class);
     }
 
+    private ImageValidationResult validateImageUrls(String primaryUrl, String thumbnailUrl) {
+        String validPrimaryUrl = null;
+        String validThumbnailUrl = null;
+
+        // Try primary image first
+        if (StringUtils.hasText(primaryUrl)) {
+            try {
+                RestClient restClient = RestClient.builder()
+                        .baseUrl(primaryUrl)
+                        .build();
+                restClient.head()
+                        .retrieve()
+                        .toBodilessEntity();
+                validPrimaryUrl = primaryUrl;
+                log.debug("Primary image URL valid: {}", primaryUrl);
+            } catch (Exception e) {
+                log.debug("Primary image URL invalid: {}. Error: {}", primaryUrl, e.getMessage());
+            }
+        }
+
+        // Try thumbnail image if available
+        if (StringUtils.hasText(thumbnailUrl)) {
+            try {
+                RestClient restClient = RestClient.builder()
+                        .baseUrl(thumbnailUrl)
+                        .build();
+                restClient.head()
+                        .retrieve()
+                        .toBodilessEntity();
+                validThumbnailUrl = thumbnailUrl;
+                log.debug("Thumbnail URL valid: {}", thumbnailUrl);
+            } catch (Exception e) {
+                log.debug("Thumbnail URL invalid: {}. Error: {}", thumbnailUrl, e.getMessage());
+            }
+        }
+
+        return new ImageValidationResult(validPrimaryUrl, validThumbnailUrl);
+    }
+
     @Override
     public ArtworkDetails convertToArtworkDetails(String response) {
         try {
@@ -167,29 +212,20 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode rootNode = objectMapper.readTree(response);
 
-            // Extract URLs first so we can validate them
-            String primaryImageUrl = rootNode.path("primaryImage").asText("");
-            String thumbnailImageUrl = rootNode.path("primaryImageSmall").asText("");
+            if (!isArtworkDisplayed(response)) {
+                return null;
+            }
 
             // Transform URLs to use our proxy if they're not empty
-            String proxyPrimaryUrl = null;
-            String proxyThumbnailUrl = null;
+            String primaryImageUrl = rootNode.path("primaryImage").asText("");
+            String thumbnailImageUrl = rootNode.path("primaryImageSmall").asText("");
+            ImageValidationResult validUrls = validateImageUrls(primaryImageUrl, thumbnailImageUrl);
 
-            if (StringUtils.hasText(primaryImageUrl) && isValidImageUrl(primaryImageUrl)) {
-                String encodedUrl = URLEncoder.encode(primaryImageUrl, StandardCharsets.UTF_8);
-                proxyPrimaryUrl = "/api/v1/proxy/image?url=" + encodedUrl;
-                log.debug("Valid primary image URL found and proxied: {}", primaryImageUrl);
-            } else {
-                log.debug("Primary image URL invalid or empty: {}", primaryImageUrl);
-            }
-
-            if (StringUtils.hasText(thumbnailImageUrl) && isValidImageUrl(thumbnailImageUrl)) {
-                String encodedUrl = URLEncoder.encode(thumbnailImageUrl, StandardCharsets.UTF_8);
-                proxyThumbnailUrl = "/api/v1/proxy/image?url=" + encodedUrl;
-                log.debug("Valid thumbnail image URL found and proxied: {}", thumbnailImageUrl);
-            } else {
-                log.debug("Thumbnail image URL invalid or empty: {}", thumbnailImageUrl);
-            }
+            // Create proxy URLs for valid images
+            String proxyPrimaryUrl = validUrls.validPrimaryUrl != null ?
+                    URLEncoder.encode(validUrls.validPrimaryUrl, StandardCharsets.UTF_8) : null;
+            String proxyThumbnailUrl = validUrls.validThumbnailUrl != null ?
+                    URLEncoder.encode(validUrls.validThumbnailUrl, StandardCharsets.UTF_8) : null;
 
             return ArtworkDetails.builder()
                     .apiSource("Metropolitan Museum of Art")
