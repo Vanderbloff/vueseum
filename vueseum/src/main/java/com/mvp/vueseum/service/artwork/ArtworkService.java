@@ -333,6 +333,7 @@ public class ArtworkService {
         // Description and Image
         artwork.setDescription(details.getDescription());
         artwork.setImageUrl(details.getPrimaryImageUrl());
+        artwork.setThumbnailImageUrl(details.getThumbnailImageUrl());
         artwork.setCreationDate(details.getCreationYear());
 
         // Additional Metadata
