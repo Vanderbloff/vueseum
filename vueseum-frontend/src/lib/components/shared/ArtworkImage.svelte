@@ -17,14 +17,14 @@
 	}>();
 
 	const state = $state({
-		currentUrl: primaryUrl || thumbnailUrl,
+		currentUrl: null as string | null,
 		isLoading: true,
 		hasError: false
 	});
 
+	// Helper function to get proxied URL
 	function getProxiedUrl(url: string | null): string | null {
 		if (!url) return null;
-
 		try {
 			// First decode in case the URL comes pre-encoded
 			const decodedUrl = decodeURIComponent(url);
@@ -41,12 +41,8 @@
 		if (!url) return false;
 		try {
 			const response = await fetch(url, {
-				method: 'HEAD',
-				headers: {
-					'Accept': 'image/jpeg,image/png,image/*'
-				}
+				method: 'HEAD'
 			});
-			console.log('Image validation response:', response.status, url);
 			return response.ok;
 		} catch (error) {
 			console.error('Image validation error:', error);
@@ -55,28 +51,24 @@
 	}
 
 	onMount(async () => {
-		// Try primary URL first
-		if (primaryUrl) {
-			const isValid = await validateImage(primaryUrl);
-			if (isValid) {
-				state.currentUrl = primaryUrl;
-				state.isLoading = false;
-				return;
-			}
+		console.log('Primary URL:', primaryUrl);
+		console.log('Thumbnail URL:', thumbnailUrl);
+
+		// Try both URLs concurrently
+		const results = await Promise.allSettled([
+			primaryUrl ? validateImage(getProxiedUrl(primaryUrl)!) : Promise.resolve(false),
+			thumbnailUrl ? validateImage(getProxiedUrl(thumbnailUrl)!) : Promise.resolve(false)
+		]);
+
+		// Check results and use the first valid URL
+		if (results[0].status === 'fulfilled' && results[0].value && primaryUrl) {
+			state.currentUrl = primaryUrl;
+		} else if (results[1].status === 'fulfilled' && results[1].value && thumbnailUrl) {
+			state.currentUrl = thumbnailUrl;
+		} else {
+			state.hasError = true;
 		}
 
-		// Try thumbnail URL if primary fails
-		if (thumbnailUrl) {
-			const isValid = await validateImage(thumbnailUrl);
-			if (isValid) {
-				state.currentUrl = thumbnailUrl;
-				state.isLoading = false;
-				return;
-			}
-		}
-
-		// If both fail, show error state
-		state.hasError = true;
 		state.isLoading = false;
 	});
 </script>
