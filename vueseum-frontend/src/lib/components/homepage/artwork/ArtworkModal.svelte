@@ -49,18 +49,14 @@
 			aria-modal="true"
 		>
 			<!-- Image container -->
-			<div class="relative">
-				<div class="min-h-[200px] max-h-[80vh] w-full bg-muted flex items-center justify-center p-4">
-					<div class="relative w-full h-full max-w-[90vw] flex items-center justify-center">
-						<ArtworkImage
-							primaryUrl={artwork.primaryImageUrl ?? null}
-							thumbnailUrl={artwork.thumbnailImageUrl ?? null}
-							alt={artwork.title}
-							className="max-w-full max-h-[70vh] w-auto h-auto"
-							objectFit="contain"
-						/>
-					</div>
-				</div>
+			<div class="bg-muted p-6 flex items-center justify-center h-[80vh]">
+				<ArtworkImage
+					primaryUrl={artwork.primaryImageUrl ?? null}
+					thumbnailUrl={artwork.thumbnailImageUrl ?? null}
+					alt={artwork.title}
+					className="max-w-[90%] max-h-[90%] object-contain"
+					objectFit="contain"
+				/>
 			</div>
 
 			<!-- Details section -->

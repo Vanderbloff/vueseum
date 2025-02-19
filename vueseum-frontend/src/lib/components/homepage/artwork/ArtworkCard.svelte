@@ -21,17 +21,17 @@
         }
     }}
 >
-	<div class="relative w-full pt-[75%]">
-		<div class="absolute inset-0">
+	<AspectRatio ratio={4/3} class="bg-muted overflow-hidden">
+		<div class="w-full h-full flex items-center justify-center">
 			<ArtworkImage
 				primaryUrl={artwork.primaryImageUrl ?? null}
 				thumbnailUrl={artwork.thumbnailImageUrl ?? null}
 				alt={artwork.title}
-				className="w-full h-full transition-transform duration-200 group-hover:scale-105"
-				objectFit="cover"
+				className="max-h-full w-auto transition-transform duration-200 group-hover:scale-105"
+				objectFit="contain"
 			/>
 		</div>
-	</div>
+	</AspectRatio>
 
 	<CardHeader class="p-4 pb-2">
 		<CardTitle class="text-lg line-clamp-2">
