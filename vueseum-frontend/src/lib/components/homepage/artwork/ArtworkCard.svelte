@@ -21,15 +21,17 @@
         }
     }}
 >
-	<AspectRatio ratio={4/3} class="bg-muted">
-		<ArtworkImage
-			primaryUrl={artwork.primaryImageUrl ?? null}
-			thumbnailUrl={artwork.thumbnailImageUrl ?? null}
-			alt={artwork.title}
-			className="transition-transform duration-200 group-hover:scale-105"
-			objectFit="cover"
-		/>
-	</AspectRatio>
+	<div class="relative w-full pt-[75%]">
+		<div class="absolute inset-0">
+			<ArtworkImage
+				primaryUrl={artwork.primaryImageUrl ?? null}
+				thumbnailUrl={artwork.thumbnailImageUrl ?? null}
+				alt={artwork.title}
+				className="w-full h-full transition-transform duration-200 group-hover:scale-105"
+				objectFit="cover"
+			/>
+		</div>
+	</div>
 
 	<CardHeader class="p-4 pb-2">
 		<CardTitle class="text-lg line-clamp-2">
