@@ -26,18 +26,27 @@ public class ArtworkSpecifications {
 
             // Handle images
             if (criteria.getHasImage() != null) {
-                predicates.add(cb.and(
-                        cb.or(
-                                cb.and(
-                                        cb.isNotNull(root.get("thumbnailImageUrl")),
-                                        cb.notEqual(root.get("thumbnailImageUrl"), "")
-                                ),
-                                cb.and(
-                                        cb.isNotNull(root.get("imageUrl")),
-                                        cb.notEqual(root.get("imageUrl"), "")
-                                )
-                        )
-                ));
+                if (criteria.getHasImage()) {
+                    predicates.add(cb.or(
+                            cb.and(
+                                    cb.isNotNull(root.get("thumbnailImageUrl")),
+                                    cb.notEqual(root.get("thumbnailImageUrl"), "")
+                            ),
+                            cb.and(
+                                    cb.isNotNull(root.get("imageUrl")),
+                                    cb.notEqual(root.get("imageUrl"), "")
+                            )
+                    ));
+                } else {
+                    predicates.add(cb.and(
+                            cb.or(
+                                    cb.isNull(root.get("thumbnailImageUrl")),
+                                    cb.equal(root.get("thumbnailImageUrl"), ""),
+                                    cb.isNull(root.get("imageUrl")),
+                                    cb.equal(root.get("imageUrl"), "")
+                            )
+                    ));
+                }
             }
 
             // Handle artwork type/classification with hierarchical relationships
