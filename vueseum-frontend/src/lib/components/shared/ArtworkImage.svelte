@@ -37,7 +37,7 @@
 	}
 
 	// Validate image URL and handle fallback
-	async function validateImage(url: string): Promise<boolean> {
+	/*async function validateImage(url: string): Promise<boolean> {
 		if (!url) return false;
 		try {
 			const response = await fetch(url, {
@@ -48,24 +48,35 @@
 			console.error('Image validation error:', error);
 			return false;
 		}
-	}
+	}*/
 
 	onMount(async () => {
-		console.log('Primary URL:', primaryUrl);
-		console.log('Thumbnail URL:', thumbnailUrl);
+		const primaryProxyUrl = getProxiedUrl(primaryUrl);
+		const thumbnailProxyUrl = getProxiedUrl(thumbnailUrl);
 
-		// Try both URLs concurrently
-		const results = await Promise.allSettled([
-			primaryUrl ? validateImage(getProxiedUrl(primaryUrl)!) : Promise.resolve(false),
-			thumbnailUrl ? validateImage(getProxiedUrl(thumbnailUrl)!) : Promise.resolve(false)
-		]);
+		console.log('primaryProxyUrl:', primaryProxyUrl);
+		console.log('thumbnailProxyUrl:', thumbnailProxyUrl);
 
-		// Check results and use the first valid URL
-		if (results[0].status === 'fulfilled' && results[0].value && primaryUrl) {
-			state.currentUrl = primaryUrl;
-		} else if (results[1].status === 'fulfilled' && results[1].value && thumbnailUrl) {
-			state.currentUrl = thumbnailUrl;
-		} else {
+		try {
+			if (primaryProxyUrl) {
+				const response = await fetch(primaryProxyUrl, { method: 'HEAD' });
+				if (response.ok) {
+					state.currentUrl = primaryUrl;
+					return;
+				}
+			}
+
+			if (thumbnailProxyUrl) {
+				const response = await fetch(thumbnailProxyUrl, { method: 'HEAD' });
+				if (response.ok) {
+					state.currentUrl = thumbnailUrl;
+					return;
+				}
+			}
+
+			state.hasError = true;
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		} catch (error) {
 			state.hasError = true;
 		}
 
