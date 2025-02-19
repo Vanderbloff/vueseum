@@ -24,6 +24,22 @@ public class ArtworkSpecifications {
         return (root, _, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
+            // Handle images
+            if (criteria.getHasImage()) {
+                predicates.add(cb.and(
+                        cb.or(
+                                cb.and(
+                                        cb.isNotNull(root.get("thumbnailImageUrl")),
+                                        cb.notEqual(root.get("thumbnailImageUrl"), "")
+                                ),
+                                cb.and(
+                                        cb.isNotNull(root.get("imageUrl")),
+                                        cb.notEqual(root.get("imageUrl"), "")
+                                )
+                        )
+                ));
+            }
+
             // Handle artwork type/classification with hierarchical relationships
             if (criteria.getArtworkType() != null) {
                 String artworkType = criteria.getArtworkType();
