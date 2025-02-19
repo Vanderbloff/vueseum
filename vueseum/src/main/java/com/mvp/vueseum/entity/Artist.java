@@ -80,13 +80,27 @@ public class Artist extends BaseEntity {
     // Class-level validation for comparing dates
     @AssertTrue(message = "Death year must occur after birth year and within reasonable lifespan")
     public boolean hasValidLifespan() {
-        if (birthDate == null || deathDate == null) {
+
+        if (birthDate == null || birthDate.isEmpty() ||
+                deathDate == null || deathDate.isEmpty()) {
+            return true;  // No dates = valid (can't validate)
+        }
+        try {
+            int birth = Integer.parseInt(birthDate);
+            int death = Integer.parseInt(deathDate);
+
+            // Basic validation rules:
+            // 1. Death must be after birth
+            // 2. Lifespan should be reasonable (e.g., less than 120 years)
+            // 3. Dates should be within reasonable historical range (e.g., after year 1000)
+            return death > birth &&
+                    (death - birth) <= 120 &&
+                    birth >= 1000;
+        } catch (NumberFormatException e) {
+            // If we can't parse the dates, consider it valid
+            // This handles cases where dates might be in different formats
             return true;
         }
-        int birth = Integer.parseInt(birthDate);
-        int death = Integer.parseInt(deathDate);
-        int lifespan = death - birth;
-        return lifespan > 0 && lifespan <= 120;
     }
 
     @Override
