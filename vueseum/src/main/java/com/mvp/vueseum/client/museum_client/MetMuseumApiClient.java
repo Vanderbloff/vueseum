@@ -22,6 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
@@ -169,20 +171,24 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
             String primaryImageUrl = rootNode.path("primaryImage").asText("");
             String thumbnailImageUrl = rootNode.path("primaryImageSmall").asText("");
 
-            log.debug("Processing image URLs - Primary: {}, Thumbnail: {}", primaryImageUrl, thumbnailImageUrl);
+            // Transform URLs to use our proxy if they're not empty
+            String proxyPrimaryUrl = null;
+            String proxyThumbnailUrl = null;
 
-            // Only set valid, non-empty URLs
-            String validatedPrimaryUrl = null;
-            String validatedThumbnailUrl = null;
-
-            if (StringUtils.hasText(primaryImageUrl)) {
-                boolean isPrimaryValid = isValidImageUrl(primaryImageUrl);
-                log.debug("Primary URL validation result: {}", isPrimaryValid);
+            if (StringUtils.hasText(primaryImageUrl) && isValidImageUrl(primaryImageUrl)) {
+                String encodedUrl = URLEncoder.encode(primaryImageUrl, StandardCharsets.UTF_8);
+                proxyPrimaryUrl = "/api/v1/proxy/image?url=" + encodedUrl;
+                log.debug("Valid primary image URL found and proxied: {}", primaryImageUrl);
+            } else {
+                log.debug("Primary image URL invalid or empty: {}", primaryImageUrl);
             }
 
-            if (StringUtils.hasText(thumbnailImageUrl)) {
-                boolean isThumbnailValid = isValidImageUrl(thumbnailImageUrl);
-                log.debug("Thumbnail URL validation result: {}", isThumbnailValid);
+            if (StringUtils.hasText(thumbnailImageUrl) && isValidImageUrl(thumbnailImageUrl)) {
+                String encodedUrl = URLEncoder.encode(thumbnailImageUrl, StandardCharsets.UTF_8);
+                proxyThumbnailUrl = "/api/v1/proxy/image?url=" + encodedUrl;
+                log.debug("Valid thumbnail image URL found and proxied: {}", thumbnailImageUrl);
+            } else {
+                log.debug("Thumbnail image URL invalid or empty: {}", thumbnailImageUrl);
             }
 
             return ArtworkDetails.builder()
@@ -218,8 +224,8 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                     .period(rootNode.path("period").asText())
 
                     // Images and metadata
-                    .primaryImageUrl(validatedPrimaryUrl)
-                    .thumbnailImageUrl(validatedThumbnailUrl)
+                    .primaryImageUrl(proxyPrimaryUrl)
+                    .thumbnailImageUrl(proxyThumbnailUrl)
                     .additionalImageUrls(rootNode.findValuesAsText("additionalImageUrls"))
                     .tags(rootNode.findValuesAsText("tags"))
                     .creditLine(rootNode.path("creditLine").asText())
