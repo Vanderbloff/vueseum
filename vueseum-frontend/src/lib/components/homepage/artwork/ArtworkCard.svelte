@@ -21,13 +21,13 @@
         }
     }}
 >
-	<AspectRatio ratio={4/3} class="bg-muted overflow-hidden">
-		<div class="w-full h-full flex items-center justify-center">
+	<AspectRatio ratio={1} class="bg-muted">
+		<div class="w-full h-full flex items-center justify-center p-4">
 			<ArtworkImage
 				primaryUrl={artwork.primaryImageUrl ?? null}
 				thumbnailUrl={artwork.thumbnailImageUrl ?? null}
 				alt={artwork.title}
-				className="max-h-full w-auto transition-transform duration-200 group-hover:scale-105"
+				className="transition-transform duration-200 group-hover:scale-105"
 				objectFit="contain"
 			/>
 		</div>

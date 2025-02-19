@@ -22,6 +22,12 @@
 		hasError: false
 	});
 
+	function getProxiedUrl(url: string | null): string | null {
+		if (!url) return null;
+		return `/api/v1/images/proxy?url=${encodeURIComponent(url)}`;
+	}
+
+	// Validate image URL and handle fallback
 	async function validateImage(url: string): Promise<boolean> {
 		if (!url) return false;
 		try {
@@ -34,11 +40,11 @@
 
 	onMount(async () => {
 		// Try primary URL first
-		if (primaryUrl && await validateImage(primaryUrl)) {
+		if (primaryUrl && await validateImage(getProxiedUrl(primaryUrl)!)) {
 			state.currentUrl = primaryUrl;
 		}
 		// Fall back to thumbnail if primary fails
-		else if (thumbnailUrl && await validateImage(thumbnailUrl)) {
+		else if (thumbnailUrl && await validateImage(getProxiedUrl(thumbnailUrl)!)) {
 			state.currentUrl = thumbnailUrl;
 		}
 		else {
@@ -46,27 +52,22 @@
 		}
 		state.isLoading = false;
 	});
-
-	$effect(() => {
-		console.log('Image props:', {
-			primaryUrl,
-			thumbnailUrl,
-			alt
-		});
-	});
 </script>
 
 {#if state.isLoading}
-	<Skeleton class={`w-full h-full ${className}`} />
+	<Skeleton class="w-full h-full" />
 {:else if state.hasError || !state.currentUrl}
 	<div class="w-full h-full bg-muted flex items-center justify-center">
 		<span class="text-muted-foreground">Image unavailable</span>
 	</div>
 {:else}
-	<img
-		src={state.currentUrl}
-		{alt}
-		class={`w-full h-full object-${objectFit} ${className}`}
-		onerror={() => state.hasError = true}
-	/>
+	<div class="w-full h-full overflow-hidden flex items-center justify-center">
+		<img
+			src={getProxiedUrl(state.currentUrl)}
+			{alt}
+			class="max-w-full max-h-full w-auto h-auto {className}"
+			style="object-fit: {objectFit};"
+			onerror={() => state.hasError = true}
+		/>
+	</div>
 {/if}

@@ -54,7 +54,7 @@
 					primaryUrl={artwork.primaryImageUrl ?? null}
 					thumbnailUrl={artwork.thumbnailImageUrl ?? null}
 					alt={artwork.title}
-					className="max-w-[90%] max-h-[90%] object-contain"
+					className="max-w-[90%] max-h-[90%]"
 					objectFit="contain"
 				/>
 			</div>
