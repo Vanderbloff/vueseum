@@ -6,12 +6,14 @@
 		primaryUrl,
 		thumbnailUrl,
 		alt,
-		className = ''
+		className = '',
+		objectFit = 'contain'
 	} = $props<{
 		primaryUrl: string | null;
 		thumbnailUrl: string | null;
 		alt: string;
 		className?: string;
+		objectFit?: 'contain' | 'cover';
 	}>();
 
 	const state = $state({
@@ -64,7 +66,7 @@
 	<img
 		src={state.currentUrl}
 		{alt}
-		class={`object-cover w-full h-full ${className}`}
+		class={`w-full h-full object-${objectFit} ${className}`}
 		onerror={() => state.hasError = true}
 	/>
 {/if}

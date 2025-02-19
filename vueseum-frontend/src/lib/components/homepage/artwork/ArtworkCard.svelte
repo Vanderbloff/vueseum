@@ -26,7 +26,8 @@
 			primaryUrl={artwork.primaryImageUrl ?? null}
 			thumbnailUrl={artwork.thumbnailImageUrl ?? null}
 			alt={artwork.title}
-			className="w-full h-full object-contain"
+			className="transition-transform duration-200 group-hover:scale-105"
+			objectFit="cover"
 		/>
 	</AspectRatio>
 
