@@ -17,20 +17,22 @@ public class ImageProxyController {
 
     @GetMapping("/image")
     public ResponseEntity<byte[]> proxyImage(@RequestParam String url) {
+        log.debug("Attempting to proxy image from URL: {}", url);
         try {
             RestClient restClient = RestClient.builder()
                     .baseUrl(url)
                     .build();
 
-            // Using RestClient's more modern API
             byte[] imageData = restClient.get()
                     .retrieve()
                     .body(byte[].class);
 
-            // Response building remains the same
+            log.debug("Successfully retrieved image from URL: {}", url);
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.IMAGE_JPEG);
             headers.setCacheControl(CacheControl.maxAge(30, TimeUnit.DAYS));
+            headers.set("Access-Control-Allow-Origin", "*");
 
             return new ResponseEntity<>(imageData, headers, HttpStatus.OK);
         } catch (Exception e) {
