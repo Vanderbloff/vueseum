@@ -1,6 +1,7 @@
 package com.mvp.vueseum.controller;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,12 +19,14 @@ import java.util.concurrent.TimeUnit;
 public class ImageProxyController {
 
     @GetMapping("/proxy")
+    @Cacheable(value = "imageCache", key = "#url")
     public ResponseEntity<byte[]> proxyImage(@RequestParam String url) {
         log.info("Received proxy request for URL: {}", url);
 
         try {
             // First decode the URL to ensure we're working with clean data
-            String decodedUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
+            String decodedUrl = url.contains("%") ?
+                    URLDecoder.decode(url, StandardCharsets.UTF_8) : url;
             log.info("Decoded URL: {}", decodedUrl);
 
             RestClient restClient = RestClient.builder()
@@ -39,7 +42,9 @@ public class ImageProxyController {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.IMAGE_JPEG);
-            headers.setCacheControl(CacheControl.maxAge(30, TimeUnit.DAYS));
+            headers.setCacheControl(CacheControl.maxAge(365, TimeUnit.DAYS)
+                    .cachePublic()
+                    .mustRevalidate());
             headers.set("Access-Control-Allow-Origin", "*");
 
             return new ResponseEntity<>(imageData, headers, HttpStatus.OK);
