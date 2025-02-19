@@ -27,7 +27,8 @@ public class ArtworkDetailsDTO {
     private String geographyType;
     private String classification;
     private String copyrightStatus;
-    private String imageUrl;
+    private String primaryImageUrl;
+    private String thumbnailImageUrl;
     private String description;
     private String galleryNumber;
     private String creationDate;
@@ -52,7 +53,8 @@ public class ArtworkDetailsDTO {
         dto.classification = details.getArtworkType();
         dto.copyrightStatus = details.getCopyrightStatus();
         dto.culture = details.getCulture();
-        dto.imageUrl = details.getPrimaryImageUrl();
+        dto.primaryImageUrl = details.getPrimaryImageUrl();
+        dto.thumbnailImageUrl = details.getThumbnailImageUrl();
         dto.description = details.getDescription();
         dto.galleryNumber = details.getGalleryNumber();
         dto.creationDate = details.getCreationYear();
