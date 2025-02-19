@@ -46,11 +46,12 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - /var/log/vueseum/backend:/var/log/vueseum
+      - /var/log/vueseum:/var/log/vueseum:rw
     user: "1000:1000"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_OPTS=-Xms512m -Xmx1024m -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/log/vueseum/heapdump.hprof
+      - LOG_PATH=/var/log/vueseum
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
