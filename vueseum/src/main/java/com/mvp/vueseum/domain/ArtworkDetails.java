@@ -52,6 +52,7 @@ public class ArtworkDetails {
 
     // Image and Multimedia References
     private String primaryImageUrl;  // Main artwork image
+    private String thumbnailImageUrl;  // Fallback image
 
     @Getter(AccessLevel.NONE)
     @Builder.Default
