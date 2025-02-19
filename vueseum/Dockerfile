@@ -34,9 +34,9 @@ RUN chown 1001 app.jar
 
 # Create and set ownership of logs directory
 USER root
-RUN mkdir -p /opt/vueseum/logs && \
-    chown -R vueseum:vueseum /opt/vueseum && \
-    chmod -R 755 /opt/vueseum/logs
+RUN mkdir -p /var/log/vueseum && \
+    chown -R 1001:1001 /var/log/vueseum && \
+    chmod -R 755 /var/log/vueseum
 
 # Switch to non-root user
 USER 1001
