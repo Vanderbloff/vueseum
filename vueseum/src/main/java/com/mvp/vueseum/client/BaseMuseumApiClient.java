@@ -13,6 +13,7 @@ import com.mvp.vueseum.util.RetryUtil;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestClient;
 
@@ -144,6 +145,22 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
 
         } catch (JsonProcessingException e) {
             throw new ApiClientException("Failed to parse search response", e);
+        }
+    }
+
+    protected boolean isValidImageUrl(String url) {
+        if (StringUtils.isEmpty(url)) return false;
+        try {
+            RestClient.builder()
+                    .build()
+                    .get()
+                    .uri(url)
+                    .retrieve()
+                    .toBodilessEntity();
+            return true;
+        } catch (Exception e) {
+            log.warn("Invalid image URL: {}", url);
+            return false;
         }
     }
 
