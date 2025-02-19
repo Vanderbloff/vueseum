@@ -44,6 +44,14 @@
 		}
 		state.isLoading = false;
 	});
+
+	$effect(() => {
+		console.log('Image props:', {
+			primaryUrl,
+			thumbnailUrl,
+			alt
+		});
+	});
 </script>
 
 {#if state.isLoading}
