@@ -24,7 +24,16 @@
 
 	function getProxiedUrl(url: string | null): string | null {
 		if (!url) return null;
-		return `/api/v1/images/proxy?url=${encodeURIComponent(url)}`;
+
+		try {
+			// First decode in case the URL comes pre-encoded
+			const decodedUrl = decodeURIComponent(url);
+			// Then do a single clean encode
+			return `/api/v1/images/proxy?url=${encodeURIComponent(decodedUrl)}`;
+		} catch (error) {
+			console.error('URL encoding error:', error);
+			return null;
+		}
 	}
 
 	// Validate image URL and handle fallback
