@@ -5,8 +5,8 @@
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
         </Console>
         <RollingFile name="RollingFile"
-                     fileName="/opt/vueseum/logs/application.log"
-                     filePattern="/opt/vueseum/logs/application-%d{MM-dd-yyyy}-%i.log.gz">
+                     fileName="/var/log/vueseum/application.log"
+                     filePattern="/var/log/vueseum/application-%d{MM-dd-yyyy}-%i.log.gz">
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
             <Policies>
                 <TimeBasedTriggeringPolicy/>
