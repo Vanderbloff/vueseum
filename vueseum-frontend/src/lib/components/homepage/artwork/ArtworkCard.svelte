@@ -3,6 +3,7 @@
 	import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "$lib/components/ui/card";
 	import { AspectRatio } from "$lib/components/ui/aspect-ratio";
 	import type { Artwork } from '$lib/types/artwork';
+	import ArtworkImage from '$lib/components/shared/ArtworkImage.svelte';
 
 	export let artwork: Artwork;
 	export let onCardClick: (art: typeof artwork) => void;
@@ -21,10 +22,11 @@
     }}
 >
 	<AspectRatio ratio={4/3} class="bg-muted">
-		<img
-			src={artwork.imageUrl}
+		<ArtworkImage
+			primaryUrl={artwork.primaryImageUrl ?? null}
+			thumbnailUrl={artwork.thumbnailImageUrl ?? null}
 			alt={artwork.title}
-			class="object-cover w-full h-full transition-transform duration-200 group-hover:scale-105"
+			className="transition-transform duration-200 group-hover:scale-105"
 		/>
 	</AspectRatio>
 
@@ -42,8 +44,9 @@
 					title="Attribution uncertainty"
 					aria-label="Attribution uncertainty indicator"
 				>(?)</span>
+			{:else}
+				{artwork.fullAttribution || artwork.artist}
 			{/if}
-			{artwork.fullAttribution || artwork.artist}
 		</p>
 		<p class="text-sm text-muted-foreground">
 			{artwork.creationDate}
