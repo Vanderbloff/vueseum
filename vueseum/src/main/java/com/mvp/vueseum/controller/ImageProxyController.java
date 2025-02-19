@@ -8,26 +8,34 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 @RestController
+@RequestMapping("/api/v1/images")
 @Slf4j
-@RequestMapping("/api/v1/proxy")
 public class ImageProxyController {
 
-    @GetMapping("/image")
+    @GetMapping("/proxy")
     public ResponseEntity<byte[]> proxyImage(@RequestParam String url) {
-        log.debug("Attempting to proxy image from URL: {}", url);
+        log.info("Received proxy request for URL: {}", url);
+
         try {
+            // First decode the URL to ensure we're working with clean data
+            String decodedUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
+            log.info("Decoded URL: {}", decodedUrl);
+
             RestClient restClient = RestClient.builder()
-                    .baseUrl(url)
+                    .baseUrl(decodedUrl)
                     .build();
 
             byte[] imageData = restClient.get()
                     .retrieve()
                     .body(byte[].class);
 
-            log.debug("Successfully retrieved image from URL: {}", url);
+            log.info("Successfully retrieved image data, size: {} bytes",
+                    imageData != null ? imageData.length : 0);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.IMAGE_JPEG);
