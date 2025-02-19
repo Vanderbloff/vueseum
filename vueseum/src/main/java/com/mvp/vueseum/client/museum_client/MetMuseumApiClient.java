@@ -42,6 +42,8 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
     @Getter(AccessLevel.NONE)
     private final RateLimiter rateLimiter;
 
+    private static int page = 1;
+
     public MetMuseumApiClient(
             RetryUtil retryUtil,
             Environment environment,
@@ -103,19 +105,17 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
     public List<String> getCurrentlyDisplayedArtworkIds() {
         return withRetry(() -> {
             List<String> allIds = new ArrayList<>();
-            int page = 1;
             boolean hasMore = true;
 
             while (hasMore) {
                 rateLimiter.acquire();
 
-                int finalPage = page;
                 String response = restClient.get()
                         .uri(uriBuilder -> uriBuilder
                                 .path("/search")
                                 .queryParam("q", "*")
                                 .queryParam("isOnView", true)
-                                .queryParam("page", finalPage)
+                                .queryParam("page", page)
                                 .build())
                         .retrieve()
                         .body(String.class);
