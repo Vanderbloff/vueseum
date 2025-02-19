@@ -60,6 +60,9 @@ public class Artwork extends BaseEntity {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "thumbnail_image_url", length = 500)
+    private String thumbnailImageUrl;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 
