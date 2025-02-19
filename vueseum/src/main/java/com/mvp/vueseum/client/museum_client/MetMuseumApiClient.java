@@ -23,10 +23,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -103,19 +102,37 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
     @Override
     public List<String> getCurrentlyDisplayedArtworkIds() {
         return withRetry(() -> {
-            rateLimiter.acquire();
+            List<String> allIds = new ArrayList<>();
+            int page = 1;
+            boolean hasMore = true;
 
-            // Use wildcard search with isOnView parameter
-            String response = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/search")
-                            .queryParam("q", "*")
-                            .queryParam("isOnView", true)
-                            .build())
-                    .retrieve()
-                    .body(String.class);
+            while (hasMore) {
+                rateLimiter.acquire();
 
-            return parseSearchResponse(response, "objectIDs");
+                int finalPage = page;
+                String response = restClient.get()
+                        .uri(uriBuilder -> uriBuilder
+                                .path("/search")
+                                .queryParam("q", "*")
+                                .queryParam("isOnView", true)
+                                .queryParam("page", finalPage)
+                                .build())
+                        .retrieve()
+                        .body(String.class);
+
+                List<String> pageIds = parseSearchResponse(response, "objectIDs");
+                if (pageIds.isEmpty()) {
+                    hasMore = false;
+                } else {
+                    allIds.addAll(pageIds);
+                    page++;
+                    log.info("Fetched page {} of artwork IDs, total so far: {}",
+                            page, allIds.size());
+                }
+            }
+
+            log.info("Total artwork IDs fetched: {}", allIds.size());
+            return allIds;
         }, "fetch displayed artwork IDs");
     }
 
@@ -216,16 +233,12 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                 return null;
             }
 
-            // Transform URLs to use our proxy if they're not empty
             String primaryImageUrl = rootNode.path("primaryImage").asText("");
             String thumbnailImageUrl = rootNode.path("primaryImageSmall").asText("");
-            ImageValidationResult validUrls = validateImageUrls(primaryImageUrl, thumbnailImageUrl);
 
-            // Create proxy URLs for valid images
-            String proxyPrimaryUrl = validUrls.validPrimaryUrl != null ?
-                    URLEncoder.encode(validUrls.validPrimaryUrl, StandardCharsets.UTF_8) : null;
-            String proxyThumbnailUrl = validUrls.validThumbnailUrl != null ?
-                    URLEncoder.encode(validUrls.validThumbnailUrl, StandardCharsets.UTF_8) : null;
+            // Only encode non-empty URLs
+            String finalPrimaryUrl = !primaryImageUrl.isEmpty() ? primaryImageUrl : null;
+            String finalThumbnailUrl = !thumbnailImageUrl.isEmpty() ? thumbnailImageUrl : null;
 
             return ArtworkDetails.builder()
                     .apiSource("Metropolitan Museum of Art")
@@ -260,8 +273,8 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                     .period(rootNode.path("period").asText())
 
                     // Images and metadata
-                    .primaryImageUrl(proxyPrimaryUrl)
-                    .thumbnailImageUrl(proxyThumbnailUrl)
+                    .primaryImageUrl(finalPrimaryUrl)
+                    .thumbnailImageUrl(finalThumbnailUrl)
                     .additionalImageUrls(rootNode.findValuesAsText("additionalImageUrls"))
                     .tags(rootNode.findValuesAsText("tags"))
                     .creditLine(rootNode.path("creditLine").asText())
