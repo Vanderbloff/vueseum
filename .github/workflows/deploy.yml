@@ -110,6 +110,10 @@ jobs:
                   sudo find /opt/vueseum/backend -type d -exec chmod 755 {} \;
                   sudo chmod 755 /opt/vueseum/backend/mvnw
                   sudo chmod 755 /opt/vueseum/backend/app.jar
+
+                  sudo mkdir -p /opt/vueseum/logs
+                  sudo chown -R vueseum:vueseum /opt/vueseum/logs
+                  sudo chmod 755 /opt/vueseum/logs
                   
                   cd /opt/vueseum && sudo ./deploy-containers.sh
                   rm -rf /tmp/deploy
