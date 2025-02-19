@@ -112,11 +112,13 @@
 	}
 
 	function handleEraChange(value: string | undefined) {
+		console.log('Era changed:', value);
 		handleSingleSelect('era', value as StandardPeriod);
 	}
 
 	// Handle checkbox changes
 	function handleCheckboxChange(key: 'hasImage', checked: boolean) {
+		console.log('Checkbox changed:', key, checked);
 		onFilterChange(key, checked);
 	}
 

@@ -74,6 +74,8 @@
 		state.artworksLoading = true;
 		state.error = null;
 
+		console.log('Searching with filters:', filters);
+
 		try {
 			const results = await artworkApi.searchArtworks(
 				filters,
@@ -164,6 +166,7 @@
 		key: K,
 		value: Filters[K]
 	) {
+		console.log('Parent received filter change:', key, value);
 		state.currentFilters.filters[key] = value;
 
 		// Load dependent options based on the changed filter
@@ -196,6 +199,7 @@
 		}
 
 		// Trigger search with updated filters
+		console.log('Updated filters:', state.currentFilters.filters);
 		handleSearch(state.currentFilters.filters);
 	}
 
