@@ -10,6 +10,7 @@ import com.mvp.vueseum.service.cultural.CulturalMapping;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Component
+@Slf4j
 public class ArtworkSpecifications {
 
     public static Specification<Artwork> withSearchCriteria(ArtworkSearchCriteria criteria) {
@@ -26,6 +28,7 @@ public class ArtworkSpecifications {
 
             // Handle images
             if (criteria.getHasImage() != null) {
+                log.info("Has Image filter value: {}", criteria.getHasImage());
                 if (criteria.getHasImage()) {
                     predicates.add(cb.or(
                             cb.and(
