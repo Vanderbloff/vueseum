@@ -55,32 +55,28 @@
 	}
 
 	onMount(async () => {
-		console.log('Primary URL:', primaryUrl);
-		console.log('Thumbnail URL:', thumbnailUrl);
-
 		// Try primary URL first
 		if (primaryUrl) {
-			const proxiedUrl = getProxiedUrl(primaryUrl);
-			console.log('Attempting primary URL:', proxiedUrl);
-			if (await validateImage(proxiedUrl!)) {
+			const isValid = await validateImage(primaryUrl);
+			if (isValid) {
 				state.currentUrl = primaryUrl;
+				state.isLoading = false;
+				return;
 			}
 		}
 
-		// Fall back to thumbnail if primary fails
-		if (!state.currentUrl && thumbnailUrl) {
-			const proxiedUrl = getProxiedUrl(thumbnailUrl);
-			console.log('Attempting thumbnail URL:', proxiedUrl);
-			if (await validateImage(proxiedUrl!)) {
+		// Try thumbnail URL if primary fails
+		if (thumbnailUrl) {
+			const isValid = await validateImage(thumbnailUrl);
+			if (isValid) {
 				state.currentUrl = thumbnailUrl;
+				state.isLoading = false;
+				return;
 			}
 		}
 
-		if (!state.currentUrl) {
-			state.hasError = true;
-			console.log('No valid image URL found');
-		}
-
+		// If both fail, show error state
+		state.hasError = true;
 		state.isLoading = false;
 	});
 </script>
