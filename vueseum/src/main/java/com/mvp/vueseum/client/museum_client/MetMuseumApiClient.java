@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDateTime;
@@ -164,13 +165,29 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode rootNode = objectMapper.readTree(response);
 
+            // Extract URLs first so we can validate them
+            String primaryImageUrl = rootNode.path("primaryImage").asText("");
+            String thumbnailImageUrl = rootNode.path("primaryImageSmall").asText("");
+
+            // Only set valid, non-empty URLs
+            String validatedPrimaryUrl = null;
+            String validatedThumbnailUrl = null;
+
+            if (StringUtils.hasText(primaryImageUrl) && isValidImageUrl(primaryImageUrl)) {
+                validatedPrimaryUrl = primaryImageUrl;
+            }
+
+            if (StringUtils.hasText(thumbnailImageUrl) && isValidImageUrl(thumbnailImageUrl)) {
+                validatedThumbnailUrl = thumbnailImageUrl;
+            }
+
             return ArtworkDetails.builder()
                     .apiSource("Metropolitan Museum of Art")
                     .externalId(rootNode.path("objectID").asText())
                     .title(rootNode.path("title").asText())
 
                     // Artist information
-                    .artistName(rootNode.path("artistDisplayName").asText())  // Remove duplicate
+                    .artistName(rootNode.path("artistDisplayName").asText())
                     .artistNationality(rootNode.path("artistNationality").asText())
                     .artistBirthYear(rootNode.path("artistBeginDate").asText())
                     .artistDeathYear(rootNode.path("artistEndDate").asText())
@@ -197,7 +214,8 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                     .period(rootNode.path("period").asText())
 
                     // Images and metadata
-                    .primaryImageUrl(rootNode.path("primaryImage").asText())
+                    .primaryImageUrl(validatedPrimaryUrl)
+                    .thumbnailImageUrl(validatedThumbnailUrl)
                     .additionalImageUrls(rootNode.findValuesAsText("additionalImageUrls"))
                     .tags(rootNode.findValuesAsText("tags"))
                     .creditLine(rootNode.path("creditLine").asText())
@@ -222,7 +240,6 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
             List<String> artworkIds;
             if (operation.isFullSync()) {
                 artworkIds = getCurrentlyDisplayedArtworkIds();
-                // Move DB operations to service
                 artworkService.removeNonDisplayedArtworks(
                         new HashSet<>(artworkIds),
                         getMuseumId()
