@@ -27,7 +27,8 @@ export interface Artwork {
 	medium?: string;
 	classification?: string;
 	culture?: string;
-	imageUrl?: string;
+	primaryImageUrl?: string;
+	thumbnailImageUrl?: string;
 	description?: string | null;
 	country?: string;
 	region?: string;
