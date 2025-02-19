@@ -49,8 +49,9 @@ export class ArtworkUtils {
 
 		return artworks.filter((artwork) => {
 			// Has Image filter
-			if (filters.hasImage && (!artwork.imageUrl || artwork.imageUrl.trim() === '')) {
-				return false;
+			if (filters.hasImage) {
+				const hasValidImage = Boolean(artwork.primaryImageUrl || artwork.thumbnailImageUrl);
+				if (!hasValidImage) return false;
 			}
 
 			// Search term filter
@@ -135,7 +136,7 @@ export class ArtworkUtils {
 			region: [],
 			culture: [],
 			era: [],
-			hasImage: true,
+			hasImage: false,
 			museumId: []
 		};
 	}
