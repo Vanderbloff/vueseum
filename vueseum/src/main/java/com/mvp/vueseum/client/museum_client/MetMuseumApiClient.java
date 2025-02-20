@@ -19,10 +19,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClient;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -60,11 +59,6 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                 )
         );
     }
-
-    private record ImageValidationResult(
-            String validPrimaryUrl,
-            String validThumbnailUrl
-    ) {}
 
     @Override
     public Long getMuseumId() {
@@ -202,80 +196,47 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                 .body(String.class);
     }
 
-    private ImageValidationResult validateImageUrls(String primaryUrl, String thumbnailUrl) {
-        String validPrimaryUrl = null;
-        String validThumbnailUrl = null;
-
-        // Try primary image first
-        if (StringUtils.hasText(primaryUrl)) {
-            try {
-                RestClient restClient = RestClient.builder()
-                        .baseUrl(primaryUrl)
-                        .build();
-                restClient.head()
-                        .retrieve()
-                        .toBodilessEntity();
-                validPrimaryUrl = primaryUrl;
-                log.debug("Primary image URL valid: {}", primaryUrl);
-            } catch (Exception e) {
-                log.debug("Primary image URL invalid: {}. Error: {}", primaryUrl, e.getMessage());
-            }
-        }
-
-        // Try thumbnail image if available
-        if (StringUtils.hasText(thumbnailUrl)) {
-            try {
-                RestClient restClient = RestClient.builder()
-                        .baseUrl(thumbnailUrl)
-                        .build();
-                restClient.head()
-                        .retrieve()
-                        .toBodilessEntity();
-                validThumbnailUrl = thumbnailUrl;
-                log.debug("Thumbnail URL valid: {}", thumbnailUrl);
-            } catch (Exception e) {
-                log.debug("Thumbnail URL invalid: {}. Error: {}", thumbnailUrl, e.getMessage());
-            }
-        }
-
-        return new ImageValidationResult(validPrimaryUrl, validThumbnailUrl);
-    }
-
     @Override
     public ArtworkDetails convertToArtworkDetails(String response) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode rootNode;
         try {
-            if (!isArtworkDisplayed(response)) {
-                return null;
-            }
+            rootNode = objectMapper.readTree(response);
+        } catch (IOException e) {
+            throw new ApiClientException("Invalid JSON response from Met Museum API", e);
+        }
 
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode rootNode = objectMapper.readTree(response);
+        // Validate required fields
+        if (rootNode.path("objectID").isMissingNode() ||
+                !rootNode.has("objectID") ||
+                rootNode.path("objectID").asText().isEmpty()) {
+            throw new ApiClientException("Missing required field: objectID");
+        }
 
-            if (!isArtworkDisplayed(response)) {
-                return null;
-            }
+        // Check if artwork is displayed (early return)
+        if (!isArtworkDisplayed(response)) {
+            return null;
+        }
 
-            String birthYear = rootNode.path("artistBeginDate").asText("");
-            String deathYear = rootNode.path("artistEndDate").asText("");
-
-            // Clean up year formats - only keep valid 4-digit years or empty string
-            birthYear = birthYear.matches("^[0-9]{4}$") ? birthYear : "";
-            deathYear = deathYear.matches("^[0-9]{4}$") ? deathYear : "";
-
-
-
-            log.debug("Raw Met API response thumbnailUrl: {}",
-                    rootNode.path("primaryImageSmall").asText());
-
+        try {
+            // Extract image URLs with detailed logging
             String primaryImageUrl = rootNode.path("primaryImage").asText("");
             String thumbnailImageUrl = rootNode.path("primaryImageSmall").asText("");
 
-            log.debug("Extracted URLs - Primary: {}, Thumbnail: {}",
+            log.debug("Raw Met API response - Primary: {}, Thumbnail: {}",
                     primaryImageUrl, thumbnailImageUrl);
 
-            // Only encode non-empty URLs
+            // Process URLs - only store non-empty strings, otherwise null
             String finalPrimaryUrl = !primaryImageUrl.isEmpty() ? primaryImageUrl : null;
             String finalThumbnailUrl = !thumbnailImageUrl.isEmpty() ? thumbnailImageUrl : null;
+
+            // Process artist dates
+            String birthYear = rootNode.path("artistBeginDate").asText("");
+            String deathYear = rootNode.path("artistEndDate").asText("");
+
+            // Only use years that are exactly 4 digits
+            birthYear = birthYear.matches("^[0-9]{4}$") ? birthYear : "";
+            deathYear = deathYear.matches("^[0-9]{4}$") ? deathYear : "";
 
             log.debug("Final URLs being set - Primary: {}, Thumbnail: {}",
                     finalPrimaryUrl, finalThumbnailUrl);
@@ -284,47 +245,28 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                     .apiSource("Metropolitan Museum of Art")
                     .externalId(rootNode.path("objectID").asText())
                     .title(rootNode.path("title").asText())
-
-                    // Artist information
                     .artistName(rootNode.path("artistDisplayName").asText())
                     .artistNationality(rootNode.path("artistNationality").asText())
                     .artistBirthYear(birthYear)
                     .artistDeathYear(deathYear)
                     .artistPrefix(rootNode.path("artistPrefix").asText())
                     .artistRole(rootNode.path("artistRole").asText())
-
-                    // Artwork specifics
                     .medium(rootNode.path("medium").asText())
                     .artworkType(rootNode.path("objectName").asText())
                     .dimensions(rootNode.path("dimensions").asText())
-
-                    // Museum location
                     .department(rootNode.path("department").asText())
                     .galleryNumber(rootNode.path("GalleryNumber").asText())
-
-                    // Geographic details - Met-specific richness
                     .country(rootNode.path("country").asText())
                     .region(rootNode.path("region").asText())
                     .subRegion(rootNode.path("subRegion").asText())
                     .geographyType(rootNode.path("geographyType").asText())
-
-                    // Cultural and contextual information
                     .culture(rootNode.path("culture").asText())
                     .period(rootNode.path("period").asText())
-
-                    // Images and metadata
                     .primaryImageUrl(finalPrimaryUrl)
                     .thumbnailImageUrl(finalThumbnailUrl)
-                    .additionalImageUrls(rootNode.findValuesAsText("additionalImageUrls"))
-                    .tags(rootNode.findValuesAsText("tags"))
-                    .creditLine(rootNode.path("creditLine").asText())
-
-                    // Dates and rights
-                    .creationYear(rootNode.path("objectDate").asText())
-                    .acquisitionDate(rootNode.path("accessionYear").asText())
-                    .copyrightStatus(rootNode.path("rightsAndReproduction").asText())
                     .build();
-        } catch (JsonProcessingException e) {
+
+        } catch (Exception e) {
             throw new ApiClientException("Failed to parse response from Met Museum API", e);
         }
     }
