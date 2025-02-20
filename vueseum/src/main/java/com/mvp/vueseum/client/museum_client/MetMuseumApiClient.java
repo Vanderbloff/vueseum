@@ -28,6 +28,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("UnstableApiUsage")
@@ -42,7 +43,7 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
     @Getter(AccessLevel.NONE)
     private final RateLimiter rateLimiter;
 
-    private static int page = 1;
+    //private static int page = 1;
 
     public MetMuseumApiClient(
             RetryUtil retryUtil,
@@ -104,31 +105,52 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
     @Override
     public List<String> getCurrentlyDisplayedArtworkIds() {
         return withRetry(() -> {
-            List<String> allIds = new ArrayList<>();
-            boolean hasMore = true;
+            AtomicInteger currentPage = new AtomicInteger(1);  // Thread-safe counter
 
-            while (hasMore) {
+            // Get first page to determine total
+            rateLimiter.acquire();
+            String initialResponse = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/search")
+                            .queryParam("q", "*")
+                            .queryParam("isOnView", true)
+                            .queryParam("page", currentPage.get())
+                            .build())
+                    .retrieve()
+                    .body(String.class);
+
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode rootNode;
+            try {
+                rootNode = mapper.readTree(initialResponse);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+            int total = rootNode.path("total").asInt();
+
+            List<String> allIds = new ArrayList<>(parseSearchResponse(initialResponse, "objectIDs"));
+
+            while (allIds.size() < total) {
                 rateLimiter.acquire();
+                final int pageNum = currentPage.incrementAndGet();
 
                 String response = restClient.get()
                         .uri(uriBuilder -> uriBuilder
                                 .path("/search")
                                 .queryParam("q", "*")
                                 .queryParam("isOnView", true)
-                                .queryParam("page", page)
+                                .queryParam("page", pageNum)
                                 .build())
                         .retrieve()
                         .body(String.class);
 
                 List<String> pageIds = parseSearchResponse(response, "objectIDs");
                 if (pageIds.isEmpty()) {
-                    hasMore = false;
-                } else {
-                    allIds.addAll(pageIds);
-                    page++;
-                    log.info("Fetched page {} of artwork IDs, total so far: {}",
-                            page, allIds.size());
+                    break;
                 }
+
+                allIds.addAll(pageIds);
+                log.info("Fetched page {} of artwork IDs, total so far: {}", pageNum, allIds.size());
             }
 
             log.info("Total artwork IDs fetched: {}", allIds.size());
