@@ -277,6 +277,9 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
             String finalPrimaryUrl = !primaryImageUrl.isEmpty() ? primaryImageUrl : null;
             String finalThumbnailUrl = !thumbnailImageUrl.isEmpty() ? thumbnailImageUrl : null;
 
+            log.debug("Final URLs being set - Primary: {}, Thumbnail: {}",
+                    finalPrimaryUrl, finalThumbnailUrl);
+
             return ArtworkDetails.builder()
                     .apiSource("Metropolitan Museum of Art")
                     .externalId(rootNode.path("objectID").asText())
@@ -285,8 +288,8 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                     // Artist information
                     .artistName(rootNode.path("artistDisplayName").asText())
                     .artistNationality(rootNode.path("artistNationality").asText())
-                    .artistBirthYear(rootNode.path(birthYear).asText())
-                    .artistDeathYear(rootNode.path(deathYear).asText())
+                    .artistBirthYear(birthYear)
+                    .artistDeathYear(deathYear)
                     .artistPrefix(rootNode.path("artistPrefix").asText())
                     .artistRole(rootNode.path("artistRole").asText())
 
