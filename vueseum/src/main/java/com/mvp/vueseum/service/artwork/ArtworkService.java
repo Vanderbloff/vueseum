@@ -301,10 +301,15 @@ public class ArtworkService {
         Museum museum = museumService.findMuseumById(museumId)
                 .orElseThrow(() -> new ResourceNotFoundException("Museum not found"));
 
-        return artworkRepository.findByExternalIdAndMuseum(id, museum)
-                .map(this::convertToArtworkDetails)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Artwork not found with id: " + id));
+        Artwork artwork = artworkRepository.findByExternalIdAndMuseum(id, museum)
+                .orElseThrow(() -> new ResourceNotFoundException("Artwork not found"));
+
+        log.debug("Retrieving artwork {} - Primary URL: {}, Thumbnail URL: {}",
+                id,
+                artwork.getImageUrl(),
+                artwork.getThumbnailImageUrl());
+
+        return convertToArtworkDetails(artwork);
     }
 
     @Transactional(readOnly = true)
