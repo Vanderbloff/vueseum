@@ -255,8 +255,23 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                 return null;
             }
 
+            String birthYear = rootNode.path("artistBeginDate").asText("");
+            String deathYear = rootNode.path("artistEndDate").asText("");
+
+            // Clean up year formats - only keep valid 4-digit years or empty string
+            birthYear = birthYear.matches("^[0-9]{4}$") ? birthYear : "";
+            deathYear = deathYear.matches("^[0-9]{4}$") ? deathYear : "";
+
+
+
+            log.debug("Raw Met API response thumbnailUrl: {}",
+                    rootNode.path("primaryImageSmall").asText());
+
             String primaryImageUrl = rootNode.path("primaryImage").asText("");
             String thumbnailImageUrl = rootNode.path("primaryImageSmall").asText("");
+
+            log.debug("Extracted URLs - Primary: {}, Thumbnail: {}",
+                    primaryImageUrl, thumbnailImageUrl);
 
             // Only encode non-empty URLs
             String finalPrimaryUrl = !primaryImageUrl.isEmpty() ? primaryImageUrl : null;
@@ -270,8 +285,8 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                     // Artist information
                     .artistName(rootNode.path("artistDisplayName").asText())
                     .artistNationality(rootNode.path("artistNationality").asText())
-                    .artistBirthYear(rootNode.path("artistBeginDate").asText())
-                    .artistDeathYear(rootNode.path("artistEndDate").asText())
+                    .artistBirthYear(rootNode.path(birthYear).asText())
+                    .artistDeathYear(rootNode.path(deathYear).asText())
                     .artistPrefix(rootNode.path("artistPrefix").asText())
                     .artistRole(rootNode.path("artistRole").asText())
 
