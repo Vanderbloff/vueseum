@@ -4,7 +4,6 @@ import com.mvp.vueseum.entity.base.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -30,11 +29,9 @@ public class Artist extends BaseEntity {
     private String nationality;
 
     @Pattern(regexp = "^$|^[0-9]{4}$", message = "Year must be in YYYY format")
-    @Pattern(regexp = "^$|^[0-9]+$", message = "Year must be a positive number or zero")
     private String birthDate;
 
     @Pattern(regexp = "^$|^[0-9]{4}$", message = "Year must be in YYYY format")
-    @Pattern(regexp = "^$|^[0-9]+$", message = "Year must be a positive number or zero")
     private String deathDate;
 
     @OneToMany(mappedBy = "artist", cascade = CascadeType.ALL)
