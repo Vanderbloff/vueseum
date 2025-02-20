@@ -23,10 +23,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -269,5 +266,52 @@ class ArtworkServiceTest {
         verify(artworkRepository, never()).delete((Artwork) any());
         // Verify no save operation occurred
         verify(artworkRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("when saving artwork with invalid dates, should save with empty dates")
+    void whenSavingArtworkWithInvalidDates_thenSavesEmptyDates() {
+        // Setup test data
+        ArtworkDetails details = ArtworkDetails.builder()
+                .externalId("TEST-001")
+                .title("Test Artwork")
+                .artistName("Test Artist")
+                .artistBirthYear("ca. 1800")      // Invalid format
+                .artistDeathYear("19th century")   // Invalid format
+                .apiSource("Test Museum")
+                .build();
+
+        Artist expectedArtist = new Artist();
+        expectedArtist.setArtistName("Test Artist");
+        expectedArtist.setBirthDate("");
+        expectedArtist.setDeathDate("");
+
+        when(museumService.findOrCreateMuseum(anyString()))
+                .thenReturn(testMuseum);
+        when(artistService.findOrCreateArtist(details))
+                .thenReturn(expectedArtist);
+        when(artworkRepository.findByExternalIdAndMuseum(anyString(), any()))
+                .thenReturn(Optional.empty());
+        when(artworkRepository.save(any()))
+                .thenReturn(testArtwork);
+
+        artworkService.saveFromDetailsForTest(details);
+
+        verify(artistService).findOrCreateArtist(eq(details));  // Verify details passed to artist service
+        verify(artworkRepository).save(argThat(artwork ->
+                artwork.getArtist().getBirthDate().isEmpty() &&     // Verify empty dates in saved artwork
+                        artwork.getArtist().getDeathDate().isEmpty()
+        ));
+    }
+
+    private ArtworkDetails createTestDetails(String birthYear, String deathYear) {
+        return ArtworkDetails.builder()
+                .externalId("TEST-" + UUID.randomUUID().toString())
+                .title("Test Artwork")
+                .artistName("Test Artist")
+                .artistBirthYear(birthYear)
+                .artistDeathYear(deathYear)
+                .apiSource("Test Museum")
+                .build();
     }
 }

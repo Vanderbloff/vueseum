@@ -128,4 +128,13 @@ class ArtistValidationTest {
             assertThat(artwork.getArtist()).isNull();
         }
     }
+
+    @Test
+    @DisplayName("should accept empty string dates")
+    void emptyStringDates() {
+        artist.setBirthDate("");
+        artist.setDeathDate("");
+        Set<ConstraintViolation<Artist>> violations = validator.validate(artist);
+        assertThat(violations).isEmpty();
+    }
 }
