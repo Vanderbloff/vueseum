@@ -303,15 +303,4 @@ class ArtworkServiceTest {
                         artwork.getArtist().getDeathDate().isEmpty()
         ));
     }
-
-    private ArtworkDetails createTestDetails(String birthYear, String deathYear) {
-        return ArtworkDetails.builder()
-                .externalId("TEST-" + UUID.randomUUID().toString())
-                .title("Test Artwork")
-                .artistName("Test Artist")
-                .artistBirthYear(birthYear)
-                .artistDeathYear(deathYear)
-                .apiSource("Test Museum")
-                .build();
-    }
 }
