@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { Skeleton } from "$lib/components/ui/skeleton";
+	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	let {
 		primaryUrl,
@@ -17,71 +16,21 @@
 	}>();
 
 	const state = $state({
-		currentUrl: null as string | null,
+		currentUrl: primaryUrl || thumbnailUrl,
 		isLoading: true,
 		hasError: false
 	});
 
-	// Helper function to get proxied URL
 	function getProxiedUrl(url: string | null): string | null {
 		if (!url) return null;
 		try {
-			// First decode in case the URL comes pre-encoded
 			const decodedUrl = decodeURIComponent(url);
-			// Then do a single clean encode
 			return `/api/v1/images/proxy?url=${encodeURIComponent(decodedUrl)}`;
 		} catch (error) {
 			console.error('URL encoding error:', error);
 			return null;
 		}
 	}
-
-	// Validate image URL and handle fallback
-	/*async function validateImage(url: string): Promise<boolean> {
-		if (!url) return false;
-		try {
-			const response = await fetch(url, {
-				method: 'HEAD'
-			});
-			return response.ok;
-		} catch (error) {
-			console.error('Image validation error:', error);
-			return false;
-		}
-	}*/
-
-	onMount(async () => {
-		const primaryProxyUrl = getProxiedUrl(primaryUrl);
-		const thumbnailProxyUrl = getProxiedUrl(thumbnailUrl);
-
-		console.log('primaryProxyUrl:', primaryProxyUrl);
-		console.log('thumbnailProxyUrl:', thumbnailProxyUrl);
-
-		try {
-			if (primaryProxyUrl) {
-				const response = await fetch(primaryProxyUrl, { method: 'HEAD' });
-				if (response.ok) {
-					state.currentUrl = primaryUrl;
-					return;
-				}
-			}
-
-			if (thumbnailProxyUrl) {
-				const response = await fetch(thumbnailProxyUrl, { method: 'HEAD' });
-				if (response.ok) {
-					state.currentUrl = thumbnailUrl;
-					return;
-				}
-			}
-
-			state.hasError = true;
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		} catch (error) {
-			state.hasError = true;
-		}
-
-		state.isLoading = false;
-	});
 </script>
 
 {#if state.isLoading}
@@ -97,7 +46,17 @@
 			{alt}
 			class="max-w-full max-h-full w-auto h-auto {className}"
 			style="object-fit: {objectFit};"
-			onerror={() => state.hasError = true}
+			onerror={() => {
+                // If primary URL fails, try thumbnail URL and vice versa
+                if (state.currentUrl === primaryUrl && thumbnailUrl) {
+                    state.currentUrl = thumbnailUrl;
+                } else if (state.currentUrl === thumbnailUrl && primaryUrl) {
+                    state.currentUrl = primaryUrl;
+                } else {
+                    state.hasError = true;
+                }
+            }}
+			onload={() => state.isLoading = false}
 		/>
 	</div>
 {/if}
