@@ -429,12 +429,14 @@ public class ArtworkService {
             artwork.setLastSyncAttempt(LocalDateTime.now());
 
             Artwork savedArtwork = artworkRepository.save(artwork);
+
+            // Direct cache update instead of using transaction synchronization
             artworkCache.put(savedArtwork.getExternalId(), savedArtwork);
 
-        } catch (DataIntegrityViolationException e) {
+        } catch (InvalidRequestException e) {
             artworkCache.invalidate(details.getExternalId());
-            throw new InvalidRequestException("Invalid artwork data: " + e.getMessage());
-        } catch (PersistenceException e) {
+            throw e;
+        } catch (Exception e) {
             artworkCache.invalidate(details.getExternalId());
             throw new PersistenceException("Database error while saving artwork: " + e.getMessage());
         }
