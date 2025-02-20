@@ -29,12 +29,12 @@ public class Artist extends BaseEntity {
 
     private String nationality;
 
-    @Pattern(regexp = "^[0-9]+$", message = "Year must be a positive number or zero")
-    @Size(min = 4, max = 4, message = "Year must be in YYYY format")
+    @Pattern(regexp = "^$|^[0-9]{4}$", message = "Year must be in YYYY format")
+    @Pattern(regexp = "^$|^[0-9]+$", message = "Year must be a positive number or zero")
     private String birthDate;
 
-    @Pattern(regexp = "^[0-9]+$", message = "Year must be a positive number or zero")
-    @Size(min = 4, max = 4, message = "Year must be in YYYY format")
+    @Pattern(regexp = "^$|^[0-9]{4}$", message = "Year must be in YYYY format")
+    @Pattern(regexp = "^$|^[0-9]+$", message = "Year must be a positive number or zero")
     private String deathDate;
 
     @OneToMany(mappedBy = "artist", cascade = CascadeType.ALL)
