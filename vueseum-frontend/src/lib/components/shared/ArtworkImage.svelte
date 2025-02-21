@@ -25,8 +25,14 @@
 	function getProxiedUrl(url: string | null): string | null {
 		if (!url) return null;
 
-		// Don't try to decode/encode, just pass the URL directly to proxy
-		return `/api/v1/images/proxy?url=${url}`;
+		try {
+			// Clean encode the URL to handle special characters
+			const encodedUrl = encodeURIComponent(url);
+			return `/api/v1/images/proxy?url=${encodedUrl}`;
+		} catch (error) {
+			console.error('Error encoding URL:', url, error);
+			return null;
+		}
 	}
 
 	function tryLoadImage(url: string | null) {
@@ -45,11 +51,20 @@
 		});
 	}
 
-	// Start with primary URL
 	$effect(() => {
 		if (primaryUrl) {
+			const proxiedUrl = getProxiedUrl(primaryUrl);
+			console.log('Generated proxy URL:', {
+				original: primaryUrl,
+				proxied: proxiedUrl
+			});
 			tryLoadImage(primaryUrl);
 		} else if (thumbnailUrl) {
+			const proxiedUrl = getProxiedUrl(thumbnailUrl);
+			console.log('Generated proxy URL:', {
+				original: thumbnailUrl,
+				proxied: proxiedUrl
+			});
 			tryLoadImage(thumbnailUrl);
 		} else {
 			state.isLoading = false;
