@@ -93,7 +93,7 @@ public class SuggestionService {
         if (artist.getBirthDate() != null && artist.getDeathDate() != null) {
             return String.format("%s (%s-%s)",
                     artist.getArtistName(),
-                    artist.hasValidLifespan() ? artist.getBirthDate() : "",
+                    artist.hasReasonableLifespan() ? artist.getBirthDate() : "",
                     artist.getDeathDate());
         }
         return artist.getArtistName();

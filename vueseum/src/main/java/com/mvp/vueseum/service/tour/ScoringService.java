@@ -231,7 +231,7 @@ public class ScoringService {
         if (artist1.getBirthDate() != null && artist1.getDeathDate() != null
                 && artist2.getBirthDate() != null && artist2.getDeathDate() != null) {
 
-            if (artist1.hasValidLifespan() && artist2.hasValidLifespan()) {
+            if (artist1.hasReasonableLifespan() && artist2.hasReasonableLifespan()) {
                 int artist1Start = Integer.parseInt(artist1.getBirthDate());
                 int artist1End = Integer.parseInt(artist1.getDeathDate());
                 int artist2Start = Integer.parseInt(artist2.getBirthDate());
