@@ -167,8 +167,9 @@
 		<span class="text-muted-foreground">Image unavailable</span>
 	</div>
 {:else}
-	<div class="w-full h-full overflow-hidden flex items-center justify-center">
-		data-initialized={state.componentDidInitialize.toString()}>
+	<div class="w-full h-full overflow-hidden flex items-center justify-center"
+			 data-initialized={state.componentDidInitialize.toString()}
+	>
 		<img
 			src={state.currentUrl}
 			{alt}
