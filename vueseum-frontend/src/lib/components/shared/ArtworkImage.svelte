@@ -6,7 +6,6 @@
 		window.alert('Component initialized 1');
 	}
 	console.warn('Component initialized 2');
-	document.body.dataset.debug = 'Component initialized 3'
 
 	onMount(() => {
 		console.log('ArtworkImage mounted');
