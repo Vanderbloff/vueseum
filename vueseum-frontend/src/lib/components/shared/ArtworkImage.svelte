@@ -54,62 +54,48 @@
 		}
 	});
 
-
 	function tryLoadImage(url: string | null) {
-		console.log('Attempting to load image:', {
-			url,
-			currentAttempts: Array.from(state.attemptedUrls)
-		});
+		console.log('ENTRY: tryLoadImage');
 
 		if (!url || state.attemptedUrls.has(url)) {
-			console.log('Skipping URL - null or already attempted:', url);
+			console.log('EXIT EARLY: null or attempted URL');
 			return;
 		}
 
 		state.isLoading = true;
 		state.hasError = false;
+		console.log('CHECKPOINT 1: After state updates');
+
 		const proxiedUrl = getProxiedUrl(url);
+		console.log('CHECKPOINT 2: After getProxiedUrl', { proxiedUrl });
 
 		if (!proxiedUrl) {
-			console.log('Failed to generate proxy URL for:', url);
+			console.log('EXIT: Failed to generate proxy URL');
 			handleImageFailure(url);
 			return;
 		}
 
 		state.attemptedUrls.add(url);
+		console.log('CHECKPOINT 3: Added to attemptedUrls');
 
-		fetch(new URL(proxiedUrl, window.location.origin))
-			.then(async response => {
-				console.log('Fetch response:', {
-					url,
-					status: response.status,
-					ok: response.ok
-				});
-
+		fetch(proxiedUrl)
+			.then(response => {
+				console.log('CHECKPOINT 4: Fetch response received');
 				if (!response.ok) {
 					throw new Error(`HTTP error! status: ${response.status}`);
 				}
 				return response.blob();
 			})
 			.then(blob => {
-				console.log('Blob received:', {
-					url,
-					size: blob.size
-				});
-
+				console.log('CHECKPOINT 5: Blob received');
 				if (blob.size === 0) {
 					throw new Error("Empty blob received");
 				}
-
 				state.currentUrl = URL.createObjectURL(blob);
 				state.isLoading = false;
 			})
 			.catch(error => {
-				console.error('Image load failed:', {
-					url,
-					error: error.message,
-					currentAttempts: Array.from(state.attemptedUrls)
-				});
+				console.error('Image load failed:', error.message);
 				handleImageFailure(url);
 			});
 	}
@@ -122,9 +108,16 @@
 			attemptedUrls: Array.from(state.attemptedUrls)
 		});
 
-		if (failedUrl === primaryUrl && thumbnailUrl && !state.attemptedUrls.has(thumbnailUrl)) {
-			console.log('Switching to thumbnail:', thumbnailUrl);
-			tryLoadImage(thumbnailUrl);
+		// Check if this was the primary URL failing
+		if (failedUrl === primaryUrl && thumbnailUrl) {
+			if (!state.attemptedUrls.has(thumbnailUrl)) {
+				console.log('Primary failed, attempting thumbnail:', thumbnailUrl);
+				tryLoadImage(thumbnailUrl);
+			} else {
+				console.log('Thumbnail already attempted, showing error state');
+				state.hasError = true;
+				state.isLoading = false;
+			}
 		} else {
 			console.log('No more URLs to try, showing error state');
 			state.hasError = true;
