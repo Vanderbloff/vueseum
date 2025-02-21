@@ -73,10 +73,11 @@
 	}
 
 	function handleImageFailure() {
-		// Check if this was the primary URL attempt
-		const wasPrimaryUrl = !state.attemptedUrls.has(thumbnailUrl || '');
+		// Check if we've tried the primary but not the thumbnail
+		const hasTriedPrimary = primaryUrl && state.attemptedUrls.has(primaryUrl);
+		const hasTriedThumbnail = thumbnailUrl && state.attemptedUrls.has(thumbnailUrl);
 
-		if (wasPrimaryUrl && thumbnailUrl) {
+		if (hasTriedPrimary && !hasTriedThumbnail && thumbnailUrl) {
 			console.log('Primary image failed, attempting thumbnail:', thumbnailUrl);
 			tryLoadImage(thumbnailUrl);
 		} else {
