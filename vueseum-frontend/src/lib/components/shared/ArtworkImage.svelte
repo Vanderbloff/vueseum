@@ -44,17 +44,12 @@
 		state.isLoading = true;
 		state.hasError = false;
 		const proxiedUrl = getProxiedUrl(url);
-
-		// Early return if we couldn't generate a valid proxy URL
 		if (!proxiedUrl) {
-			state.hasError = true;
-			state.isLoading = false;
+			handleImageFailure(url);
 			return;
 		}
 
 		state.attemptedUrls.add(url);
-
-		// Create a proper URL object for the fetch call
 		const requestUrl = new URL(proxiedUrl, window.location.origin);
 
 		fetch(requestUrl)
@@ -73,15 +68,19 @@
 					url: proxiedUrl,
 					error: error.message
 				});
-
-				// If primary URL failed, try thumbnail
-				if (url === primaryUrl && thumbnailUrl && !state.attemptedUrls.has(thumbnailUrl)) {
-					tryLoadImage(thumbnailUrl);
-				} else {
-					state.hasError = true;
-					state.isLoading = false;
-				}
+				handleImageFailure(url);
 			});
+	}
+
+	function handleImageFailure(failedUrl: string) {
+		if (failedUrl === primaryUrl && thumbnailUrl && !state.attemptedUrls.has(thumbnailUrl)) {
+			console.log('Primary image failed, attempting thumbnail:', thumbnailUrl);
+			tryLoadImage(thumbnailUrl);
+		} else {
+			// If we've tried both URLs or don't have a thumbnail
+			state.hasError = true;
+			state.isLoading = false;
+		}
 	}
 
 	// Make sure to clean up object URLs when component is destroyed
@@ -126,24 +125,11 @@
 			{alt}
 			class="max-w-full max-h-full w-auto h-auto {className}"
 			style="object-fit: {objectFit};"
-			onerror={() => {
-                console.error('Image load failed:', {
-                    current: state.currentUrl,
-                    attempted: Array.from(state.attemptedUrls)
-                });
-
-                // If primary URL failed, try thumbnail
-                if (primaryUrl && !state.attemptedUrls.has(thumbnailUrl || '')) {
-                    tryLoadImage(thumbnailUrl);
-                } else {
-                    state.hasError = true;
-                    state.isLoading = false;
-                }
-            }}
+			onerror={() => handleImageFailure(state.currentUrl || '')}
 			onload={() => {
-                console.log('Image loaded successfully:', state.currentUrl);
-                state.isLoading = false;
-            }}
+            console.log('Image loaded successfully:', state.currentUrl);
+            state.isLoading = false;
+        }}
 		/>
 	</div>
 {/if}
