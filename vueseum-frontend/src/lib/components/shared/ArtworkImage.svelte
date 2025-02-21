@@ -54,6 +54,7 @@
 		}
 	});
 
+
 	function tryLoadImage(url: string | null) {
 		console.log('Attempting to load image:', {
 			url,
