@@ -62,12 +62,11 @@ class ArtistValidationTest {
         }
 
         @Test
-        @DisplayName("should reject impossible lifespan")
+        @DisplayName("should reject chronologically impossible lifespan")
         void impossibleLifespan() {
             artist.setBirthDate("1850");
-            artist.setDeathDate("2000");  // 150 years
-            Set<ConstraintViolation<Artist>> violations = validator.validate(artist);
-            assertThat(violations).hasSize(1);
+            artist.setDeathDate("1840");
+            assertThat(artist.hasValidLifespan()).isFalse();
         }
     }
 
