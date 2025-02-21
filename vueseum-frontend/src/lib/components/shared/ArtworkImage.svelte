@@ -2,9 +2,6 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { onDestroy, onMount } from 'svelte';
 
-	if (typeof window !== "undefined") {
-		window.alert('Component initialized 1');
-	}
 	console.warn('Component initialized 2');
 
 	onMount(() => {
