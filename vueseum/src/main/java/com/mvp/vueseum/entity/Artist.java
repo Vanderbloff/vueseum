@@ -2,7 +2,6 @@ package com.mvp.vueseum.entity;
 
 import com.mvp.vueseum.entity.base.BaseEntity;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -74,30 +73,35 @@ public class Artist extends BaseEntity {
         return new HashSet<>(works);
     }
 
-    // Class-level validation for comparing dates
-    @AssertTrue(message = "Death year must occur after birth year and within reasonable lifespan")
+    // For validation - very permissive
     public boolean hasValidLifespan() {
-
         if (birthDate == null || birthDate.isEmpty() ||
                 deathDate == null || deathDate.isEmpty()) {
-            return true;  // No dates = valid (can't validate)
-        }
-        try {
-            int birth = Integer.parseInt(birthDate);
-            int death = Integer.parseInt(deathDate);
-
-            // Basic validation rules:
-            // 1. Death must be after birth
-            // 2. Lifespan should be reasonable (e.g., less than 120 years)
-            // 3. Dates should be within reasonable historical range (e.g., after year 1000)
-            return death > birth &&
-                    (death - birth) <= 120 &&
-                    birth >= 1000;
-        } catch (NumberFormatException e) {
-            // If we can't parse the dates, consider it valid
-            // This handles cases where dates might be in different formats
             return true;
         }
+
+        // Only validate basic chronological order if both are valid years
+        if (birthDate.matches("^[0-9]{4}$") && deathDate.matches("^[0-9]{4}$")) {
+            int birth = Integer.parseInt(birthDate);
+            int death = Integer.parseInt(deathDate);
+            return death >= birth;
+        }
+        return true;
+    }
+
+    // For scoring and suggestions - stricter business logic
+    public boolean hasReasonableLifespan() {
+        if (birthDate == null || birthDate.isEmpty() ||
+                deathDate == null || deathDate.isEmpty()) {
+            return true;
+        }
+
+        if (birthDate.matches("^[0-9]{4}$") && deathDate.matches("^[0-9]{4}$")) {
+            int birth = Integer.parseInt(birthDate);
+            int death = Integer.parseInt(deathDate);
+            return death >= birth && (death - birth) <= 120;
+        }
+        return false;  // For scoring, we want actual dates
     }
 
     @Override
