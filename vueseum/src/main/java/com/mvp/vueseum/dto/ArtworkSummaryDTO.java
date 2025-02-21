@@ -18,6 +18,7 @@ public class ArtworkSummaryDTO {
     private String culture;
     private String country;
     private String imageUrl;
+    private String secondaryImageUrl;
     private String galleryNumber;
     private String department;
 
@@ -34,6 +35,7 @@ public class ArtworkSummaryDTO {
         dto.culture = artwork.getCulture();
         dto.country = artwork.getCountry();
         dto.imageUrl = artwork.getImageUrl();
+        dto.secondaryImageUrl = artwork.getThumbnailImageUrl();
         dto.galleryNumber = artwork.getGalleryNumber();
         dto.department = artwork.getDepartment();
         return dto;
