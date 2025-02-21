@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Skeleton } from '$lib/components/ui/skeleton';
+	import { onDestroy } from 'svelte';
 
 	let {
 		primaryUrl,
@@ -42,14 +43,53 @@
 
 		state.isLoading = true;
 		state.hasError = false;
-		state.currentUrl = getProxiedUrl(url);
+		const proxiedUrl = getProxiedUrl(url);
+
+		// Early return if we couldn't generate a valid proxy URL
+		if (!proxiedUrl) {
+			state.hasError = true;
+			state.isLoading = false;
+			return;
+		}
+
 		state.attemptedUrls.add(url);
 
-		console.log('Attempting to load image:', {
-			original: url,
-			proxied: state.currentUrl
-		});
+		// Create a proper URL object for the fetch call
+		const requestUrl = new URL(proxiedUrl, window.location.origin);
+
+		fetch(requestUrl)
+			.then(response => {
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
+				return response.blob();
+			})
+			.then(blob => {
+				state.currentUrl = URL.createObjectURL(blob);
+				state.isLoading = false;
+			})
+			.catch(error => {
+				console.error('Image load failed:', {
+					url: proxiedUrl,
+					error: error.message
+				});
+
+				// If primary URL failed, try thumbnail
+				if (url === primaryUrl && thumbnailUrl && !state.attemptedUrls.has(thumbnailUrl)) {
+					tryLoadImage(thumbnailUrl);
+				} else {
+					state.hasError = true;
+					state.isLoading = false;
+				}
+			});
 	}
+
+	// Make sure to clean up object URLs when component is destroyed
+	onDestroy(() => {
+		if (state.currentUrl?.startsWith('blob:')) {
+			URL.revokeObjectURL(state.currentUrl);
+		}
+	});
 
 	$effect(() => {
 		if (primaryUrl) {
