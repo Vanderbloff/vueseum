@@ -45,7 +45,7 @@
 		state.hasError = false;
 		const proxiedUrl = getProxiedUrl(url);
 		if (!proxiedUrl) {
-			handleImageFailure(url);
+			handleImageFailure();
 			return;
 		}
 
@@ -68,12 +68,15 @@
 					url: proxiedUrl,
 					error: error.message
 				});
-				handleImageFailure(url);
+				handleImageFailure();
 			});
 	}
 
-	function handleImageFailure(failedUrl: string) {
-		if (failedUrl === primaryUrl && thumbnailUrl && !state.attemptedUrls.has(thumbnailUrl)) {
+	function handleImageFailure() {
+		// Check if this was the primary URL attempt
+		const wasPrimaryUrl = !state.attemptedUrls.has(thumbnailUrl || '');
+
+		if (wasPrimaryUrl && thumbnailUrl) {
 			console.log('Primary image failed, attempting thumbnail:', thumbnailUrl);
 			tryLoadImage(thumbnailUrl);
 		} else {
@@ -125,7 +128,7 @@
 			{alt}
 			class="max-w-full max-h-full w-auto h-auto {className}"
 			style="object-fit: {objectFit};"
-			onerror={() => handleImageFailure(state.currentUrl || '')}
+			onerror={() => handleImageFailure()}
 			onload={() => {
             console.log('Image loaded successfully:', state.currentUrl);
             state.isLoading = false;
