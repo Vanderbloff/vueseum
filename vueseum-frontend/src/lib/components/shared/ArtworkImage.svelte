@@ -57,17 +57,25 @@
 				if (!response.ok) {
 					throw new Error(`HTTP error! status: ${response.status}`);
 				}
+
+				// Ensure response is an actual image
+				const contentType = response.headers.get("Content-Type");
+				if (!contentType || !contentType.startsWith("image/")) {
+					throw new Error(`Invalid content type: ${contentType}`);
+				}
+
 				return response.blob();
 			})
 			.then(blob => {
+				if (blob.size === 0) {
+					throw new Error("Image blob is empty.");
+				}
+
 				state.currentUrl = URL.createObjectURL(blob);
 				state.isLoading = false;
 			})
 			.catch(error => {
-				console.error('Image load failed:', {
-					url: proxiedUrl,
-					error: error.message
-				});
+				console.error("Image load failed:", { url: proxiedUrl, error: error.message });
 				handleImageFailure();
 			});
 	}
