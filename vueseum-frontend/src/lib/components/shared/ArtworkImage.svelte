@@ -25,15 +25,8 @@
 	function getProxiedUrl(url: string | null): string | null {
 		if (!url) return null;
 
-		try {
-			// First decode in case the URL comes pre-encoded
-			const decodedUrl = decodeURIComponent(url);
-			// Then do a single clean encode
-			return `/api/v1/images/proxy?url=${encodeURIComponent(decodedUrl)}`;
-		} catch (error) {
-			console.error('URL encoding error:', error);
-			return null;
-		}
+		// Don't try to decode/encode, just pass the URL directly to proxy
+		return `/api/v1/images/proxy?url=${url}`;
 	}
 
 	function tryLoadImage(url: string | null) {
@@ -46,7 +39,6 @@
 		state.currentUrl = getProxiedUrl(url);
 		state.attemptedUrls.add(url);
 
-		// Log the actual URL being attempted
 		console.log('Attempting to load image:', {
 			original: url,
 			proxied: state.currentUrl
