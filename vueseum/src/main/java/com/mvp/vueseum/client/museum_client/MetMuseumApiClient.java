@@ -18,8 +18,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.core.env.Environment;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -196,6 +199,29 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                 .body(String.class);
     }
 
+    private boolean validateImageUrl(String url) {
+        if (url == null || url.isEmpty()) {
+            return false;
+        }
+
+        try {
+            RestClient restClient = RestClient.create();
+            ResponseEntity<Void> response = restClient.get()
+                    .uri(url)
+                    .header("Accept", "image/*")
+                    .retrieve()
+                    .toBodilessEntity();
+
+            // Check both status and content type
+            return response.getStatusCode().is2xxSuccessful() &&
+                    response.getHeaders().getContentType() != null &&
+                    !response.getHeaders().getContentType().includes(MediaType.TEXT_HTML);
+        } catch (Exception e) {
+            log.warn("Image URL validation failed for {}: {}", url, e.getMessage());
+            return false;
+        }
+    }
+
     @Override
     public ArtworkDetails convertToArtworkDetails(String response) {
         ObjectMapper objectMapper = new ObjectMapper();
@@ -226,9 +252,15 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
             log.debug("Raw Met API response - Primary: {}, Thumbnail: {}",
                     primaryImageUrl, thumbnailImageUrl);
 
-            // Process URLs - only store non-empty strings, otherwise null
-            String finalPrimaryUrl = !primaryImageUrl.isEmpty() ? primaryImageUrl : null;
-            String finalThumbnailUrl = !thumbnailImageUrl.isEmpty() ? thumbnailImageUrl : null;
+            if (!primaryImageUrl.isEmpty() && !validateImageUrl(primaryImageUrl)) {
+                log.info("Primary image URL invalid, falling back to thumbnail: {}", primaryImageUrl);
+                primaryImageUrl = "";
+            }
+
+            if (!thumbnailImageUrl.isEmpty() && !validateImageUrl(thumbnailImageUrl)) {
+                log.info("Thumbnail URL invalid: {}", thumbnailImageUrl);
+                thumbnailImageUrl = "";
+            }
 
             // Process artist dates
             String birthYear = rootNode.path("artistBeginDate").asText("");
@@ -237,9 +269,6 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
             // Only use years that are exactly 4 digits
             birthYear = birthYear.matches("^[0-9]{4}$") ? birthYear : "";
             deathYear = deathYear.matches("^[0-9]{4}$") ? deathYear : "";
-
-            log.debug("Final URLs being set - Primary: {}, Thumbnail: {}",
-                    finalPrimaryUrl, finalThumbnailUrl);
 
             return ArtworkDetails.builder()
                     .apiSource("Metropolitan Museum of Art")
@@ -262,8 +291,8 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                     .geographyType(rootNode.path("geographyType").asText())
                     .culture(rootNode.path("culture").asText())
                     .period(rootNode.path("period").asText())
-                    .primaryImageUrl(finalPrimaryUrl)
-                    .thumbnailImageUrl(finalThumbnailUrl)
+                    .primaryImageUrl(primaryImageUrl)
+                    .thumbnailImageUrl(thumbnailImageUrl)
                     .build();
 
         } catch (Exception e) {
