@@ -16,12 +16,22 @@
 		objectFit?: 'contain' | 'cover';
 	}>();
 
+	console.log('ArtworkImage component initializing with props:', {
+		primaryUrl,
+		thumbnailUrl,
+		alt,
+		className,
+		objectFit
+	});
+
+	// Initialize state with logging
 	const state = $state({
 		currentUrl: null as string | null,
 		isLoading: true,
 		hasError: false,
 		attemptedUrls: new Set<string>()
 	});
+	console.log('Initial state created:', state);
 
 	function getProxiedUrl(url: string | null): string | null {
 		if (!url) return null;
