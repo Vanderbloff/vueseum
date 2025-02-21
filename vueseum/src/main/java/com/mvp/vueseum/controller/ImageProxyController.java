@@ -37,6 +37,11 @@ public class ImageProxyController {
             }
 
             byte[] imageData = response.getBody();
+            if (imageData == null || imageData.length == 0) {
+                log.error("Fetched image is empty, returning 404.");
+                return ResponseEntity.notFound().build();
+            }
+
             log.info("Successfully retrieved image, size: {} bytes", imageData.length);
 
             HttpHeaders headers = new HttpHeaders();
