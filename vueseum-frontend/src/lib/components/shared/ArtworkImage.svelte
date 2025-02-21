@@ -38,13 +38,16 @@
 
 	function tryLoadImage(url: string | null) {
 		if (!url || state.attemptedUrls.has(url)) {
+			console.log('Skipping URL - null or already attempted:', url);
 			return;
 		}
 
+		console.log('Attempting to load image:', url);
 		state.isLoading = true;
 		state.hasError = false;
 		const proxiedUrl = getProxiedUrl(url);
 		if (!proxiedUrl) {
+			console.log('Failed to generate proxy URL for:', url);
 			handleImageFailure();
 			return;
 		}
@@ -54,11 +57,16 @@
 
 		fetch(requestUrl)
 			.then(response => {
+				console.log('Fetch response:', {
+					url: url,
+					status: response.status,
+					contentType: response.headers.get("Content-Type")
+				});
+
 				if (!response.ok) {
 					throw new Error(`HTTP error! status: ${response.status}`);
 				}
 
-				// Ensure response is an actual image
 				const contentType = response.headers.get("Content-Type");
 				if (!contentType || !contentType.startsWith("image/")) {
 					throw new Error(`Invalid content type: ${contentType}`);
@@ -67,6 +75,12 @@
 				return response.blob();
 			})
 			.then(blob => {
+				console.log('Blob received:', {
+					url: url,
+					size: blob.size,
+					type: blob.type
+				});
+
 				if (blob.size === 0) {
 					throw new Error("Image blob is empty.");
 				}
@@ -75,21 +89,35 @@
 				state.isLoading = false;
 			})
 			.catch(error => {
-				console.error("Image load failed:", { url: proxiedUrl, error: error.message });
+				console.error("Image load failed:", {
+					url: url,
+					proxiedUrl: proxiedUrl,
+					error: error.message
+				});
 				handleImageFailure();
 			});
 	}
 
 	function handleImageFailure() {
-		// Check if we've tried the primary but not the thumbnail
+		console.log('handleImageFailure called. Current state:', {
+			primaryUrl,
+			thumbnailUrl,
+			attemptedUrls: Array.from(state.attemptedUrls)
+		});
+
 		const hasTriedPrimary = primaryUrl && state.attemptedUrls.has(primaryUrl);
 		const hasTriedThumbnail = thumbnailUrl && state.attemptedUrls.has(thumbnailUrl);
+
+		console.log('Attempt status:', {
+			hasTriedPrimary,
+			hasTriedThumbnail
+		});
 
 		if (hasTriedPrimary && !hasTriedThumbnail && thumbnailUrl) {
 			console.log('Primary image failed, attempting thumbnail:', thumbnailUrl);
 			tryLoadImage(thumbnailUrl);
 		} else {
-			// If we've tried both URLs or don't have a thumbnail
+			console.log('All attempts failed or no more URLs to try');
 			state.hasError = true;
 			state.isLoading = false;
 		}
