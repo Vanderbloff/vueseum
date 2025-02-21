@@ -36,15 +36,41 @@
 		}
 	}
 
+	// At component initialization
+	$effect(() => {
+		console.log('Initial URLs:', {
+			primaryUrl,
+			thumbnailUrl,
+			attemptedUrls: Array.from(state.attemptedUrls)
+		});
+
+		if (primaryUrl) {
+			tryLoadImage(primaryUrl);
+		} else if (thumbnailUrl) {
+			tryLoadImage(thumbnailUrl);
+		} else {
+			state.isLoading = false;
+			state.hasError = true;
+		}
+	});
+
 	function tryLoadImage(url: string | null) {
+		console.log('Attempting to load image:', {
+			url,
+			currentAttempts: Array.from(state.attemptedUrls)
+		});
+
 		if (!url || state.attemptedUrls.has(url)) {
+			console.log('Skipping URL - null or already attempted:', url);
 			return;
 		}
 
 		state.isLoading = true;
 		state.hasError = false;
 		const proxiedUrl = getProxiedUrl(url);
+
 		if (!proxiedUrl) {
+			console.log('Failed to generate proxy URL for:', url);
 			handleImageFailure(url);
 			return;
 		}
@@ -52,37 +78,54 @@
 		state.attemptedUrls.add(url);
 
 		fetch(new URL(proxiedUrl, window.location.origin))
-			.then(response => {
+			.then(async response => {
+				console.log('Fetch response:', {
+					url,
+					status: response.status,
+					ok: response.ok
+				});
+
 				if (!response.ok) {
-					// This will go to our catch block
 					throw new Error(`HTTP error! status: ${response.status}`);
 				}
 				return response.blob();
 			})
 			.then(blob => {
+				console.log('Blob received:', {
+					url,
+					size: blob.size
+				});
+
 				if (blob.size === 0) {
 					throw new Error("Empty blob received");
 				}
+
 				state.currentUrl = URL.createObjectURL(blob);
 				state.isLoading = false;
 			})
 			.catch(error => {
-				console.error("Image load failed:", {
-					originalUrl: url,
-					proxiedUrl: proxiedUrl,
-					error: error.message
+				console.error('Image load failed:', {
+					url,
+					error: error.message,
+					currentAttempts: Array.from(state.attemptedUrls)
 				});
-				handleImageFailure(url);  // Pass the URL that failed
+				handleImageFailure(url);
 			});
 	}
 
 	function handleImageFailure(failedUrl: string) {
-		// If primary URL failed and we have an unused thumbnail
+		console.log('Handle image failure called:', {
+			failedUrl,
+			primaryUrl,
+			thumbnailUrl,
+			attemptedUrls: Array.from(state.attemptedUrls)
+		});
+
 		if (failedUrl === primaryUrl && thumbnailUrl && !state.attemptedUrls.has(thumbnailUrl)) {
-			console.log('Attempting thumbnail after primary failure:', thumbnailUrl);
+			console.log('Switching to thumbnail:', thumbnailUrl);
 			tryLoadImage(thumbnailUrl);
 		} else {
-			// Either thumbnail failed or no more options
+			console.log('No more URLs to try, showing error state');
 			state.hasError = true;
 			state.isLoading = false;
 		}
@@ -95,26 +138,6 @@
 		}
 	});
 
-	$effect(() => {
-		if (primaryUrl) {
-			const proxiedUrl = getProxiedUrl(primaryUrl);
-			console.log('Generated proxy URL:', {
-				original: primaryUrl,
-				proxied: proxiedUrl
-			});
-			tryLoadImage(primaryUrl);
-		} else if (thumbnailUrl) {
-			const proxiedUrl = getProxiedUrl(thumbnailUrl);
-			console.log('Generated proxy URL:', {
-				original: thumbnailUrl,
-				proxied: proxiedUrl
-			});
-			tryLoadImage(thumbnailUrl);
-		} else {
-			state.isLoading = false;
-			state.hasError = true;
-		}
-	});
 </script>
 
 {#if state.isLoading}
