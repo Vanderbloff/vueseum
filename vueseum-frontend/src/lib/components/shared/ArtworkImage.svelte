@@ -16,21 +16,54 @@
 	}>();
 
 	const state = $state({
-		currentUrl: primaryUrl || thumbnailUrl,
+		currentUrl: null as string | null,
 		isLoading: true,
-		hasError: false
+		hasError: false,
+		attemptedUrls: new Set<string>()
 	});
 
 	function getProxiedUrl(url: string | null): string | null {
 		if (!url) return null;
+
 		try {
+			// First decode in case the URL comes pre-encoded
 			const decodedUrl = decodeURIComponent(url);
+			// Then do a single clean encode
 			return `/api/v1/images/proxy?url=${encodeURIComponent(decodedUrl)}`;
 		} catch (error) {
 			console.error('URL encoding error:', error);
 			return null;
 		}
 	}
+
+	function tryLoadImage(url: string | null) {
+		if (!url || state.attemptedUrls.has(url)) {
+			return;
+		}
+
+		state.isLoading = true;
+		state.hasError = false;
+		state.currentUrl = getProxiedUrl(url);
+		state.attemptedUrls.add(url);
+
+		// Log the actual URL being attempted
+		console.log('Attempting to load image:', {
+			original: url,
+			proxied: state.currentUrl
+		});
+	}
+
+	// Start with primary URL
+	$effect(() => {
+		if (primaryUrl) {
+			tryLoadImage(primaryUrl);
+		} else if (thumbnailUrl) {
+			tryLoadImage(thumbnailUrl);
+		} else {
+			state.isLoading = false;
+			state.hasError = true;
+		}
+	});
 </script>
 
 {#if state.isLoading}
@@ -42,21 +75,28 @@
 {:else}
 	<div class="w-full h-full overflow-hidden flex items-center justify-center">
 		<img
-			src={getProxiedUrl(state.currentUrl)}
+			src={state.currentUrl}
 			{alt}
 			class="max-w-full max-h-full w-auto h-auto {className}"
 			style="object-fit: {objectFit};"
 			onerror={() => {
-                // If primary URL fails, try thumbnail URL and vice versa
-                if (state.currentUrl === primaryUrl && thumbnailUrl) {
-                    state.currentUrl = thumbnailUrl;
-                } else if (state.currentUrl === thumbnailUrl && primaryUrl) {
-                    state.currentUrl = primaryUrl;
+                console.error('Image load failed:', {
+                    current: state.currentUrl,
+                    attempted: Array.from(state.attemptedUrls)
+                });
+
+                // If primary URL failed, try thumbnail
+                if (primaryUrl && !state.attemptedUrls.has(thumbnailUrl || '')) {
+                    tryLoadImage(thumbnailUrl);
                 } else {
                     state.hasError = true;
+                    state.isLoading = false;
                 }
             }}
-			onload={() => state.isLoading = false}
+			onload={() => {
+                console.log('Image loaded successfully:', state.currentUrl);
+                state.isLoading = false;
+            }}
 		/>
 	</div>
 {/if}
