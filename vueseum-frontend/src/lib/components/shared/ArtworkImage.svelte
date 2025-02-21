@@ -2,6 +2,10 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { onDestroy, onMount } from 'svelte';
 
+	window.alert('Component initialized 1');
+	console.warn('Component initialized 2');
+	document.body.dataset.debug = 'Component initialized 3'
+
 	onMount(() => {
 		console.log('ArtworkImage mounted');
 	});
@@ -32,13 +36,17 @@
 		objectFit
 	});
 
-	// Initialize state with logging
 	const state = $state({
+		componentDidInitialize: false,  // New state property
 		currentUrl: null as string | null,
 		isLoading: true,
 		hasError: false,
 		attemptedUrls: new Set<string>()
 	});
+
+	// At component initialization
+	state.componentDidInitialize = true;
+
 	console.log('Initial state created:', state);
 
 	function getProxiedUrl(url: string | null): string | null {
@@ -160,6 +168,7 @@
 	</div>
 {:else}
 	<div class="w-full h-full overflow-hidden flex items-center justify-center">
+		data-initialized={state.componentDidInitialize.toString()}>
 		<img
 			src={state.currentUrl}
 			{alt}
