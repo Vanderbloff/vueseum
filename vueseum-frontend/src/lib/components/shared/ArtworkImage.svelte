@@ -38,28 +38,23 @@
 
 	function tryLoadImage(url: string | null) {
 		if (!url || state.attemptedUrls.has(url)) {
-			console.log('Skipping URL - null or already attempted:', url);
 			return;
 		}
 
-		console.log('Attempting to load image:', url);
 		state.isLoading = true;
 		state.hasError = false;
 		const proxiedUrl = getProxiedUrl(url);
-
 		if (!proxiedUrl) {
-			console.log('Failed to generate proxy URL for:', url);
 			handleImageFailure(url);
 			return;
 		}
 
 		state.attemptedUrls.add(url);
-		const requestUrl = new URL(proxiedUrl, window.location.origin);
 
-		fetch(requestUrl)
+		fetch(new URL(proxiedUrl, window.location.origin))
 			.then(response => {
 				if (!response.ok) {
-					// Important: Throw error for both 404 and other error status codes
+					// This will go to our catch block
 					throw new Error(`HTTP error! status: ${response.status}`);
 				}
 				return response.blob();
@@ -77,27 +72,20 @@
 					proxiedUrl: proxiedUrl,
 					error: error.message
 				});
-				handleImageFailure(url);
+				handleImageFailure(url);  // Pass the URL that failed
 			});
 	}
 
 	function handleImageFailure(failedUrl: string) {
-		console.log('Handle image failure called for:', failedUrl);
-
-		// Check if this was the primary URL failing
+		// If primary URL failed and we have an unused thumbnail
 		if (failedUrl === primaryUrl && thumbnailUrl && !state.attemptedUrls.has(thumbnailUrl)) {
-			console.log('Primary image failed, attempting thumbnail:', thumbnailUrl);
+			console.log('Attempting thumbnail after primary failure:', thumbnailUrl);
 			tryLoadImage(thumbnailUrl);
-			return;
+		} else {
+			// Either thumbnail failed or no more options
+			state.hasError = true;
+			state.isLoading = false;
 		}
-
-		// If we reach here, either:
-		// 1. The thumbnail failed
-		// 2. There is no thumbnail
-		// 3. Both URLs have been tried
-		console.log('No more URLs to try, showing error state');
-		state.hasError = true;
-		state.isLoading = false;
 	}
 
 	// Make sure to clean up object URLs when component is destroyed
@@ -142,7 +130,7 @@
 			{alt}
 			class="max-w-full max-h-full w-auto h-auto {className}"
 			style="object-fit: {objectFit};"
-			onerror={() => handleImageFailure()}
+			onerror={() => handleImageFailure(primaryUrl)}
 			onload={() => {
             console.log('Image loaded successfully:', state.currentUrl);
             state.isLoading = false;
