@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import type { Artwork } from '$lib/types/artwork';
 	import { Button } from '$lib/components/ui/button';
-	import ArtworkImageClient from '$lib/components/shared/ArtworkImage.client.svelte';
+	import ArtworkImage from '$lib/components/shared/ArtworkImage.svelte';
 	
 	export let artwork: Artwork;
 	export let isOpen = false;
@@ -50,7 +50,7 @@
 		>
 			<!-- Image container -->
 			<div class="bg-muted p-6 flex items-center justify-center h-[80vh]">
-				<ArtworkImageClient
+				<ArtworkImage
 					primaryUrl={artwork.primaryImageUrl ?? null}
 					thumbnailUrl={artwork.thumbnailImageUrl ?? null}
 					alt={artwork.title}

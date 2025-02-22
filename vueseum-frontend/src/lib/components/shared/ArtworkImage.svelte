@@ -1,16 +1,7 @@
 <script lang="ts">
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { onDestroy, onMount } from 'svelte';
-
-	console.warn('Component initialized 2');
-
-	onMount(() => {
-		console.log('ArtworkImageClient mounted');
-	});
-
-	$effect.root(() => {
-		console.log('Root effect running');
-	});
+	import { debugLog, debugError } from '$lib/utils/debug';
 
 	let {
 		primaryUrl,
@@ -26,7 +17,7 @@
 		objectFit?: 'contain' | 'cover';
 	}>();
 
-	console.log('ArtworkImageClient component initializing with props:', {
+	debugLog('ArtworkImage component initializing with props:', {
 		primaryUrl,
 		thumbnailUrl,
 		alt,
@@ -35,7 +26,7 @@
 	});
 
 	const state = $state({
-		componentDidInitialize: false,  // New state property
+		componentDidInitialize: false,
 		currentUrl: null as string | null,
 		isLoading: true,
 		hasError: false,
@@ -45,7 +36,7 @@
 	// At component initialization
 	state.componentDidInitialize = true;
 
-	console.log('Initial state created:', state);
+	debugLog('Initial state created:', state);
 
 	function getProxiedUrl(url: string | null): string | null {
 		if (!url) return null;
@@ -55,14 +46,14 @@
 			const encodedUrl = encodeURIComponent(url);
 			return `/api/v1/images/proxy?url=${encodedUrl}`;
 		} catch (error) {
-			console.error('Error encoding URL:', url, error);
+			debugError('Error encoding URL:', url, error);
 			return null;
 		}
 	}
 
 	// At component initialization
 	$effect(() => {
-		console.log('Initial URLs:', {
+		debugLog('Initial URLs:', {
 			primaryUrl,
 			thumbnailUrl,
 			attemptedUrls: Array.from(state.attemptedUrls)
@@ -79,39 +70,39 @@
 	});
 
 	function tryLoadImage(url: string | null) {
-		console.log('ENTRY: tryLoadImage');
+		debugLog('ENTRY: tryLoadImage');
 
 		if (!url || state.attemptedUrls.has(url)) {
-			console.log('EXIT EARLY: null or attempted URL');
+			debugLog('EXIT EARLY: null or attempted URL');
 			return;
 		}
 
 		state.isLoading = true;
 		state.hasError = false;
-		console.log('CHECKPOINT 1: After state updates');
+		debugLog('CHECKPOINT 1: After state updates');
 
 		const proxiedUrl = getProxiedUrl(url);
-		console.log('CHECKPOINT 2: After getProxiedUrl', { proxiedUrl });
+		debugLog('CHECKPOINT 2: After getProxiedUrl', { proxiedUrl });
 
 		if (!proxiedUrl) {
-			console.log('EXIT: Failed to generate proxy URL');
+			debugLog('EXIT: Failed to generate proxy URL');
 			handleImageFailure(url);
 			return;
 		}
 
 		state.attemptedUrls.add(url);
-		console.log('CHECKPOINT 3: Added to attemptedUrls');
+		debugLog('CHECKPOINT 3: Added to attemptedUrls');
 
 		fetch(proxiedUrl)
 			.then(response => {
-				console.log('CHECKPOINT 4: Fetch response received');
+				debugLog('CHECKPOINT 4: Fetch response received');
 				if (!response.ok) {
 					throw new Error(`HTTP error! status: ${response.status}`);
 				}
 				return response.blob();
 			})
 			.then(blob => {
-				console.log('CHECKPOINT 5: Blob received');
+				debugLog('CHECKPOINT 5: Blob received');
 				if (blob.size === 0) {
 					throw new Error("Empty blob received");
 				}
@@ -119,13 +110,13 @@
 				state.isLoading = false;
 			})
 			.catch(error => {
-				console.error('Image load failed:', error.message);
+				debugError('Image load failed:', error.message);
 				handleImageFailure(url);
 			});
 	}
 
 	function handleImageFailure(failedUrl: string) {
-		console.log('Handle image failure called:', {
+		debugLog('Handle image failure called:', {
 			failedUrl,
 			primaryUrl,
 			thumbnailUrl,
@@ -135,15 +126,15 @@
 		// Check if this was the primary URL failing
 		if (failedUrl === primaryUrl && thumbnailUrl) {
 			if (!state.attemptedUrls.has(thumbnailUrl)) {
-				console.log('Primary failed, attempting thumbnail:', thumbnailUrl);
+				debugLog('Primary failed, attempting thumbnail:', thumbnailUrl);
 				tryLoadImage(thumbnailUrl);
 			} else {
-				console.log('Thumbnail already attempted, showing error state');
+				debugLog('Thumbnail already attempted, showing error state');
 				state.hasError = true;
 				state.isLoading = false;
 			}
 		} else {
-			console.log('No more URLs to try, showing error state');
+			debugLog('No more URLs to try, showing error state');
 			state.hasError = true;
 			state.isLoading = false;
 		}
@@ -175,9 +166,9 @@
 			style="object-fit: {objectFit};"
 			onerror={() => handleImageFailure(primaryUrl)}
 			onload={() => {
-            console.log('Image loaded successfully:', state.currentUrl);
-            state.isLoading = false;
-        }}
+                debugLog('Image loaded successfully:', state.currentUrl);
+                state.isLoading = false;
+            }}
 		/>
 	</div>
 {/if}
