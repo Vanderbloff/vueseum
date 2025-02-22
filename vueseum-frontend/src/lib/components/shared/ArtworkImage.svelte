@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { onDestroy, onMount } from 'svelte';
-	import { debugLog, debugError } from '$lib/utils/debug';
+	import { onDestroy } from 'svelte';
 
 	let {
 		primaryUrl,
@@ -17,13 +16,15 @@
 		objectFit?: 'contain' | 'cover';
 	}>();
 
-	debugLog('ArtworkImage component initializing with props:', {
-		primaryUrl,
-		thumbnailUrl,
-		alt,
-		className,
-		objectFit
-	});
+	if (typeof window !== 'undefined') {
+		console.log('ArtworkImage component initializing with props:', {
+			primaryUrl,
+			thumbnailUrl,
+			alt,
+			className,
+			objectFit
+		});
+	}
 
 	const state = $state({
 		componentDidInitialize: false,
@@ -36,7 +37,9 @@
 	// At component initialization
 	state.componentDidInitialize = true;
 
-	debugLog('Initial state created:', state);
+	if (typeof window !== 'undefined') {
+		console.log('Initial state created:', state);
+	}
 
 	function getProxiedUrl(url: string | null): string | null {
 		if (!url) return null;
@@ -46,18 +49,22 @@
 			const encodedUrl = encodeURIComponent(url);
 			return `/api/v1/images/proxy?url=${encodedUrl}`;
 		} catch (error) {
-			debugError('Error encoding URL:', url, error);
+			if (typeof window !== 'undefined') {
+				console.error('Error encoding URL:', url, error);
+			}
 			return null;
 		}
 	}
 
 	// At component initialization
 	$effect(() => {
-		debugLog('Initial URLs:', {
-			primaryUrl,
-			thumbnailUrl,
-			attemptedUrls: Array.from(state.attemptedUrls)
-		});
+		if (typeof window !== 'undefined') {
+			console.log('Initial URLs:', {
+				primaryUrl,
+				thumbnailUrl,
+				attemptedUrls: Array.from(state.attemptedUrls)
+			});
+		}
 
 		if (primaryUrl) {
 			tryLoadImage(primaryUrl);
@@ -70,39 +77,55 @@
 	});
 
 	function tryLoadImage(url: string | null) {
-		debugLog('ENTRY: tryLoadImage');
+		if (typeof window !== 'undefined') {
+			console.log('ENTRY: tryLoadImage');
+		}
 
 		if (!url || state.attemptedUrls.has(url)) {
-			debugLog('EXIT EARLY: null or attempted URL');
+			if (typeof window !== 'undefined') {
+				console.log('EXIT EARLY: null or attempted URL');
+			}
 			return;
 		}
 
 		state.isLoading = true;
 		state.hasError = false;
-		debugLog('CHECKPOINT 1: After state updates');
+		if (typeof window !== 'undefined') {
+			console.log('CHECKPOINT 1: After state updates');
+		}
 
 		const proxiedUrl = getProxiedUrl(url);
-		debugLog('CHECKPOINT 2: After getProxiedUrl', { proxiedUrl });
+		if (typeof window !== 'undefined') {
+			console.log('CHECKPOINT 2: After getProxiedUrl', { proxiedUrl });
+		}
 
 		if (!proxiedUrl) {
-			debugLog('EXIT: Failed to generate proxy URL');
+			if (typeof window !== 'undefined') {
+				console.log('EXIT: Failed to generate proxy URL');
+			}
 			handleImageFailure(url);
 			return;
 		}
 
 		state.attemptedUrls.add(url);
-		debugLog('CHECKPOINT 3: Added to attemptedUrls');
+		if (typeof window !== 'undefined') {
+			console.log('CHECKPOINT 3: Added to attemptedUrls');
+		}
 
 		fetch(proxiedUrl)
 			.then(response => {
-				debugLog('CHECKPOINT 4: Fetch response received');
+				if (typeof window !== 'undefined') {
+					console.log('CHECKPOINT 4: Fetch response received');
+				}
 				if (!response.ok) {
 					throw new Error(`HTTP error! status: ${response.status}`);
 				}
 				return response.blob();
 			})
 			.then(blob => {
-				debugLog('CHECKPOINT 5: Blob received');
+				if (typeof window !== 'undefined') {
+					console.log('CHECKPOINT 5: Blob received');
+				}
 				if (blob.size === 0) {
 					throw new Error("Empty blob received");
 				}
@@ -110,31 +133,39 @@
 				state.isLoading = false;
 			})
 			.catch(error => {
-				debugError('Image load failed:', error.message);
+				console.error('Image load failed:', error.message);
 				handleImageFailure(url);
 			});
 	}
 
 	function handleImageFailure(failedUrl: string) {
-		debugLog('Handle image failure called:', {
-			failedUrl,
-			primaryUrl,
-			thumbnailUrl,
-			attemptedUrls: Array.from(state.attemptedUrls)
-		});
+		if (typeof window !== 'undefined') {
+			console.log('Handle image failure called:', {
+				failedUrl,
+				primaryUrl,
+				thumbnailUrl,
+				attemptedUrls: Array.from(state.attemptedUrls)
+			});
+		}
 
 		// Check if this was the primary URL failing
 		if (failedUrl === primaryUrl && thumbnailUrl) {
 			if (!state.attemptedUrls.has(thumbnailUrl)) {
-				debugLog('Primary failed, attempting thumbnail:', thumbnailUrl);
+				if (typeof window !== 'undefined') {
+					console.log('Primary failed, attempting thumbnail:', thumbnailUrl);
+				}
 				tryLoadImage(thumbnailUrl);
 			} else {
-				debugLog('Thumbnail already attempted, showing error state');
+				if (typeof window !== 'undefined') {
+					console.log('Thumbnail already attempted, showing error state');
+				}
 				state.hasError = true;
 				state.isLoading = false;
 			}
 		} else {
-			debugLog('No more URLs to try, showing error state');
+			if (typeof window !== 'undefined') {
+				console.log('No more URLs to try, showing error state');
+			}
 			state.hasError = true;
 			state.isLoading = false;
 		}
@@ -166,9 +197,11 @@
 			style="object-fit: {objectFit};"
 			onerror={() => handleImageFailure(primaryUrl)}
 			onload={() => {
-                debugLog('Image loaded successfully:', state.currentUrl);
-                state.isLoading = false;
-            }}
+						if (typeof window !== 'undefined') {
+            console.log('Image loaded successfully:', state.currentUrl);
+						}
+            state.isLoading = false;
+        }}
 		/>
 	</div>
 {/if}
