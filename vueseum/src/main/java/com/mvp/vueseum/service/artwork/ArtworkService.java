@@ -287,6 +287,7 @@ public class ArtworkService {
                 // Description and image
                 .description(artwork.getDescription())
                 .primaryImageUrl(artwork.getImageUrl())
+                .thumbnailImageUrl(artwork.getThumbnailImageUrl())
 
                 // Museum source
                 .apiSource(artwork.getMuseum() != null ? artwork.getMuseum().getName() : null)
@@ -304,21 +305,7 @@ public class ArtworkService {
         Artwork artwork = artworkRepository.findByExternalIdAndMuseum(id, museum)
                 .orElseThrow(() -> new ResourceNotFoundException("Artwork not found"));
 
-        // Log 1: Raw database values
-        log.debug("DB Fetch - Artwork {} - Primary: {}, Thumbnail: {}",
-                artwork.getExternalId(),
-                artwork.getImageUrl(),
-                artwork.getThumbnailImageUrl());
-
-        ArtworkDetails details = convertToArtworkDetails(artwork);
-
-        // Log 2: After conversion to DTO
-        log.debug("DTO Convert - Artwork {} - Primary: {}, Thumbnail: {}",
-                artwork.getExternalId(),
-                details.getPrimaryImageUrl(),
-                details.getThumbnailImageUrl());
-
-        return details;
+        return convertToArtworkDetails(artwork);
     }
 
     @Transactional(readOnly = true)
