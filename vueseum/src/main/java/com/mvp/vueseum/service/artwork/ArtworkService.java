@@ -304,12 +304,21 @@ public class ArtworkService {
         Artwork artwork = artworkRepository.findByExternalIdAndMuseum(id, museum)
                 .orElseThrow(() -> new ResourceNotFoundException("Artwork not found"));
 
-        log.debug("Retrieving artwork {} - Primary URL: {}, Thumbnail URL: {}",
-                id,
+        // Log 1: Raw database values
+        log.debug("DB Fetch - Artwork {} - Primary: {}, Thumbnail: {}",
+                artwork.getExternalId(),
                 artwork.getImageUrl(),
                 artwork.getThumbnailImageUrl());
 
-        return convertToArtworkDetails(artwork);
+        ArtworkDetails details = convertToArtworkDetails(artwork);
+
+        // Log 2: After conversion to DTO
+        log.debug("DTO Convert - Artwork {} - Primary: {}, Thumbnail: {}",
+                artwork.getExternalId(),
+                details.getPrimaryImageUrl(),
+                details.getThumbnailImageUrl());
+
+        return details;
     }
 
     @Transactional(readOnly = true)
