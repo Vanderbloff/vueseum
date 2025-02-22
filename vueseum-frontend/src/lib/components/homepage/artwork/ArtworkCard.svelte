@@ -3,7 +3,7 @@
 	import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "$lib/components/ui/card";
 	import { AspectRatio } from "$lib/components/ui/aspect-ratio";
 	import type { Artwork } from '$lib/types/artwork';
-	import ArtworkImage from '$lib/components/shared/ArtworkImage.svelte';
+	import ArtworkImageClient from '$lib/components/shared/ArtworkImage.client.svelte';
 
 	export let artwork: Artwork;
 	export let onCardClick: (art: typeof artwork) => void;
@@ -23,7 +23,7 @@
 >
 	<AspectRatio ratio={1} class="bg-muted">
 		<div class="w-full h-full flex items-center justify-center p-4">
-			<ArtworkImage
+			<ArtworkImageClient
 				primaryUrl={artwork.primaryImageUrl ?? null}
 				thumbnailUrl={artwork.thumbnailImageUrl ?? null}
 				alt={artwork.title}

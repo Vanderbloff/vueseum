@@ -5,7 +5,7 @@
 	console.warn('Component initialized 2');
 
 	onMount(() => {
-		console.log('ArtworkImage mounted');
+		console.log('ArtworkImageClient mounted');
 	});
 
 	$effect.root(() => {
@@ -26,7 +26,7 @@
 		objectFit?: 'contain' | 'cover';
 	}>();
 
-	console.log('ArtworkImage component initializing with props:', {
+	console.log('ArtworkImageClient component initializing with props:', {
 		primaryUrl,
 		thumbnailUrl,
 		alt,
