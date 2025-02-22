@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 
 	let {
 		primaryUrl,
@@ -56,15 +56,12 @@
 		}
 	}
 
-	// At component initialization
-	$effect(() => {
-		if (typeof window !== 'undefined') {
-			console.log('Initial URLs:', {
-				primaryUrl,
-				thumbnailUrl,
-				attemptedUrls: Array.from(state.attemptedUrls)
-			});
-		}
+	onMount(() => {
+		console.log('Initial URLs:', {
+			primaryUrl,
+			thumbnailUrl,
+			attemptedUrls: Array.from(state.attemptedUrls)
+		});
 
 		if (primaryUrl) {
 			tryLoadImage(primaryUrl);
