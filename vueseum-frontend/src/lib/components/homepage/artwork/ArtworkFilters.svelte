@@ -196,6 +196,10 @@
 			: [];
 		onFilterChange('searchTerm', searchTerms);
 	}
+
+	$effect(() => {
+		console.log('filterOptions changed:', filterOptions);
+	});
 </script>
 
 <div class="space-y-6">
