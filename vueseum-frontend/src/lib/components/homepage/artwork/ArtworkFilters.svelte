@@ -57,6 +57,8 @@
 		children?: unknown;
 	}>();
 
+	console.log('Initial filterOptions:', filterOptions);
+
 	// Maintain set of in-flight requests to prevent duplicates
 	const state = $state({
 		pendingRequests: new Set<string>()
