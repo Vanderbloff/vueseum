@@ -31,6 +31,7 @@ export class ArtworkApiClient extends BaseApiClient {
 	}
 
 	private cachedArtworks: Artwork[] | null = null;
+
 	async searchArtworks(
 		filters: ArtworkFilters,
 		page: number = 0,
@@ -129,87 +130,7 @@ export class ArtworkApiClient extends BaseApiClient {
 	async getFilterOptions(
 		criteria: Partial<ArtworkSearchCriteria>
 	): Promise<FilterOptions> {
-		if (import.meta.env.DEV) {
-			// Cache artworks to prevent multiple fetches during initialization
-			if (!this.cachedArtworks) {
-				this.cachedArtworks = await this.fetchWithError<Artwork[]>('');
-			}
-			const artworks = this.cachedArtworks;
-
-			// Helper function to get unique non-null values
-			const getUniqueValues = <T>(
-				items: Array<T | undefined | null>,
-				filter?: (item: T) => boolean
-			): T[] => {
-				return [...new Set(
-					items.filter((item): item is T =>
-						item !== undefined && item !== null &&
-						(!filter || filter(item)))
-				)].sort();
-			};
-
-			// Base object for response
-			const options: FilterOptions = {
-				objectType: [],
-				materials: [],
-				countries: [],
-				regions: [],
-				cultures: []
-			};
-
-			// Always include object types and countries as base options
-			options.objectType = getUniqueValues(
-				artworks.map((a : Artwork) => a.classification)
-			);
-			options.countries = getUniqueValues(
-				artworks.map((a : Artwork) => a.country),
-				country => country.trim().length > 0
-			);
-
-			// Filter artworks based on criteria
-			let filteredArtworks = artworks;
-
-			// Apply artwork type filter
-			if (criteria.artworkType) {
-				filteredArtworks = filteredArtworks.filter(
-					(a : Artwork) => a.classification === criteria.artworkType
-				);
-				options.materials = getUniqueValues(
-					filteredArtworks.map((a : Artwork) => a.medium)
-				);
-			}
-
-			// Apply country filter
-			if (criteria.country) {
-				filteredArtworks = filteredArtworks.filter(
-					(a : Artwork) => a.country === criteria.country
-				);
-				options.regions = getUniqueValues(
-					filteredArtworks.map((a : Artwork) => a.region)
-				);
-
-				// If no region specified, get all cultures for country
-				if (!criteria.region) {
-					options.cultures = getUniqueValues(
-						filteredArtworks.map((a : Artwork) => a.culture)
-					);
-				}
-			}
-
-			// Apply region filter
-			if (criteria.region) {
-				filteredArtworks = filteredArtworks.filter(
-					(a : Artwork) => a.region === criteria.region
-				);
-				options.cultures = getUniqueValues(
-					filteredArtworks.map((a : Artwork) => a.culture)
-				);
-			}
-
-			return options;
-		}
-
-		// Production endpoint
+		// Create query params
 		const params = new URLSearchParams();
 		Object.entries(criteria).forEach(([key, value]) => {
 			if (value !== undefined) {
@@ -217,7 +138,21 @@ export class ArtworkApiClient extends BaseApiClient {
 			}
 		});
 
-		return this.fetchWithError<FilterOptions>(`/filter-options?${params}`);
+		// Get response from API
+		const response = await this.fetchWithError<{
+			geographicLocations: string[];
+			mediums: string[];
+			objectType: string[];
+		}>(`/filter-options?${params}`);
+
+		// Return filtered and sorted data
+		return {
+			objectType: response.objectType.filter(t => t).sort(),
+			materials: response.mediums.filter(m => m).sort(),
+			countries: response.geographicLocations.filter(loc => loc).sort(),
+			regions: [],     // Will be populated when country selected
+			cultures: []     // Will be populated when region selected
+		};
 	}
 }
 
