@@ -7,7 +7,6 @@ import { tourApi } from '$lib/api/tour';
 import type { StandardPeriod } from '$lib/types/artwork';
 
 export const load: Load = async ({ url }) => {
-	console.log('Page load starting');
 	const searchParams = url.searchParams;
 	const initialFilters = {
 		searchTerm: [searchParams.get('q') ?? ''],
@@ -32,7 +31,6 @@ export const load: Load = async ({ url }) => {
 	const initialTab = url.searchParams.get('tab') || 'artworks';
 
 	try {
-		console.log('Starting API requests');
 		const filterOptionsPromise = artworkApi.getFilterOptions({});
 
 		const artworksPromise = initialTab === 'artworks'
@@ -68,10 +66,10 @@ export const load: Load = async ({ url }) => {
 		return {
 			artworks,
 			tours,
-			initialTab,
+			initialTab: url.searchParams.get('tab') || 'artworks',
 			initialFilters,
 			initialSort: sort,
-			filterOptions  // Add to returned data
+			filterOptions
 		};
 	} catch (e) {
 		console.error('Error loading initial data:', e);
