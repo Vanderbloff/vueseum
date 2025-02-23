@@ -7,6 +7,8 @@ import com.mvp.vueseum.entity.Artwork;
 import com.mvp.vueseum.entity.Museum;
 import com.mvp.vueseum.entity.Tour;
 import com.mvp.vueseum.service.cultural.CulturalMapping;
+import com.mvp.vueseum.util.DateParsingUtil;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
@@ -26,40 +28,58 @@ public class ArtworkSpecifications {
         return (root, _, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // Handle images
+            // Has Image filter
             if (criteria.getHasImage() != null) {
-                log.info("Has Image filter value: {}", criteria.getHasImage());
                 if (criteria.getHasImage()) {
-                    predicates.add(cb.or(
-                            cb.and(
-                                    cb.isNotNull(root.get("thumbnailImageUrl")),
-                                    cb.notEqual(root.get("thumbnailImageUrl"), "")
-                            ),
-                            cb.and(
-                                    cb.isNotNull(root.get("imageUrl")),
-                                    cb.notEqual(root.get("imageUrl"), "")
-                            )
+                    predicates.add(cb.and(
+                            cb.isNotNull(root.get("imageUrl")),
+                            cb.notEqual(root.get("imageUrl"), "")
                     ));
                 } else {
-                    predicates.add(cb.and(
-                            cb.or(
-                                    cb.isNull(root.get("thumbnailImageUrl")),
-                                    cb.equal(root.get("thumbnailImageUrl"), ""),
-                                    cb.isNull(root.get("imageUrl")),
-                                    cb.equal(root.get("imageUrl"), "")
-                            )
+                    predicates.add(cb.or(
+                            cb.isNull(root.get("imageUrl")),
+                            cb.equal(root.get("imageUrl"), "")
                     ));
                 }
             }
 
-            // Handle artwork type/classification with hierarchical relationships
-            if (criteria.getArtworkType() != null) {
-                String artworkType = criteria.getArtworkType();
-                Predicate typePredicate = cb.or(
-                        cb.equal(root.get("classification"), artworkType),
-                        cb.like(root.get("classification"), artworkType + "/%")
-                );
-                predicates.add(typePredicate);
+            // Era filter
+            if (criteria.getPeriod() != null && !criteria.getPeriod().isEmpty()) {
+                String periodStr = criteria.getPeriod();
+                try {
+                    String[] parts = periodStr.split("-");
+                    if (parts.length == 2) {
+                        String startPeriod = parts[0].trim();
+                        String endPeriod = parts[1].trim();
+
+                        int startYear = DateParsingUtil.extractYear(startPeriod);
+                        int endYear = DateParsingUtil.extractYear(endPeriod);
+
+                        Expression<String> creationDate = root.get("creationDate");
+                        predicates.add(cb.and(
+                                cb.isNotNull(creationDate),
+                                cb.between(
+                                        cb.function(
+                                                "extract_year_from_date",
+                                                Integer.class,
+                                                creationDate
+                                        ),
+                                        startYear,
+                                        endYear
+                                )
+                        ));
+                    }
+                } catch (NumberFormatException e) {
+                    log.warn("Failed to parse era period: {}", periodStr, e);
+                }
+            }
+
+            // Artwork Type filter
+            if (criteria.getArtworkType() != null && !criteria.getArtworkType().isEmpty()) {
+                predicates.add(cb.equal(
+                        root.get("classification"),
+                        criteria.getArtworkType()
+                ));
             }
 
             // Handle medium separately
