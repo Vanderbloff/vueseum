@@ -40,6 +40,9 @@ public class ArtworkSearchCriteria {
     @Size(max = 100)
     private String geographicLocation;
 
+    @Size(max = 100)
+    private String region;
+
     private Double accessionNumber;
 
     private Long museumId;
