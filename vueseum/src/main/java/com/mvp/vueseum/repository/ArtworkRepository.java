@@ -17,9 +17,13 @@ import java.util.Optional;
 
 @Repository
 public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpecificationExecutor<Artwork> {
-    // Base find methods
     Optional<Artwork> findByExternalIdAndMuseum(String externalId, Museum museum);
+    @Query("SELECT a FROM Artwork a " +
+            "LEFT JOIN FETCH a.artist " +
+            "LEFT JOIN FETCH a.museum")
     List<Artwork> findAllWithArtistsAndMuseums();
+
+    @Query("SELECT COUNT(a) FROM Artwork a WHERE a.museum.id = :museumId")
     long countByMuseum(Long museumId);
 
     // Classification/Type and Medium
