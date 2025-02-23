@@ -89,50 +89,41 @@ public class ArtworkService {
     }
 
     public Map<String, List<String>> getFilterOptions(ArtworkSearchCriteria criteria) {
+        Map<String, List<String>> options = new HashMap<>();
+
         try {
-            Map<String, List<String>> options = new HashMap<>();
-
-            // Handle object type hierarchy
-            if (criteria.getArtworkType() == null) {
-                options.put("objectType", filterValueCache.get("classifications", _ ->
-                        artworkRepository.findDistinctClassifications().stream()
-                                .map(this::getTopLevelCategory)
-                                .distinct()
-                                .collect(Collectors.toList())
-                ));
-            } else {
-                String selectedType = criteria.getArtworkType();
-                validateClassification(selectedType);
-
-                // Get subcategories for selected type
-                Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
-                List<String> subtypes = artworkRepository.findAll(spec)
-                        .stream()
-                        .map(Artwork::getClassification)
-                        .filter(c -> isSubcategoryOf(c, selectedType))
-                        .distinct()
-                        .collect(Collectors.toList());
-
-                options.put("subtypes", subtypes);
-                options.put("materials", filterValueCache.get("mediums", _ ->
-                        artworkRepository.findDistinctMediums()));
+            // Base case - no filters selected, load initial options
+            if (criteria.getArtworkType() == null && criteria.getGeographicLocation() == null) {
+                options.put("objectType", artworkRepository.findDistinctClassifications());
+                options.put("geographicLocations", artworkRepository.findDistinctGeographicLocations());
             }
 
-            // Handle cultural/geographic filtering
-            if (criteria.getGeographicLocation() == null) {
-                options.put("culturalRegions", CulturalMapping.getCulturalRegions());
-                options.put("cultures", filterValueCache.get("cultures", _ ->
-                        artworkRepository.findDistinctCultures()));
+            // If artwork type is selected, get related mediums
+            if (criteria.getArtworkType() != null) {
+                // Use specific query for filtered mediums
+                options.put("mediums", artworkRepository.findDistinctMediumsByClassification(
+                        criteria.getArtworkType()
+                ));
             } else {
-                validateGeographicLocation(criteria.getGeographicLocation());
-                options.put("cultures",
-                        CulturalMapping.getCulturesForRegion(criteria.getGeographicLocation()));
+                // If no type selected but mediums are needed, use general query
+                options.put("mediums", artworkRepository.findDistinctMediums());
+            }
+
+            // Geographic location hierarchy
+            if (criteria.getGeographicLocation() != null) {
+                options.put("regions", artworkRepository.findDistinctRegionsByLocation(
+                        criteria.getGeographicLocation()
+                ));
+
+                // If region is also selected, get cultures
+                if (criteria.getRegion() != null) {
+                    options.put("cultures", artworkRepository.findDistinctCulturesByRegion(
+                            criteria.getRegion()
+                    ));
+                }
             }
 
             return options;
-
-        } catch (IllegalArgumentException e) {
-            throw new InvalidRequestException("Invalid filter criteria: " + e.getMessage());
         } catch (Exception e) {
             log.error("Error fetching filter options", e);
             throw new PersistenceException("Failed to fetch filter options", e);
