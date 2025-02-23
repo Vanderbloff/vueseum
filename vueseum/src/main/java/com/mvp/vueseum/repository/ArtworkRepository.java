@@ -37,10 +37,10 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
     List<String> findDistinctMediumsByClassification(@Param("classification") String classification);
 
     // Geographic Location hierarchy
-    @Query("SELECT DISTINCT a.geographicLocation FROM Artwork a WHERE a.geographicLocation IS NOT NULL ORDER BY a.geographicLocation")
+    @Query("SELECT DISTINCT a.country FROM Artwork a WHERE a.country IS NOT NULL ORDER BY a.country")
     List<String> findDistinctGeographicLocations();
 
-    @Query("SELECT DISTINCT a.region FROM Artwork a WHERE a.geographicLocation = :location AND a.region IS NOT NULL ORDER BY a.region")
+    @Query("SELECT DISTINCT a.region FROM Artwork a WHERE a.country = :location AND a.region IS NOT NULL ORDER BY a.region")
     List<String> findDistinctRegionsByLocation(@Param("location") String location);
 
     @Query("SELECT DISTINCT a.culture FROM Artwork a WHERE a.region = :region AND a.culture IS NOT NULL ORDER BY a.culture")
