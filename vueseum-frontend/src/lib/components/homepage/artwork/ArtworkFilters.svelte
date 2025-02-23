@@ -17,6 +17,8 @@
 
 <script lang="ts">
 	import type { StandardPeriod } from '$lib/types/artwork';
+	import type { FilterOptions } from '$lib/api/artwork';
+	import { artworkApi } from '$lib/api/artwork';
 	import { Select, SelectContent, SelectItem, SelectTrigger } from '$lib/components/ui/select';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
@@ -45,91 +47,153 @@
 		children
 	} = $props<{
 		filters: ArtworkFilters;
-		filterOptions: {
-			objectType: string[];
-			materials: string[];
-			countries: string[];
-			regions: string[];
-			cultures: string[];
-		};
+		filterOptions: FilterOptions;
 		loading: {
 			options: boolean;
 		};
 		error: string | null;
-		onFilterChange: (
-			key: keyof ArtworkFilters,
-			value: string[] | StandardPeriod[] | SearchField | boolean
-		) => void;
+		onFilterChange: (key: keyof ArtworkFilters, value: string[] | StandardPeriod[] | SearchField | boolean) => void;
 		onSearch: (filters: ArtworkFilters) => void;
 		children?: unknown;
 	}>();
 
-	type FilterKey = keyof ArtworkFilters;
+	// Maintain set of in-flight requests to prevent duplicates
+	const state = $state({
+		pendingRequests: new Set<string>()
+	});
 
-	function handleSingleSelect(
-		key: FilterKey,
-		value: string | undefined,
-		dependentFields?: { field: FilterKey; reset: true }[]
-	) {
-		onFilterChange(key, value ? [value] : []);
-		dependentFields?.forEach(({ field }) => {
-			onFilterChange(field, []);
-		})
+	/**
+	 * Loads filter options based on current selection criteria.
+	 * Only loads dependent options when parent selections change.
+	 */
+	async function loadFilterOptions(criteria: {
+		objectType?: string;
+		country?: string;
+		region?: string;
+	} = {}) {
+		const requestId = JSON.stringify(criteria);
+
+		// Skip if this exact request is already in flight
+		if (state.pendingRequests.has(requestId)) {
+			return;
+		}
+
+		try {
+			state.pendingRequests.add(requestId);
+			loading.options = true;
+
+			const options = await artworkApi.getFilterOptions(criteria);
+
+			// Update only the options that should change based on criteria
+			filterOptions = {
+				...filterOptions,
+				// Update materials when object type changes
+				...(criteria.objectType ? { materials: options.materials } : {}),
+				// Update regions when country changes
+				...(criteria.country ? { regions: options.regions } : {}),
+				// Update cultures when region changes
+				...(criteria.region ? { cultures: options.cultures } : {}),
+				// Update base options only if no specific criteria
+				...(!Object.keys(criteria).length ? {
+					objectType: options.objectType,
+					countries: options.countries
+				} : {})
+			};
+		} catch {
+			error = 'Failed to load filter options';
+		} finally {
+			loading.options = false;
+			state.pendingRequests.delete(requestId);
+		}
 	}
 
-	// Handle search field changes
+	/**
+	 * Handles changes to object type selection.
+	 * Updates available materials based on selected type.
+	 */
+	function handleClassificationChange(classification: string | undefined) {
+		onFilterChange('objectType', classification ? [classification] : []);
+		if (classification) {
+			loadFilterOptions({ objectType: classification });
+		}
+		// Reset materials when type changes
+		onFilterChange('materials', []);
+	}
+
+	/**
+	 * Handles changes to country selection.
+	 * Updates available regions based on selected country.
+	 */
+	function handleCountryChange(country: string | undefined) {
+		onFilterChange('country', country ? [country] : []);
+		if (country) {
+			loadFilterOptions({ country });
+		}
+		// Reset dependent fields
+		onFilterChange('region', []);
+		onFilterChange('culture', []);
+	}
+
+	/**
+	 * Handles changes to region selection.
+	 * Updates available cultures based on selected region.
+	 */
+	function handleRegionChange(region: string | undefined) {
+		onFilterChange('region', region ? [region] : []);
+		if (region) {
+			loadFilterOptions({
+				country: filters.country[0],
+				region
+			});
+		}
+		// Reset culture when region changes
+		onFilterChange('culture', []);
+	}
+
+	/**
+	 * Handles changes to culture selection.
+	 * No dependent fields to update.
+	 */
+	function handleCultureChange(culture: string | undefined) {
+		onFilterChange('culture', culture ? [culture] : []);
+	}
+
+	/**
+	 * Handles changes to era selection.
+	 * Uses predefined PERIOD_OPTIONS for valid values.
+	 */
+	function handleEraChange(value: string | undefined) {
+		onFilterChange('era', value ? [value as StandardPeriod] : []);
+	}
+
+	/**
+	 * Handles changes to materials selection.
+	 * Supports multiple selection.
+	 */
+	function handleMaterialsChange(materials: string[]) {
+		onFilterChange('materials', materials);
+	}
+
+	/**
+	 * Handles changes to search field selection.
+	 * Validates against allowed search field values.
+	 */
 	function handleSearchFieldChange(value: string) {
 		if (value === "all" || value === "title" || value === "artist" || value === "culture") {
 			onFilterChange('searchField', value);
 		}
 	}
 
-	function handleClassificationChange(classification: string | undefined) {
-		handleSingleSelect('objectType', classification, [
-			{ field: 'materials', reset: true }
-		]);
-	}
-
-	function handleMaterialsChange(materials: string[]) {
-		onFilterChange('materials', materials);
-	}
-
-	function handleCountryChange(country: string | undefined) {
-		handleSingleSelect('country', country, [
-			{ field: 'region', reset: true },
-			{ field: 'culture', reset: true }
-		]);
-	}
-
-	function handleRegionChange(region: string | undefined) {
-		handleSingleSelect('region', region, [
-			{ field: 'culture', reset: true }
-		]);
-	}
-
-	function handleCultureChange(culture: string | undefined) {
-		handleSingleSelect('culture', culture);
-	}
-
-	function handleEraChange(value: string | undefined) {
-		console.log('Era changed:', value);
-		handleSingleSelect('era', value as StandardPeriod);
-	}
-
-	// Handle checkbox changes
-	function handleCheckboxChange(key: 'hasImage', checked: boolean) {
-		console.log('Checkbox changed:', key, checked);
-		onFilterChange(key, checked);
-	}
-
-	// Handle search execution
+	/**
+	 * Handles search term changes.
+	 * Trims whitespace and handles empty values.
+	 */
 	function handleSearch() {
 		const searchTerms = filters.searchTerm[0]?.trim()
 			? [filters.searchTerm[0]]
 			: [];
 		onFilterChange('searchTerm', searchTerms);
 	}
-
 </script>
 
 <div class="space-y-6">
@@ -217,7 +281,7 @@
         </span>
 					</SelectTrigger>
 					<SelectContent>
-						{#each (filterOptions.objectType || []).sort() as type}
+						{#each filterOptions.objectType as type}
 							<SelectItem value={type}>{type}</SelectItem>
 						{/each}
 					</SelectContent>
@@ -248,7 +312,7 @@
 				{/if}
 			</div>
 
-			<!-- Cultural Region Filter -->
+			<!-- Geographic Location Filter -->
 			<div class="space-y-2">
 				<div class="flex items-center justify-between h-6">
 					<Label>Geographical Location</Label>
@@ -256,9 +320,7 @@
 						<Button
 							variant="ghost"
 							size="sm"
-							onclick={() => {
-								handleCountryChange(undefined);
-						}}
+							onclick={() => handleCountryChange(undefined)}
 						>
 							Reset
 						</Button>
@@ -364,7 +426,7 @@
 				<Checkbox
 					id="hasImage"
 					checked={filters.hasImage}
-					onCheckedChange={(checked) => handleCheckboxChange('hasImage', checked)}
+					onCheckedChange={(checked) => onFilterChange('hasImage', checked)}
 				/>
 				<Label for="hasImage">Has image</Label>
 			</div>
