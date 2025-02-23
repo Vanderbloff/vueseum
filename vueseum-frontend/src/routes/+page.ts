@@ -63,6 +63,7 @@ export const load: Load = async ({ url }) => {
 			filterOptionsPromise
 		]);
 
+		console.log('Loaded filter options (+page.ts):', filterOptions);
 		return {
 			artworks,
 			tours,
