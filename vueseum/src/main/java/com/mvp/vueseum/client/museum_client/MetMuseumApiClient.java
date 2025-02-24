@@ -228,6 +228,11 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
         JsonNode rootNode;
         try {
             rootNode = objectMapper.readTree(response);
+            if (rootNode.path("department").asInt() == 7) {
+                log.debug("Skipping Cloisters artwork: {}",
+                        rootNode.path("objectID").asText());
+                return null;
+            }
         } catch (IOException e) {
             throw new ApiClientException("Invalid JSON response from Met Museum API", e);
         }
