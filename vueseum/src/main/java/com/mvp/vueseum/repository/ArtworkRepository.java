@@ -26,6 +26,32 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
     @Query("SELECT COUNT(a) FROM Artwork a WHERE a.museum.id = :museumId")
     long countByMuseum(Long museumId);
 
+    // Count methods for classifications and mediums
+    @Query("SELECT COUNT(a) FROM Artwork a WHERE a.classification = :classification")
+    long countByClassification(@Param("classification") String classification);
+
+    @Query("SELECT COUNT(a) FROM Artwork a WHERE a.medium = :medium AND a.classification = :classification")
+    long countByMediumAndClassification(
+            @Param("medium") String medium,
+            @Param("classification") String classification
+    );
+
+    // Count methods for geographic hierarchy
+    @Query("SELECT COUNT(a) FROM Artwork a WHERE a.country = :geographicLocation")
+    long countByGeographicLocation(@Param("geographicLocation") String geographicLocation);
+
+    @Query("SELECT COUNT(a) FROM Artwork a WHERE a.region = :region AND a.country = :geographicLocation")
+    long countByRegionAndGeographicLocation(
+            @Param("region") String region,
+            @Param("geographicLocation") String geographicLocation
+    );
+
+    @Query("SELECT COUNT(a) FROM Artwork a WHERE a.culture = :culture AND a.region = :region")
+    long countByCultureAndRegion(
+            @Param("culture") String culture,
+            @Param("region") String region
+    );
+
     // Classification/Type and Medium
     @Query("SELECT DISTINCT a.classification FROM Artwork a WHERE a.classification IS NOT NULL ORDER BY a.classification")
     List<String> findDistinctClassifications();
