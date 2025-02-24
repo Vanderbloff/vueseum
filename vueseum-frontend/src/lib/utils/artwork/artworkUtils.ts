@@ -85,11 +85,11 @@ export class ArtworkUtils {
 				if (!classificationMatches) return false;
 			}
 
-			// Materials filter
+			// Medium filter
 			if (filters.materials.length > 0) {
-				const materialMatches = artwork.medium &&
-					filters.materials.some(material => artwork.medium?.includes(material));
-				if (!materialMatches) return false;
+				const mediumMatches = artwork.medium &&
+					filters.materials.some(medium => artwork.medium?.includes(medium));
+				if (!mediumMatches) return false;
 			}
 
 			// Geographic Location filter
