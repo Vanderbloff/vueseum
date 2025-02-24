@@ -111,6 +111,7 @@
 	}, 300);
 
 	async function handleSearch(filters: typeof state.currentFilters.filters) {
+		console.log('Performing search with filters:', JSON.stringify(filters));
 		debouncedSearch(filters);
 	}
 
@@ -140,13 +141,13 @@
 			// Update only the relevant filter options
 			state.filterOptions = {
 				...state.filterOptions,
-				...(criteria.objectType ? { materials: options.materials } : {}),
+				...(criteria.objectType ? { materials: options.mediums } : {}),
 				...(criteria.country ? { regions: options.regions } : {}),
 				...(criteria.region ? { cultures: options.cultures } : {}),
 				// Always update base options if no criteria
 				...(!Object.keys(criteria).length ? {
 					objectType: options.objectType,
-					countries: options.countries
+					countries: options.geographicLocations
 				} : {})
 			};
 		} catch  {
@@ -169,8 +170,12 @@
 		key: K,
 		value: Filters[K]
 	) {
-		console.log('Parent received filter change:', key, value);
+		console.log('Filter change:', key, value);
 		state.currentFilters.filters[key] = value;
+
+		if (key === 'hasImage') {
+			console.log('hasImage updated to:', value);
+		}
 
 		// Load dependent options based on the changed filter
 		switch(key) {
@@ -202,7 +207,7 @@
 		}
 
 		// Trigger search with updated filters
-		console.log('Updated filters:', state.currentFilters.filters);
+		console.log('Search with filters:', state.currentFilters.filters);
 		handleSearch(state.currentFilters.filters);
 	}
 
@@ -302,6 +307,7 @@
 			region: state.currentFilters.filters.region,
 			culture: state.currentFilters.filters.culture,
 			period: state.currentFilters.filters.era,
+			hasImage: state.currentFilters.filters.hasImage === false ? 'false' : null,
 
 			// Sort parameters
 			sortBy: state.currentFilters.sort.field !== 'relevance' ?
@@ -332,16 +338,25 @@
 			state.currentPage = Number(pageParam);
 		}
 
+		// Check if hasImage is explicitly set to false in URL
+		const hasImageParam = url.searchParams.get('hasImage');
+		const explicitlyDisabled = hasImageParam === 'false';
+
+		// Set hasImage to true by default unless explicitly disabled
+		if (!explicitlyDisabled) {
+			state.currentFilters.filters.hasImage = true;
+		}
+
 		// Only initialize filters if we have URL parameters
-		if (hasSearchParams) {
+		if (hasSearchParams || !explicitlyDisabled) {
 			const initializeFilters = async () => {
 				state.loading.initialLoad = true;
 				try {
 					const options = await artworkApi.getFilterOptions({});
 					state.filterOptions = {
 						objectType: options.objectType.sort(),
-						materials: options.materials.sort(),
-						countries: options.countries.sort(),
+						materials: options.mediums.sort(),
+						countries: options.geographicLocations.sort(),
 						regions: options.regions,
 						cultures: options.cultures
 					};
@@ -365,7 +380,7 @@
 					await Promise.all(loadPromises);
 
 					state.loading.results = true;
-					await handleSearch(filters);
+					await handleSearch(state.currentFilters.filters);
 				} catch (error) {
 					console.error('Error loading initial filters:', error);
 					state.error = {
@@ -380,6 +395,8 @@
 			};
 
 			initializeFilters();
+		} else {
+			handleSearch(state.currentFilters.filters);
 		}
 
 		state.isInitialized = true;
