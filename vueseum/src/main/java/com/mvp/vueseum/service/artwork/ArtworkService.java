@@ -137,9 +137,9 @@ public class ArtworkService {
                 }
             }
 
-            if (!options.isEmpty()) {
+            /*if (!options.isEmpty()) {
                 addCountsToOptions(options, criteria);
-            }
+            }*/
 
             return options;
         } catch (IllegalArgumentException e) {
