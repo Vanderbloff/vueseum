@@ -7,13 +7,14 @@ import { BaseApiClient } from '$lib/api/base';
 import type { ArtworkFilters } from '$lib/components/homepage/artwork/ArtworkFilters.svelte';
 import { DateUtils } from '$lib/utils/dateUtils';
 import { ArtworkUtils } from '$lib/utils/artwork/artworkUtils';
+import type { FilterOptionsResponse } from '$lib/types/filters';
 
 export interface FilterOptions {
-	objectType: string[];      // Top-level categories
-	materials: string[];       // Available with type selection
-	countries: string[];       // Available countries
-	regions: string[];        // Regions for selected country
-	cultures: string[];        // Available when region is selected
+	objectType: string[];
+	mediums: string[];
+	geographicLocations: string[];
+	regions: string[];
+	cultures: string[];
 }
 
 /**
@@ -129,7 +130,7 @@ export class ArtworkApiClient extends BaseApiClient {
 
 	async getFilterOptions(
 		criteria: Partial<ArtworkSearchCriteria>
-	): Promise<FilterOptions> {
+	): Promise<FilterOptionsResponse> {
 		// Create query params
 		const params = new URLSearchParams();
 		Object.entries(criteria).forEach(([key, value]) => {
@@ -139,19 +140,17 @@ export class ArtworkApiClient extends BaseApiClient {
 		});
 
 		// Get response from API
-		const response = await this.fetchWithError<{
-			geographicLocations: string[];
-			mediums: string[];
-			objectType: string[];
-		}>(`/filter-options?${params}`);
+		const response = await this.fetchWithError<FilterOptionsResponse>(
+			`/filter-options?${params}`
+		);
 
 		// Return filtered and sorted data
 		return {
-			objectType: response.objectType.filter(t => t).sort(),
-			materials: response.mediums.filter(m => m).sort(),
-			countries: response.geographicLocations.filter(loc => loc).sort(),
-			regions: [],     // Will be populated when country selected
-			cultures: []     // Will be populated when region selected
+			objectType: response.objectType?.filter(Boolean).sort() ?? [],
+			mediums: response.mediums?.filter(Boolean).sort() ?? [],
+			geographicLocations: response.geographicLocations?.filter(Boolean).sort() ?? [],
+			regions: response.regions?.filter(Boolean).sort() ?? [],
+			cultures: response.cultures?.filter(Boolean).sort() ?? []
 		};
 	}
 }
