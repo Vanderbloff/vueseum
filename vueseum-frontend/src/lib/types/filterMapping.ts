@@ -29,7 +29,15 @@ export function mapFiltersToSearchCriteria(
 		}
 	}
 
-	// Map geographic filters hierarchically
+	if (filters.objectType.length > 0) {
+		criteria.artworkType = filters.objectType[0];
+
+		if (filters.materials.length > 0) {
+			criteria.medium = filters.materials[0];
+		}
+	}
+
+	// Map geographic and cultural data
 	if (filters.country.length > 0) {
 		criteria.country = filters.country[0];
 
@@ -38,22 +46,18 @@ export function mapFiltersToSearchCriteria(
 		}
 	}
 
-	// Map cultural filter
 	if (filters.culture.length > 0) {
 		criteria.culture = filters.culture[0];
 	}
 
-	// Map artwork type and medium
-	if (filters.objectType.length > 0) {
-		criteria.artworkType = filters.objectType[0];
-	}
-	if (filters.materials.length > 0) {
-		criteria.medium = filters.materials[0];
-	}
-
-	// Map period/era filter
+	// Map period/era
 	if (filters.era.length > 0) {
 		criteria.period = filters.era[0];
+	}
+
+	// Map hasImage
+	if (filters.hasImage !== undefined) {
+		criteria.hasImage = filters.hasImage;
 	}
 
 	return criteria;
