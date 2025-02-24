@@ -56,9 +56,7 @@ export function mapFiltersToSearchCriteria(
 	}
 
 	// Map hasImage
-	if (filters.hasImage) {
-		criteria.hasImage = true;
-	}
+	criteria.hasImage = filters.hasImage;
 
 	return criteria;
 }
