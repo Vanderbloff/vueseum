@@ -5,8 +5,9 @@ import { error } from '@sveltejs/kit';
 import { ArtworkUtils } from '$lib/utils/artwork/artworkUtils';
 import { tourApi } from '$lib/api/tour';
 import type { StandardPeriod } from '$lib/types/artwork';
+import type { PageData } from './types';
 
-export const load: Load = async ({ url }) => {
+export const load = (async ({ url }): Promise<PageData> => {
 	const searchParams = url.searchParams;
 	const initialFilters = {
 		searchTerm: [searchParams.get('q') ?? ''],
@@ -19,7 +20,7 @@ export const load: Load = async ({ url }) => {
 		era: searchParams.getAll('period') as StandardPeriod[],
 		hasImage: true,
 		museumId: searchParams.getAll('museumId')
-	};
+	}
 
 	const sort = {
 		field: (searchParams.get('sortBy') ?? 'relevance') as 'relevance' | 'title' | 'artist' | 'date',
@@ -84,4 +85,4 @@ export const load: Load = async ({ url }) => {
 			message: 'An unexpected error occurred'
 		});
 	}
-};
+}) satisfies Load;
