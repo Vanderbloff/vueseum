@@ -11,4 +11,5 @@ export interface ArtworkSearchCriteria {
 	artworkType?: string;
 	museums?: string[];
 	tags?: string[];
+	hasImage?: boolean;
 }
