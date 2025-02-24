@@ -161,11 +161,11 @@ public class ArtworkService {
             for (String value : values) {
                 long count = switch (filterType) {
                     case "objectType" -> artworkRepository.countByClassification(value);
-                    case "materials" -> criteria.getArtworkType() != null ?
+                    case "mediums" -> criteria.getArtworkType() != null ?
                             artworkRepository.countByMediumAndClassification(
                                     value, criteria.getArtworkType()
                             ) : 0;
-                    case "countries" -> artworkRepository.countByGeographicLocation(value);
+                    case "geographicLocations" -> artworkRepository.countByGeographicLocation(value);
                     case "regions" -> criteria.getGeographicLocation() != null ?
                             artworkRepository.countByRegionAndGeographicLocation(
                                     value, criteria.getGeographicLocation()
