@@ -95,22 +95,33 @@ public class ArtworkService {
             // Base case - no filters selected, load initial options
             if (criteria.getArtworkType() == null && criteria.getGeographicLocation() == null) {
                 options.put("objectType", artworkRepository.findDistinctClassifications());
-                options.put("geographicLocations", artworkRepository.findDistinctGeographicLocations());
+                options.put("countries", artworkRepository.findDistinctGeographicLocations());
             }
 
-            // If artwork type is selected, get related mediums
+            // If artwork type is selected, validate and get related mediums
             if (criteria.getArtworkType() != null) {
-                // Use specific query for filtered mediums
-                options.put("mediums", artworkRepository.findDistinctMediumsByClassification(
+                validateClassification(criteria.getArtworkType());
+
+                // Get top level category in case a subcategory was provided
+                String topLevelCategory = getTopLevelCategory(criteria.getArtworkType());
+
+                // Get mediums for either the specific category or its parent
+                List<String> mediums = artworkRepository.findDistinctMediumsByClassification(
                         criteria.getArtworkType()
-                ));
-            } else {
-                // If no type selected but mediums are needed, use general query
-                options.put("mediums", artworkRepository.findDistinctMediums());
+                );
+
+                // If no mediums found, and we're looking at a subcategory,
+                // try getting mediums from the parent category
+                if (mediums.isEmpty() && !criteria.getArtworkType().equals(topLevelCategory)) {
+                    mediums = artworkRepository.findDistinctMediumsByClassification(topLevelCategory);
+                }
+
+                options.put("materials", mediums);
             }
 
-            // Geographic location hierarchy
+            // Geographic location hierarchy with validation
             if (criteria.getGeographicLocation() != null) {
+                validateGeographicLocation(criteria.getGeographicLocation());
                 options.put("regions", artworkRepository.findDistinctRegionsByLocation(
                         criteria.getGeographicLocation()
                 ));
@@ -123,7 +134,11 @@ public class ArtworkService {
                 }
             }
 
+            addCountsToOptions(options, criteria);
             return options;
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid filter criteria: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("Error fetching filter options", e);
             throw new PersistenceException("Failed to fetch filter options", e);
@@ -148,8 +163,34 @@ public class ArtworkService {
         return classification.split("/")[0];
     }
 
-    private boolean isSubcategoryOf(String category, String parentCategory) {
-        return category.startsWith(parentCategory + "/");
+    private void addCountsToOptions(Map<String, List<String>> options, ArtworkSearchCriteria criteria) {
+        for (Map.Entry<String, List<String>> entry : options.entrySet()) {
+            String filterType = entry.getKey();
+            List<String> values = entry.getValue();
+            List<String> valuesWithCounts = new ArrayList<>();
+
+            for (String value : values) {
+                long count = switch (filterType) {
+                    case "objectType" -> artworkRepository.countByClassification(value);
+                    case "materials" -> criteria.getArtworkType() != null ?
+                            artworkRepository.countByMediumAndClassification(
+                                    value, criteria.getArtworkType()
+                            ) : 0;
+                    case "countries" -> artworkRepository.countByGeographicLocation(value);
+                    case "regions" -> criteria.getGeographicLocation() != null ?
+                            artworkRepository.countByRegionAndGeographicLocation(
+                                    value, criteria.getGeographicLocation()
+                            ) : 0;
+                    case "cultures" -> criteria.getRegion() != null ?
+                            artworkRepository.countByCultureAndRegion(
+                                    value, criteria.getRegion()
+                            ) : 0;
+                    default -> 0;
+                };
+                valuesWithCounts.add(String.format("%s (%d)", value, count));
+            }
+            entry.setValue(valuesWithCounts);
+        }
     }
 
 
