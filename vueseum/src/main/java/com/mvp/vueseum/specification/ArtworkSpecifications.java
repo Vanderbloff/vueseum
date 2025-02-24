@@ -29,18 +29,19 @@ public class ArtworkSpecifications {
             List<Predicate> predicates = new ArrayList<>();
 
             // Has Image filter
-            if (criteria.getHasImage() != null) {
-                if (criteria.getHasImage()) {
-                    predicates.add(cb.and(
-                            cb.isNotNull(root.get("imageUrl")),
-                            cb.notEqual(root.get("imageUrl"), "")
-                    ));
-                } else {
-                    predicates.add(cb.or(
-                            cb.isNull(root.get("imageUrl")),
-                            cb.equal(root.get("imageUrl"), "")
-                    ));
-                }
+            if (criteria.getHasImage() != null && criteria.getHasImage()) {
+                predicates.add(cb.or(
+                        // Check primary image
+                        cb.and(
+                                cb.isNotNull(root.get("imageUrl")),
+                                cb.notEqual(root.get("imageUrl"), "")
+                        ),
+                        // Also check thumbnail image
+                        cb.and(
+                                cb.isNotNull(root.get("thumbnailImageUrl")),
+                                cb.notEqual(root.get("thumbnailImageUrl"), "")
+                        )
+                ));
             }
 
             // Era filter
