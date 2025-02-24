@@ -89,16 +89,13 @@
 			// Update only the options that should change based on criteria
 			filterOptions = {
 				...filterOptions,
-				// Update materials when object type changes
-				...(criteria.objectType ? { materials: options.materials } : {}),
-				// Update regions when country changes
+				...(criteria.objectType ? { materials: options.mediums } : {}),
 				...(criteria.country ? { regions: options.regions } : {}),
-				// Update cultures when region changes
 				...(criteria.region ? { cultures: options.cultures } : {}),
-				// Update base options only if no specific criteria
+				// Update base options only if no criteria
 				...(!Object.keys(criteria).length ? {
 					objectType: options.objectType,
-					countries: options.countries
+					geographicLocations: options.geographicLocations
 				} : {})
 			};
 		} catch {
@@ -345,7 +342,7 @@
 						</span>
 					</SelectTrigger>
 					<SelectContent>
-						{#each filterOptions.countries as country}
+						{#each filterOptions.geographicLocations as country}
 							<SelectItem value={country}>{country}</SelectItem>
 						{/each}
 					</SelectContent>
