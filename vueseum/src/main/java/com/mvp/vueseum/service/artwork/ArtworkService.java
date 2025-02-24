@@ -91,31 +91,19 @@ public class ArtworkService {
     public Map<String, List<String>> getFilterOptions(ArtworkSearchCriteria criteria) {
         Map<String, List<String>> options = new HashMap<>();
         try {
-            // Base case - no filters selected, load initial options
-            if (criteria != null) {
-                if (criteria.getArtworkType() == null && criteria.getGeographicLocation() == null) {
-                    options.put("objectType", artworkRepository.findDistinctClassifications());
-                    options.put("geographicLocations", artworkRepository.findDistinctGeographicLocations());
-                }
+            // Always load base options first
+            options.put("objectType", artworkRepository.findDistinctClassifications());
+            options.put("geographicLocations", artworkRepository.findDistinctGeographicLocations());
+            options.put("mediums", new ArrayList<>());
 
-                // If artwork type is selected, validate and get related mediums
+            // Only process additional options if we have criteria
+            if (criteria != null) {
+                // Handle artwork type dependencies
                 if (criteria.getArtworkType() != null) {
                     validateClassification(criteria.getArtworkType());
-
-                    // Get top level category in case a subcategory was provided
-                    String topLevelCategory = getTopLevelCategory(criteria.getArtworkType());
-
-                    // Get mediums for either the specific category or its parent
                     List<String> mediums = artworkRepository.findDistinctMediumsByClassification(
                             criteria.getArtworkType()
                     );
-
-                    // If no mediums found, and we're looking at a subcategory,
-                    // try getting mediums from the parent category
-                    if (mediums.isEmpty() && !criteria.getArtworkType().equals(topLevelCategory)) {
-                        mediums = artworkRepository.findDistinctMediumsByClassification(topLevelCategory);
-                    }
-
                     options.put("mediums", mediums);
                 }
 
@@ -126,27 +114,18 @@ public class ArtworkService {
                             criteria.getGeographicLocation()
                     ));
 
-                    // If region is also selected, get cultures
                     if (criteria.getRegion() != null) {
                         options.put("cultures", artworkRepository.findDistinctCulturesByRegion(
                                 criteria.getRegion()
                         ));
                     }
                 }
-
-                if (!options.isEmpty()) {
-                    addCountsToOptions(options, criteria);
-                }
             }
 
+            addCountsToOptions(options, criteria);
             return options;
-
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid filter criteria: {}", e.getMessage());
-            throw e;
         } catch (Exception e) {
-            log.error("Error fetching filter options. Criteria: {}, Error: {}",
-                    criteria, e.getMessage(), e);
+            log.error("Error fetching filter options: {}", e.getMessage());
             return Map.of(
                     "objectType", new ArrayList<>(),
                     "geographicLocations", new ArrayList<>(),
