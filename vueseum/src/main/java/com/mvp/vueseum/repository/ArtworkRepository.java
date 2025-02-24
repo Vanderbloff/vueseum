@@ -30,9 +30,6 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
     @Query("SELECT DISTINCT a.classification FROM Artwork a WHERE a.classification IS NOT NULL ORDER BY a.classification")
     List<String> findDistinctClassifications();
 
-    @Query("SELECT DISTINCT a.medium FROM Artwork a WHERE a.medium IS NOT NULL ORDER BY a.medium")
-    List<String> findDistinctMediums();
-
     @Query("SELECT DISTINCT a.medium FROM Artwork a WHERE a.classification = :classification AND a.medium IS NOT NULL ORDER BY a.medium")
     List<String> findDistinctMediumsByClassification(@Param("classification") String classification);
 
