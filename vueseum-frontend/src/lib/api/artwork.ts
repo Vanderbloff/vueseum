@@ -115,7 +115,9 @@ export class ArtworkApiClient extends BaseApiClient {
 			};
 		}
 
+		console.log('API search with filters:', filters);
 		const criteria = mapFiltersToSearchCriteria(filters);
+		console.log('Mapped to criteria:', criteria);
 		const params = criteriaToUrlParams(criteria, page, size);
 		return this.fetchWithError<PaginatedResponse<Artwork>>(`?${params}`);
 	}
