@@ -89,8 +89,11 @@ public class ArtworkService {
     }
 
     public Map<String, List<String>> getFilterOptions(ArtworkSearchCriteria criteria) {
-        Map<String, List<String>> options = new HashMap<>();
+        if (criteria == null) {
+            criteria = new ArtworkSearchCriteria();
+        }
 
+        Map<String, List<String>> options = new HashMap<>();
         try {
             // Base case - no filters selected, load initial options
             if (criteria.getArtworkType() == null && criteria.getGeographicLocation() == null) {
@@ -134,14 +137,18 @@ public class ArtworkService {
                 }
             }
 
-            addCountsToOptions(options, criteria);
+            if (!options.isEmpty()) {
+                addCountsToOptions(options, criteria);
+            }
+
             return options;
         } catch (IllegalArgumentException e) {
             log.warn("Invalid filter criteria: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("Error fetching filter options", e);
-            throw new PersistenceException("Failed to fetch filter options", e);
+            log.error("Error fetching filter options. Criteria: {}, Error: {}",
+                    criteria, e.getMessage(), e);
+            throw new PersistenceException("Failed to fetch filter options: " + e.getMessage(), e);
         }
     }
 
