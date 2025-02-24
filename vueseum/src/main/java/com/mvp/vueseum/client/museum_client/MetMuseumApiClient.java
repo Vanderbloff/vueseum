@@ -254,16 +254,13 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
             String primaryImageUrl = rootNode.path("primaryImage").asText("");
             String thumbnailImageUrl = rootNode.path("primaryImageSmall").asText("");
 
-            log.debug("Raw Met API response - Primary: {}, Thumbnail: {}",
-                    primaryImageUrl, thumbnailImageUrl);
 
             if (!primaryImageUrl.isEmpty() && !validateImageUrl(primaryImageUrl)) {
                 log.info("Primary image URL invalid, falling back to thumbnail: {}", primaryImageUrl);
-                primaryImageUrl = "";
+                primaryImageUrl = thumbnailImageUrl;
             }
 
             if (!thumbnailImageUrl.isEmpty() && !validateImageUrl(thumbnailImageUrl)) {
-                log.info("Thumbnail URL invalid: {}", thumbnailImageUrl);
                 thumbnailImageUrl = "";
             }
 
