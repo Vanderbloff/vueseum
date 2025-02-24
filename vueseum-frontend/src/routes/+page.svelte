@@ -21,8 +21,11 @@
 	import { artworkApi } from '$lib/api/artwork';
 	import { updateUrlParams } from '$lib/utils/urlParams';
 	import { debounce } from '$lib/utils/debounce';
+	import type { PageData } from './types';
 
-	let { data } = $props();
+	let { data } = $props<{
+		data: PageData;
+	}>();
 
 	const state = $state({
 		isInitialized: false,
@@ -45,7 +48,7 @@
 				direction: data.initialSort.direction
 			}
 		},
-		filterOptions: {
+		filterOptions: data.filterOptions ?? {
 			objectType: [] as string[],
 			materials: [] as string[],
 			countries: [] as string[],
