@@ -89,59 +89,58 @@ public class ArtworkService {
     }
 
     public Map<String, List<String>> getFilterOptions(ArtworkSearchCriteria criteria) {
-        if (criteria == null) {
-            criteria = new ArtworkSearchCriteria();
-        }
-
         Map<String, List<String>> options = new HashMap<>();
         try {
             // Base case - no filters selected, load initial options
-            if (criteria.getArtworkType() == null && criteria.getGeographicLocation() == null) {
-                options.put("objectType", artworkRepository.findDistinctClassifications());
-                options.put("countries", artworkRepository.findDistinctGeographicLocations());
-            }
-
-            // If artwork type is selected, validate and get related mediums
-            if (criteria.getArtworkType() != null) {
-                validateClassification(criteria.getArtworkType());
-
-                // Get top level category in case a subcategory was provided
-                String topLevelCategory = getTopLevelCategory(criteria.getArtworkType());
-
-                // Get mediums for either the specific category or its parent
-                List<String> mediums = artworkRepository.findDistinctMediumsByClassification(
-                        criteria.getArtworkType()
-                );
-
-                // If no mediums found, and we're looking at a subcategory,
-                // try getting mediums from the parent category
-                if (mediums.isEmpty() && !criteria.getArtworkType().equals(topLevelCategory)) {
-                    mediums = artworkRepository.findDistinctMediumsByClassification(topLevelCategory);
+            if (criteria != null) {
+                if (criteria.getArtworkType() == null && criteria.getGeographicLocation() == null) {
+                    options.put("objectType", artworkRepository.findDistinctClassifications());
+                    options.put("countries", artworkRepository.findDistinctGeographicLocations());
                 }
 
-                options.put("materials", mediums);
-            }
+                // If artwork type is selected, validate and get related mediums
+                if (criteria.getArtworkType() != null) {
+                    validateClassification(criteria.getArtworkType());
 
-            // Geographic location hierarchy with validation
-            if (criteria.getGeographicLocation() != null) {
-                validateGeographicLocation(criteria.getGeographicLocation());
-                options.put("regions", artworkRepository.findDistinctRegionsByLocation(
-                        criteria.getGeographicLocation()
-                ));
+                    // Get top level category in case a subcategory was provided
+                    String topLevelCategory = getTopLevelCategory(criteria.getArtworkType());
 
-                // If region is also selected, get cultures
-                if (criteria.getRegion() != null) {
-                    options.put("cultures", artworkRepository.findDistinctCulturesByRegion(
-                            criteria.getRegion()
+                    // Get mediums for either the specific category or its parent
+                    List<String> mediums = artworkRepository.findDistinctMediumsByClassification(
+                            criteria.getArtworkType()
+                    );
+
+                    // If no mediums found, and we're looking at a subcategory,
+                    // try getting mediums from the parent category
+                    if (mediums.isEmpty() && !criteria.getArtworkType().equals(topLevelCategory)) {
+                        mediums = artworkRepository.findDistinctMediumsByClassification(topLevelCategory);
+                    }
+
+                    options.put("materials", mediums);
+                }
+
+                // Geographic location hierarchy with validation
+                if (criteria.getGeographicLocation() != null) {
+                    validateGeographicLocation(criteria.getGeographicLocation());
+                    options.put("regions", artworkRepository.findDistinctRegionsByLocation(
+                            criteria.getGeographicLocation()
                     ));
+
+                    // If region is also selected, get cultures
+                    if (criteria.getRegion() != null) {
+                        options.put("cultures", artworkRepository.findDistinctCulturesByRegion(
+                                criteria.getRegion()
+                        ));
+                    }
+                }
+
+                if (!options.isEmpty()) {
+                    addCountsToOptions(options, criteria);
                 }
             }
-
-            /*if (!options.isEmpty()) {
-                addCountsToOptions(options, criteria);
-            }*/
 
             return options;
+
         } catch (IllegalArgumentException e) {
             log.warn("Invalid filter criteria: {}", e.getMessage());
             throw e;
