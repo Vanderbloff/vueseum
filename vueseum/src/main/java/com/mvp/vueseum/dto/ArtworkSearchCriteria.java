@@ -20,28 +20,27 @@ public class ArtworkSearchCriteria {
     @Pattern(regexp = "^[\\p{L}\\s.-]+$")
     private String artistName;
 
-    @Size(max = 50)
-    private String medium;
-
     @Size(max = 100)
     private String period;
 
     @Size(max = 100)
-    private String culture;
-
-    @Size(max = 100)
     private String department;
 
-    @Size(max = 50)
-    private String artworkType;
+    /**
+     * Combined search field for artwork type and medium.
+     * This allows searching across multiple classification fields simultaneously.
+     */
+    @Size(max = 100)
+    private String category;
 
     private Boolean hasImage;
 
+    /**
+     * Combined search field for culture, country, and region.
+     * This allows searching across multiple geographic and cultural fields simultaneously.
+     */
     @Size(max = 100)
-    private String geographicLocation;
-
-    @Size(max = 100)
-    private String region;
+    private String origin;
 
     private Double accessionNumber;
 
