@@ -7,6 +7,9 @@ public class DateParsingUtil {
     // Basic year patterns
     private static final Pattern YEAR_PATTERN = Pattern.compile("\\b(1[0-9]{3}|20[0-2][0-9])\\b");
     private static final Pattern BCE_PATTERN = Pattern.compile("(\\d+)\\s*(?:BCE|BC)\\b");
+    private static final Pattern AD_PATTERN = Pattern.compile("A\\.D\\.\\s+(\\d+)");
+    private static final Pattern CE_PATTERN = Pattern.compile("(\\d+)\\s*CE\\b");
+    private static final Pattern BC_EXPLICIT_PATTERN = Pattern.compile("(\\d+)\\s*B\\.C\\.");
 
     // Century patterns
     private static final Pattern CENTURY_PATTERN = Pattern.compile("(\\d+)(st|nd|rd|th)\\s+century");
@@ -18,6 +21,12 @@ public class DateParsingUtil {
 
     // Date range pattern
     private static final Pattern YEAR_RANGE_PATTERN = Pattern.compile("(\\d+)(?:\\s*(?:BCE|BC|CE|AD)?)?-(\\d+)(?:\\s*(?:BCE|BC|CE|AD)?)?");
+
+    // Special pattern for period ranges
+    private static final Pattern AD_RANGE_PATTERN =
+            Pattern.compile("A\\.D\\.\\s+(\\d+)-(\\d+|present)");
+    private static final Pattern BC_RANGE_PATTERN =
+            Pattern.compile("(\\d+)-(\\d+)\\s*B\\.C\\.");
 
     /**
      * Extracts a year from various date string formats.
@@ -33,7 +42,25 @@ public class DateParsingUtil {
 
         String normalized = dateString.trim().toLowerCase();
 
-        // Check for BCE/BC dates first
+        // Try AD format
+        Matcher adMatcher = AD_PATTERN.matcher(normalized);
+        if (adMatcher.find()) {
+            return Integer.parseInt(adMatcher.group(1));
+        }
+
+        // Try explicit B.C. format
+        Matcher bcExplicitMatcher = BC_EXPLICIT_PATTERN.matcher(normalized);
+        if (bcExplicitMatcher.find()) {
+            return -Integer.parseInt(bcExplicitMatcher.group(1));
+        }
+
+        // Handle period ranges
+        Matcher adRangeMatcher = AD_RANGE_PATTERN.matcher(normalized);
+        if (adRangeMatcher.find()) {
+            return Integer.parseInt(adRangeMatcher.group(1));
+        }
+
+        // Check for BCE/BC dates
         Matcher bceMatcher = BCE_PATTERN.matcher(normalized);
         if (bceMatcher.find()) {
             return -Integer.parseInt(bceMatcher.group(1));
