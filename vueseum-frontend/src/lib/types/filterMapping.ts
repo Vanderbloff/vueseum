@@ -55,12 +55,11 @@ export function mapFiltersToSearchCriteria(
 	// Map period/era
 	if (filters.era.length > 0) {
 		criteria.period = filters.era[0];
+		console.log(`Setting period filter: ${filters.era[0]}`);
 	}
 
 	// Explicitly map hasImage
 	criteria.hasImage = filters.hasImage;
-
-	console.log('Mapped criteria:', criteria);
 
 	return criteria;
 }
