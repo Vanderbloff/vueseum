@@ -116,82 +116,60 @@ export class DateUtils {
 	}
 
 	static isYearInPeriod(year: number, periodStr: string): boolean {
-		if (periodStr.includes('present')) {
-			const match = periodStr.match(/\d+/);
-			if (match) {
-				const startYear = parseInt(match[0]);
-				return year >= startYear;
-			}
+		// Handle A.D. 1900-present format
+		if (periodStr === "A.D. 1900-present") {
+			return year >= 1900;
 		}
 
-		// Handle AD range pattern
-		const adMatch = periodStr.match(this.AD_RANGE_PATTERN);
-		if (adMatch) {
-			const startYear = parseInt(adMatch[1]);
-			const endStr = adMatch[2];
+		// Handle A.D. range format with explicit pattern
+		const adRangeMatch = periodStr.match(/A\.D\.\s+(\d+)-(\d+|present)/i);
+		if (adRangeMatch) {
+			const startYear = parseInt(adRangeMatch[1]);
+			const endStr = adRangeMatch[2];
 			const endYear = endStr === 'present'
 				? new Date().getFullYear()
 				: parseInt(endStr);
 			return year >= startYear && year <= endYear;
 		}
 
-		// Handle BC range pattern
-		const bcMatch = periodStr.match(this.BC_RANGE_PATTERN);
+		// Handle B.C. range pattern with explicit "B.C."
+		const bcMatch = periodStr.match(/(\d+)\s*B\.C\.-/i);
 		if (bcMatch) {
-			const startYear = -parseInt(bcMatch[1]);
-			const endYear = -parseInt(bcMatch[2]);
-			// Note: BC years are negative, so comparison is reversed
-			return year <= endYear && year >= startYear;
-		}
+			const startYearBC = parseInt(bcMatch[1]);
 
-		// Handle standard A.D. format
-		if (periodStr.startsWith("A.D.")) {
-			// Extract the years
-			const match = periodStr.match(/A\.D\.\s+(\d+)-(\d+)/i);
-			if (match) {
-				const startYear = parseInt(match[1]);
-				const endYear = parseInt(match[2]);
-				return year >= startYear && year <= endYear;
+			// Handle the combined B.C.-A.D. format
+			const adPart = periodStr.match(/-A\.D\.\s+(\d+)/i);
+			if (adPart) {
+				const endYearAD = parseInt(adPart[1]);
+				return year >= -startYearBC && year <= endYearAD;
 			}
 		}
 
-		// Handle B.C. format
-		if (periodStr.endsWith("B.C.")) {
-			const match = periodStr.match(/(\d+)-(\d+)\s+B\.C\./i);
-			if (match) {
-				// Important: B.C. years are negative in our system
-				const startYear = -parseInt(match[1]);
-				const endYear = -parseInt(match[2]);
-				return year <= endYear && year >= startYear;
-			}
+		// Handle pure B.C. range
+		const pureBCMatch = periodStr.match(/(\d+)-(\d+)\s*B\.C\./i);
+		if (pureBCMatch) {
+			const startYearBC = parseInt(pureBCMatch[1]);
+			const endYearBC = parseInt(pureBCMatch[2]);
+			// Note: BC years are negative in our system
+			return year <= -endYearBC && year >= -startYearBC;
 		}
 
-		// Fallback to existing logic for other formats
-		const parts = periodStr
-			.replace(/A\.D\.\s+/i, '')
-			.replace(/\s+B\.C\./i, '')
-			.split('-')
+		console.log(`Period: ${periodStr}, Year: ${year}, No pattern matched`);
+
+		// Fallback for other formats
+		const parts = periodStr.split('-')
 			.map(p => p.trim())
-			.map(p => p === 'present' ? new Date().getFullYear() : parseInt(p));
+			.map(p => {
+				if (p === 'present') return new Date().getFullYear();
+				if (p.includes('B.C.')) return -parseInt(p.replace(/\s*B\.C\./, ''));
+				if (p.includes('A.D.')) return parseInt(p.replace(/A\.D\.\s+/, ''));
+				return parseInt(p);
+			});
 
-		console.log('Period parts:', parts);
-
-		if (periodStr.includes('B.C.')) {
-			return year <= -parts[0] && year >= -parts[1];
+		if (parts.length === 2) {
+			return year >= parts[0] && year <= parts[1];
 		}
 
-		return year >= parts[0] && year <= parts[1];
-	}
-
-	static formatDate(dateString: string | null): string {
-		if (!dateString) return 'Date unknown';
-
-		try {
-			const year = this.extractYear(dateString);
-			const period = this.mapYearToPeriod(year);
-			return `${dateString} (${period})`;
-		} catch {
-			return dateString;
-		}
+		return false;
 	}
 }
