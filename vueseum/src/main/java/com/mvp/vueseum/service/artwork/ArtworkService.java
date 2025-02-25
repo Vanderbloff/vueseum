@@ -15,7 +15,6 @@ import com.mvp.vueseum.repository.ArtworkRepository;
 import com.mvp.vueseum.service.artist.ArtistService;
 import com.mvp.vueseum.service.museum.MuseumService;
 import com.mvp.vueseum.specification.ArtworkSpecifications;
-import com.mvp.vueseum.service.cultural.CulturalMapping;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -43,7 +42,6 @@ public class ArtworkService {
     private final ArtistService artistService;
     private final MuseumService museumService;
     private final Cache<String, Artwork> artworkCache;
-    private final Cache<String, List<String>> filterValueCache;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @CacheEvict(value = "artworks", key = "#details.externalId")
@@ -94,7 +92,7 @@ public class ArtworkService {
             // Always load all base options with a single database query
             options.put("objectType", artworkRepository.findDistinctClassifications());
             options.put("geographicLocations", artworkRepository.findDistinctGeographicLocations());
-            options.put("mediums", artworkRepository.findDistinctMediums());
+            options.put("materials", artworkRepository.findDistinctMediums());
             options.put("regions", artworkRepository.findDistinctRegions());
             options.put("cultures", artworkRepository.findDistinctCultures());
 
@@ -105,29 +103,11 @@ public class ArtworkService {
             return Map.of(
                     "objectType", new ArrayList<>(),
                     "geographicLocations", new ArrayList<>(),
-                    "mediums", new ArrayList<>(),
+                    "materials", new ArrayList<>(),
                     "regions", new ArrayList<>(),
                     "cultures", new ArrayList<>()
             );
         }
-    }
-
-    private void validateClassification(String classification) {
-        if (artworkRepository.findDistinctClassifications()
-                .stream()
-                .noneMatch(c -> c.startsWith(classification))) {
-            throw new IllegalArgumentException("Invalid classification: " + classification);
-        }
-    }
-
-    private void validateGeographicLocation(String location) {
-        if (!CulturalMapping.getCulturalRegions().contains(location)) {
-            throw new IllegalArgumentException("Invalid geographic location: " + location);
-        }
-    }
-
-    private String getTopLevelCategory(String classification) {
-        return classification.split("/")[0];
     }
 
     private void addSimplifiedCounts(Map<String, List<String>> options) {
@@ -140,7 +120,7 @@ public class ArtworkService {
                 if (StringUtils.hasText(value)) {
                     long count = switch (filterType) {
                         case "objectType" -> artworkRepository.countByClassification(value);
-                        case "mediums" -> artworkRepository.countByMedium(value);
+                        case "materials" -> artworkRepository.countByMedium(value); // Changed from "mediums" to "materials"
                         case "geographicLocations" -> artworkRepository.countByGeographicLocation(value);
                         case "regions" -> artworkRepository.countByRegion(value);
                         case "cultures" -> artworkRepository.countByCulture(value);
