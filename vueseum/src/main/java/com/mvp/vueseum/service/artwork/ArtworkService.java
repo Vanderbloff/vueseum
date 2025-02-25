@@ -99,7 +99,6 @@ public class ArtworkService {
             options.put("cultures", artworkRepository.findDistinctCultures());
 
             addSimplifiedCounts(options);
-            log.info("Filter options structure: {}", options);
             return options;
         } catch (Exception e) {
             log.error("Error fetching filter options: {}", e.getMessage());
