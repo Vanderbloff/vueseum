@@ -96,6 +96,12 @@
 		handleCultureChange(undefined);
 	}
 
+	$effect(() => {
+		if (filterOptions.geographicLocations && !filterOptions.countries) {
+			filterOptions.countries = filterOptions.geographicLocations;
+		}
+	});
+
 	console.log("Filter options structure:", filterOptions);
 </script>
 
@@ -241,20 +247,16 @@
         </span>
 					</SelectTrigger>
 					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
-						{#if filterOptions.geographicLocations && filterOptions.geographicLocations.length > 0}
-							{#each filterOptions.geographicLocations as country}
-								<SelectItem value={country}>
-									{country.split(' (')[0]}
-									{#if country.includes('(')}
-                        <span class="text-muted-foreground ml-1">
-                            {country.match(/\((\d+)\)/)?.[0] || ''}
-                        </span>
-									{/if}
-								</SelectItem>
-							{/each}
-						{:else}
-							<SelectItem value="" disabled>No countries available</SelectItem>
-						{/if}
+						{#each (filterOptions.countries || filterOptions.geographicLocations || []) as country}
+							<SelectItem value={country}>
+								{country.split(' (')[0]}
+								{#if country.includes('(')}
+                    <span class="text-muted-foreground ml-1">
+                        {country.match(/\((\d+)\)/)?.[0] || ''}
+                    </span>
+								{/if}
+							</SelectItem>
+						{/each}
 					</SelectContent>
 				</Select>
 
