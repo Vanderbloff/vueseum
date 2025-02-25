@@ -77,8 +77,6 @@
 		state.artworksLoading = true;
 		state.error = null;
 
-		console.log('Searching with filters:', filters);
-
 		try {
 			const results = await artworkApi.searchArtworks(
 				filters,
