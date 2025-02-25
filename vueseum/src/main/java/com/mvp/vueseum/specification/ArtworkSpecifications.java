@@ -54,21 +54,44 @@ public class ArtworkSpecifications {
                         String endPeriod = parts[1].trim();
 
                         int startYear = DateParsingUtil.extractYear(startPeriod);
-                        int endYear = DateParsingUtil.extractYear(endPeriod);
+                        if (endPeriod.equalsIgnoreCase("present")) {
+                            log.info("Period filter: {} to present day, extracted start year: {}",
+                                    periodStr, startYear);
 
-                        Expression<String> creationDate = root.get("creationDate");
-                        predicates.add(cb.and(
-                                cb.isNotNull(creationDate),
-                                cb.between(
-                                        cb.function(
-                                                "extract_year_from_date",
-                                                Integer.class,
-                                                creationDate
-                                        ),
-                                        startYear,
-                                        endYear
-                                )
-                        ));
+                            Expression<String> creationDate = root.get("creationDate");
+                            predicates.add(cb.and(
+                                    cb.isNotNull(creationDate),
+                                    cb.greaterThanOrEqualTo(
+                                            cb.function(
+                                                    "extract_year_from_date",
+                                                    Integer.class,
+                                                    creationDate
+                                            ),
+                                            startYear
+                                    )
+                            ));
+
+                        } else {
+                            // Regular range handling
+                            int endYear = DateParsingUtil.extractYear(endPeriod);
+
+                            log.info("Period filter: {}, extracted years: {} to {}",
+                                    periodStr, startYear, endYear);
+
+                            Expression<String> creationDate = root.get("creationDate");
+                            predicates.add(cb.and(
+                                    cb.isNotNull(creationDate),
+                                    cb.between(
+                                            cb.function(
+                                                    "extract_year_from_date",
+                                                    Integer.class,
+                                                    creationDate
+                                            ),
+                                            startYear,
+                                            endYear
+                                    )
+                            ));
+                        }
                     }
                 } catch (NumberFormatException e) {
                     log.warn("Failed to parse era period: {}", periodStr, e);
