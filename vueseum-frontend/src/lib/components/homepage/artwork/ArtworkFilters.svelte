@@ -65,10 +65,9 @@
 	}
 
 	function handleMaterialsChange(materials: string[]) {
-		const cleanMaterials = materials.map(material => {
-			return material.split(' (')[0];
-		});
-
+		const cleanMaterials = materials.map(material =>
+			material.split(' (')[0]
+		);
 		onFilterChange('materials', cleanMaterials);
 	}
 
@@ -96,6 +95,8 @@
 		handleRegionChange(undefined);
 		handleCultureChange(undefined);
 	}
+
+	console.log("Filter options structure:", filterOptions);
 </script>
 
 <div class="space-y-6">
@@ -196,29 +197,18 @@
 				</Select>
 
 				<Select
-					type="multiple"
-					value={filters.materials}
-					onValueChange={handleMaterialsChange}
+					type="single"
+					value={filters.materials[0]}
+					onValueChange={(material) => handleMaterialsChange(material ? [material] : [])}
 				>
-					<SelectTrigger class="text-left w-full">
-						<div class="flex-1 min-w-0">
-      <span id="materials-content" class="truncate block text">
-        {filters.materials.length === 0
-					? 'Medium'
-					: filters.materials.map(m => m.split(' (')[0]).join(', ')}
-      </span>
-						</div>
+					<SelectTrigger class="w-full">
+    <span class={!filters.materials[0] ? "text-muted-foreground" : ""}>
+      {filters.materials[0]?.split(' (')[0] || 'Medium'}
+    </span>
 					</SelectTrigger>
 					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
 						{#each filterOptions.materials as material}
-							<SelectItem value={material}>
-								{material.split(' (')[0]}
-								{#if material.includes('(')}
-          <span class="text-muted-foreground ml-1">
-            {material.match(/\((\d+)\)/)?.[0] || ''}
-          </span>
-								{/if}
-							</SelectItem>
+							<SelectItem value={material}>{material.split(' (')[0]}</SelectItem>
 						{/each}
 					</SelectContent>
 				</Select>
@@ -251,7 +241,7 @@
     </span>
 					</SelectTrigger>
 					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
-						{#each filterOptions.geographicLocations as country}
+						{#each filterOptions.geographicLocations || [] as country}
 							<SelectItem value={country}>
 								{country.split(' (')[0]}
 								{#if country.includes('(')}
@@ -275,7 +265,7 @@
     </span>
 					</SelectTrigger>
 					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
-						{#each filterOptions.regions as region}
+						{#each filterOptions.regions || [] as region}
 							<SelectItem value={region}>
 								{region.split(' (')[0]}
 								{#if region.includes('(')}
