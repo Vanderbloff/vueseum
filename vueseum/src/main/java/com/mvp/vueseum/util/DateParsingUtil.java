@@ -42,6 +42,18 @@ public class DateParsingUtil {
 
         String normalized = dateString.trim().toLowerCase();
 
+        // Handle simple "A.D. X" pattern (when it's the complete string)
+        if (normalized.matches("(?i)a\\.d\\.\\s+\\d+")) {
+            String yearStr = normalized.replaceAll("(?i)a\\.d\\.\\s+(\\d+)", "$1");
+            return Integer.parseInt(yearStr);
+        }
+
+        // Handle simple "X B.C." pattern (when it's the complete string)
+        if (normalized.matches("(?i)\\d+\\s+b\\.c\\.")) {
+            String yearStr = normalized.replaceAll("(?i)(\\d+)\\s+b\\.c\\.", "$1");
+            return -Integer.parseInt(yearStr);
+        }
+
         // Try CE format
         Matcher ceMatcher = CE_PATTERN.matcher(normalized);
         if (ceMatcher.find()) {
