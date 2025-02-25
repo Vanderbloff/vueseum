@@ -42,6 +42,19 @@ public class DateParsingUtil {
 
         String normalized = dateString.trim().toLowerCase();
 
+        // Try CE format
+        Matcher ceMatcher = CE_PATTERN.matcher(normalized);
+        if (ceMatcher.find()) {
+            return Integer.parseInt(ceMatcher.group(1));
+        }
+
+        // Try BC format
+        Matcher bcRangeMatcher = BC_RANGE_PATTERN.matcher(normalized);
+        if (bcRangeMatcher.find()) {
+            // For BC range, extract the first year and negate it
+            return -Integer.parseInt(bcRangeMatcher.group(1));
+        }
+
         // Try AD format
         Matcher adMatcher = AD_PATTERN.matcher(normalized);
         if (adMatcher.find()) {
