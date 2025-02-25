@@ -137,15 +137,17 @@ public class ArtworkService {
             List<String> valuesWithCounts = new ArrayList<>();
 
             for (String value : values) {
-                long count = switch (filterType) {
-                    case "objectType" -> artworkRepository.countByClassification(value);
-                    case "mediums" -> artworkRepository.countByMedium(value);
-                    case "geographicLocations" -> artworkRepository.countByGeographicLocation(value);
-                    case "regions" -> artworkRepository.countByRegion(value);
-                    case "cultures" -> artworkRepository.countByCulture(value);
-                    default -> 0;
-                };
-                valuesWithCounts.add(String.format("%s (%d)", value, count));
+                if (StringUtils.hasText(value)) {
+                    long count = switch (filterType) {
+                        case "objectType" -> artworkRepository.countByClassification(value);
+                        case "mediums" -> artworkRepository.countByMedium(value);
+                        case "geographicLocations" -> artworkRepository.countByGeographicLocation(value);
+                        case "regions" -> artworkRepository.countByRegion(value);
+                        case "cultures" -> artworkRepository.countByCulture(value);
+                        default -> 0;
+                    };
+                    valuesWithCounts.add(String.format("%s (%d)", value, count));
+                }
             }
             entry.setValue(valuesWithCounts);
         }
