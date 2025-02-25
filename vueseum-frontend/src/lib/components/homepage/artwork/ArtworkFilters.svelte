@@ -40,35 +40,8 @@
 		children?: unknown;
 	}>();
 
-	function handleClassificationChange(classification: string | undefined) {
-		const cleanValue = classification?.split(' (')[0];
-		onFilterChange('objectType', cleanValue ? [cleanValue] : []);
-	}
-
-	function handleCountryChange(country: string | undefined) {
-		const cleanValue = country?.split(' (')[0];
-		onFilterChange('country', cleanValue ? [cleanValue] : []);
-	}
-
-	function handleRegionChange(region: string | undefined) {
-		const cleanValue = region?.split(' (')[0];
-		onFilterChange('region', cleanValue ? [cleanValue] : []);
-	}
-
-	function handleCultureChange(culture: string | undefined) {
-		const cleanValue = culture?.split(' (')[0];
-		onFilterChange('culture', cleanValue ? [cleanValue] : []);
-	}
-
 	function handleEraChange(value: string | undefined) {
 		onFilterChange('era', value ? [value as StandardPeriod] : []);
-	}
-
-	function handleMaterialsChange(materials: string[]) {
-		const cleanMaterials = materials.map(material =>
-			material.split(' (')[0]
-		);
-		onFilterChange('materials', cleanMaterials);
 	}
 
 	function handleSearchFieldChange(value: string) {
@@ -84,16 +57,95 @@
 		onFilterChange('searchTerm', searchTerms);
 	}
 
-	// Reset functions for individual filter groups
-	function resetArtworkTypeFilters() {
-		handleClassificationChange(undefined);
-		onFilterChange('materials', []);
+	function getAllCategoryOptions() {
+		// Combine object types and materials
+		const allOptions = [
+			...(filterOptions.objectType || []),
+			...(filterOptions.materials || [])
+		];
+
+		// Clean options by removing count information
+		const cleanOptions = allOptions.map(opt => opt.split(' (')[0]);
+
+		// Remove duplicates while preserving order of first occurrence
+		const uniqueOptions = [...new Set(cleanOptions)];
+
+		// Sort alphabetically
+		uniqueOptions.sort((a, b) => a.localeCompare(b));
+
+		// Re-add count information where available
+		return uniqueOptions.map(cleanOption => {
+			// Find the original option with count information
+			const matchingOptions = allOptions.filter(opt =>
+				opt.split(' (')[0] === cleanOption
+			);
+
+			if (matchingOptions.length === 0) {
+				return cleanOption;
+			}
+
+			// Extract counts and find total
+			const counts = matchingOptions
+				.map(opt => {
+					const match = opt.match(/\((\d+)\)/);
+					return match ? parseInt(match[1]) : 0;
+				});
+
+			const totalCount = counts.reduce((sum, count) => sum + count, 0);
+
+			return `${cleanOption} (${totalCount})`;
+		});
 	}
 
-	function resetLocationFilters() {
-		handleCountryChange(undefined);
-		handleRegionChange(undefined);
-		handleCultureChange(undefined);
+	function handleCategoryChange(value: string | undefined) {
+		const cleanValue = value?.split(' (')[0];
+		onFilterChange('category', cleanValue ? [cleanValue] : []);
+	}
+
+	function getAllOriginOptions() {
+		// Combine cultures, countries, and regions
+		const allOptions = [
+			...(filterOptions.cultures || []),
+			...(filterOptions.geographicLocations || []),
+			...(filterOptions.regions || [])
+		];
+
+		// Clean options by removing count information
+		const cleanOptions = allOptions.map(opt => opt.split(' (')[0]);
+
+		// Remove duplicates while preserving order of first occurrence
+		const uniqueOptions = [...new Set(cleanOptions)];
+
+		// Sort alphabetically
+		uniqueOptions.sort((a, b) => a.localeCompare(b));
+
+		// Re-add count information where available
+		return uniqueOptions.map(cleanOption => {
+			// Find the original option with the highest count
+			const matchingOptions = allOptions.filter(opt =>
+				opt.split(' (')[0] === cleanOption
+			);
+
+			if (matchingOptions.length === 0) {
+				return cleanOption;
+			}
+
+			// Extract counts and find highest
+			const counts = matchingOptions
+				.map(opt => {
+					const match = opt.match(/\((\d+)\)/);
+					return match ? parseInt(match[1]) : 0;
+				});
+
+			const totalCount = counts.reduce((sum, count) => sum + count, 0);
+
+			return `${cleanOption} (${totalCount})`;
+		});
+	}
+
+	function handleOriginChange(value: string | undefined) {
+		const cleanValue = value?.split(' (')[0];
+		onFilterChange('origin', cleanValue ? [cleanValue] : []);
 	}
 
 	$effect(() => {
@@ -163,15 +215,15 @@
 
 		<!-- Main Filter Grid -->
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-			<!-- Object Type Filter -->
+			<!-- Category Filter -->
 			<div class="space-y-2">
 				<div class="flex items-center justify-between h-6">
-					<Label>Artwork Type</Label>
-					{#if filters.objectType.length || filters.materials.length}
+					<Label>Category</Label>
+					{#if filters.category.length}
 						<Button
 							variant="ghost"
 							size="sm"
-							onclick={resetArtworkTypeFilters}
+							onclick={() => handleCategoryChange(undefined)}
 						>
 							Reset
 						</Button>
@@ -180,128 +232,62 @@
 
 				<Select
 					type="single"
-					value={filters.objectType[0]}
-					onValueChange={handleClassificationChange}
+					value={filters.category[0]}
+					onValueChange={handleCategoryChange}
 				>
 					<SelectTrigger class="w-full">
-    <span class={!filters.objectType[0] ? "text-muted-foreground" : ""}>
-      {filters.objectType[0]?.split(' (')[0] || 'Object type'}
-    </span>
+						<span class={!filters.category[0] ? "text-muted-foreground" : ""}>
+							{filters.category[0]?.split(' (')[0] || 'Select category'}
+						</span>
 					</SelectTrigger>
 					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
-						{#each filterOptions.objectType as type}
-							<SelectItem value={type}>
-								{type.split(' (')[0]}
-								{#if type.includes('(')}
-          <span class="text-muted-foreground ml-1">
-            {type.match(/\((\d+)\)/)?.[0] || ''}
-          </span>
+						{#each getAllCategoryOptions() as option}
+							<SelectItem value={option}>
+								{option.split(' (')[0]}
+								{#if option.includes('(')}
+									<span class="text-muted-foreground ml-1">
+										{option.match(/\((\d+)\)/)?.[0] || ''}
+									</span>
 								{/if}
 							</SelectItem>
-						{/each}
-					</SelectContent>
-				</Select>
-
-				<Select
-					type="single"
-					value={filters.materials[0]}
-					onValueChange={(material) => handleMaterialsChange(material ? [material] : [])}
-				>
-					<SelectTrigger class="w-full">
-    <span class={!filters.materials[0] ? "text-muted-foreground" : ""}>
-      {filters.materials[0]?.split(' (')[0] || 'Medium'}
-    </span>
-					</SelectTrigger>
-					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
-						{#each filterOptions.materials as material}
-							<SelectItem value={material}>{material.split(' (')[0]}</SelectItem>
 						{/each}
 					</SelectContent>
 				</Select>
 			</div>
 
-			<!-- Geographic Location Filter -->
+			<!-- Origin Filter -->
 			<div class="space-y-2">
 				<div class="flex items-center justify-between h-6">
-					<Label>Geographical Location</Label>
-					{#if filters.country.length || filters.region.length || filters.culture.length}
+					<Label>Origin</Label>
+					{#if filters.origin.length}
 						<Button
 							variant="ghost"
 							size="sm"
-							onclick={resetLocationFilters}
+							onclick={() => handleOriginChange(undefined)}
 						>
 							Reset
 						</Button>
 					{/if}
 				</div>
 
-				<!-- Country Selection -->
 				<Select
 					type="single"
-					value={filters.country[0]}
-					onValueChange={handleCountryChange}
+					value={filters.origin[0]}
+					onValueChange={(value) => handleOriginChange(value)}
 				>
 					<SelectTrigger class="w-full">
-        <span class={!filters.country[0] ? "text-muted-foreground" : ""}>
-            {filters.country[0]?.split(' (')[0] || 'Select country'}
-        </span>
+						<span class={!filters.origin[0] ? "text-muted-foreground" : ""}>
+							{filters.origin[0]?.split(' (')[0] || 'Select origin'}
+						</span>
 					</SelectTrigger>
 					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
-						{#each (filterOptions.countries || filterOptions.geographicLocations || []) as country}
-							<SelectItem value={country}>
-								{country.split(' (')[0]}
-								{#if country.includes('(')}
-                    <span class="text-muted-foreground ml-1">
-                        {country.match(/\((\d+)\)/)?.[0] || ''}
-                    </span>
-								{/if}
-							</SelectItem>
-						{/each}
-					</SelectContent>
-				</Select>
-
-				<Select
-					type="single"
-					value={filters.region[0]}
-					onValueChange={handleRegionChange}
-				>
-					<SelectTrigger class="w-full">
-    <span class={!filters.region[0] ? "text-muted-foreground" : ""}>
-      {filters.region[0]?.split(' (')[0] || 'Select region'}
-    </span>
-					</SelectTrigger>
-					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
-						{#each filterOptions.regions || [] as region}
-							<SelectItem value={region}>
-								{region.split(' (')[0]}
-								{#if region.includes('(')}
-          <span class="text-muted-foreground ml-1">
-            {region.match(/\((\d+)\)/)?.[0] || ''}
-          </span>
-								{/if}
-							</SelectItem>
-						{/each}
-					</SelectContent>
-				</Select>
-
-				<Select
-					type="single"
-					value={filters.culture[0]}
-					onValueChange={handleCultureChange}
-				>
-					<SelectTrigger class="w-full">
-    <span class={!filters.culture[0] ? "text-muted-foreground" : ""}>
-      {filters.culture[0]?.split(' (')[0] || 'Select culture'}
-    </span>
-					</SelectTrigger>
-					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
-						{#each filterOptions.cultures as culture}
-							<SelectItem value={culture}>
-								{culture.split(' (')[0]}
-								{#if culture.includes('(')}
-          <span class="text-muted-foreground ml-1">
-            {culture.match(/\((\d+)\)/)?.[0] || ''}
-          </span>
+						{#each getAllOriginOptions() as option}
+							<SelectItem value={option}>
+								{option.split(' (')[0]}
+								{#if option.includes('(')}
+									<span class="text-muted-foreground ml-1">
+										{option.match(/\((\d+)\)/)?.[0] || ''}
+									</span>
 								{/if}
 							</SelectItem>
 						{/each}
@@ -330,9 +316,9 @@
 					onValueChange={handleEraChange}
 				>
 					<SelectTrigger class="w-full">
-    <span class={!filters.era[0] ? "text-muted-foreground" : ""}>
-      {filters.era[0] || 'Time period'}
-    </span>
+						<span class={!filters.era[0] ? "text-muted-foreground" : ""}>
+							{filters.era[0] || 'Time period'}
+						</span>
 					</SelectTrigger>
 					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
 						{#each PERIOD_OPTIONS as period}
