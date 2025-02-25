@@ -286,6 +286,7 @@ public class ArtworkService {
         return ArtworkDetails.builder()
                 .externalId(artwork.getExternalId())
                 .title(artwork.getTitle())
+                .creationYear(artwork.getCreationDate())
 
                 // Artist information
                 .artistName(artwork.getArtist().getArtistName())
