@@ -161,30 +161,40 @@ public class ArtworkSpecifications {
             }
 
             if (StringUtils.hasText(criteria.getOrigin())) {
-                String originTerm = criteria.getOrigin().toLowerCase();
+                String originTerm = criteria.getOrigin().toLowerCase().trim();
+                log.debug("Processing origin filter with term: {}", originTerm);
 
-                // Basic text matching across all fields
-                Predicate basicMatch = cb.or(
-                        cb.like(cb.lower(root.get("culture")), "%" + originTerm + "%"),
-                        cb.like(cb.lower(root.get("country")), "%" + originTerm + "%"),
-                        cb.like(cb.lower(root.get("region")), "%" + originTerm + "%")
-                );
+                try {
+                    // Basic text matching across all fields
+                    Predicate basicMatch = cb.or(
+                            cb.like(cb.lower(root.get("culture")), "%" + originTerm + "%"),
+                            cb.like(cb.lower(root.get("country")), "%" + originTerm + "%"),
+                            cb.like(cb.lower(root.get("region")), "%" + originTerm + "%")
+                    );
 
-                List<String> relatedCultures = CulturalMapping.getCulturesForRegion(originTerm);
-
-                if (!relatedCultures.isEmpty()) {
-                    // Include related cultures as part of the search
-                    Predicate relatedCultureMatch = root.get("culture").in(relatedCultures);
-                    // Combine with OR
-                    predicates.add(cb.or(basicMatch, relatedCultureMatch));
-                } else {
+                    // Add basic match to predicates first (this ensures we always have a predicate)
                     predicates.add(basicMatch);
+
+                    // Then try cultural mapping as an enhancement, not a requirement
+                    try {
+                        List<String> relatedCultures = CulturalMapping.getCulturesForRegion(originTerm);
+                        if (!relatedCultures.isEmpty()) {
+                            Predicate culturalMatch = root.get("culture").in(relatedCultures);
+                            predicates.add(culturalMatch);
+                        }
+                    } catch (Exception e) {
+                        // Log but don't fail if cultural mapping fails
+                        log.warn("Cultural mapping failed for term: {}, error: {}", originTerm, e.getMessage());
+                    }
+                } catch (Exception e) {
+                    // Log the specific error but continue with other predicates
+                    log.error("Error creating origin filter predicate: {}", e.getMessage());
                 }
             }
 
             if (criteria.getSortField() != null &&
                     criteria.getSortField().equals("artist")) {
-                root.fetch("artist", JoinType.LEFT);
+                root.join("artist", JoinType.LEFT);
             }
 
             // Title search with partial matching
