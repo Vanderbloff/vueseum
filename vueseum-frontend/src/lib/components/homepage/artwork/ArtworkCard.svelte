@@ -1,4 +1,3 @@
-<!-- src/lib/components/homepage/artwork/ArtworkCard.svelte -->
 <script lang="ts">
 	import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "$lib/components/ui/card";
 	import { AspectRatio } from "$lib/components/ui/aspect-ratio";
@@ -7,7 +6,6 @@
 
 	export let artwork: Artwork;
 	export let onCardClick: (art: typeof artwork) => void;
-	console.log('Artwork data:', artwork, 'isConfidentAttribution:', artwork.confidentAttribution, 'creationDate:', artwork.creationDate);
 </script>
 
 <Card
