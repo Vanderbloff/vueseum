@@ -7,7 +7,7 @@
 
 	export let artwork: Artwork;
 	export let onCardClick: (art: typeof artwork) => void;
-	console.log('Artwork data:', artwork, 'isConfidentAttribution:', artwork.isConfidentAttribution, 'creationDate:', artwork.creationDate);
+	console.log('Artwork data:', artwork, 'isConfidentAttribution:', artwork.confidentAttribution, 'creationDate:', artwork.creationDate);
 </script>
 
 <Card
@@ -42,7 +42,7 @@
 
 	<CardContent class="p-4 pt-0">
 		<p class="text-sm text-muted-foreground flex items-center gap-1">
-			{#if artwork.isConfidentAttribution === false}
+			{#if artwork.confidentAttribution === false}
 				<span class="text-muted-foreground/70 text-xs" title="Attribution uncertainty" aria-label="Attribution uncertainty indicator">(?)</span>
 			{/if}
 			{artwork.fullAttribution || artwork.artist}

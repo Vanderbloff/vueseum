@@ -23,7 +23,7 @@ export interface Artwork {
 	artistPrefix?: string;
 	artistRole?: string;
 	fullAttribution: string;
-	isConfidentAttribution: boolean;
+	confidentAttribution: boolean;
 	medium?: string;
 	classification?: string;
 	culture?: string;
