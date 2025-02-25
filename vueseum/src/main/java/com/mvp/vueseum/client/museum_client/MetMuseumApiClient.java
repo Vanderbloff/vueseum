@@ -284,6 +284,7 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                     .artistRole(rootNode.path("artistRole").asText())
                     .medium(rootNode.path("medium").asText())
                     .artworkType(rootNode.path("objectName").asText())
+                    .creationYear(rootNode.path("objectDate").asText())
                     .dimensions(rootNode.path("dimensions").asText())
                     .department(rootNode.path("department").asText())
                     .galleryNumber(rootNode.path("GalleryNumber").asText())
