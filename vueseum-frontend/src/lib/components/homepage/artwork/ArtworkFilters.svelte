@@ -236,21 +236,25 @@
 					onValueChange={handleCountryChange}
 				>
 					<SelectTrigger class="w-full">
-    <span class={!filters.country[0] ? "text-muted-foreground" : ""}>
-      {filters.country[0]?.split(' (')[0] || 'Select country'}
-    </span>
+        <span class={!filters.country[0] ? "text-muted-foreground" : ""}>
+            {filters.country[0]?.split(' (')[0] || 'Select country'}
+        </span>
 					</SelectTrigger>
 					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
-						{#each filterOptions.geographicLocations || [] as country}
-							<SelectItem value={country}>
-								{country.split(' (')[0]}
-								{#if country.includes('(')}
-          <span class="text-muted-foreground ml-1">
-            {country.match(/\((\d+)\)/)?.[0] || ''}
-          </span>
-								{/if}
-							</SelectItem>
-						{/each}
+						{#if filterOptions.geographicLocations && filterOptions.geographicLocations.length > 0}
+							{#each filterOptions.geographicLocations as country}
+								<SelectItem value={country}>
+									{country.split(' (')[0]}
+									{#if country.includes('(')}
+                        <span class="text-muted-foreground ml-1">
+                            {country.match(/\((\d+)\)/)?.[0] || ''}
+                        </span>
+									{/if}
+								</SelectItem>
+							{/each}
+						{:else}
+							<SelectItem value="" disabled>No countries available</SelectItem>
+						{/if}
 					</SelectContent>
 				</Select>
 
