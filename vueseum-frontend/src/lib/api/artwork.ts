@@ -4,10 +4,9 @@ import type { ArtworkSearchCriteria } from '$lib/types/search';
 import { criteriaToUrlParams, mapFiltersToSearchCriteria } from '$lib/types/filterMapping';
 import type { Artwork, PaginatedResponse } from '$lib/types/artwork';
 import { BaseApiClient } from '$lib/api/base';
-import type { ArtworkFilters } from '$lib/components/homepage/artwork/ArtworkFilters.svelte';
 import { DateUtils } from '$lib/utils/dateUtils';
 import { ArtworkUtils } from '$lib/utils/artwork/artworkUtils';
-import type { FilterOptionsResponse } from '$lib/types/filters';
+import type { ArtworkFilters, FilterOptionsResponse } from '$lib/types/filters';
 
 export interface FilterOptions {
 	objectType: string[];
@@ -115,9 +114,7 @@ export class ArtworkApiClient extends BaseApiClient {
 			};
 		}
 
-		console.log('API search with filters:', filters);
 		const criteria = mapFiltersToSearchCriteria(filters);
-		console.log('Mapped to criteria:', criteria);
 		const params = criteriaToUrlParams(criteria, page, size);
 		return this.fetchWithError<PaginatedResponse<Artwork>>(`?${params}`);
 	}
