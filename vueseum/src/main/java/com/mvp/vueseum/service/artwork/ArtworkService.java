@@ -91,45 +91,23 @@ public class ArtworkService {
     public Map<String, List<String>> getFilterOptions(ArtworkSearchCriteria criteria) {
         Map<String, List<String>> options = new HashMap<>();
         try {
-            // Always load base options first
+            // Always load all base options with a single database query
             options.put("objectType", artworkRepository.findDistinctClassifications());
             options.put("geographicLocations", artworkRepository.findDistinctGeographicLocations());
-            options.put("mediums", new ArrayList<>());
+            options.put("mediums", artworkRepository.findDistinctMediums());
+            options.put("regions", artworkRepository.findDistinctRegions());
+            options.put("cultures", artworkRepository.findDistinctCultures());
 
-            // Only process additional options if we have criteria
-            if (criteria != null) {
-                // Handle artwork type dependencies
-                if (criteria.getArtworkType() != null) {
-                    validateClassification(criteria.getArtworkType());
-                    List<String> mediums = artworkRepository.findDistinctMediumsByClassification(
-                            criteria.getArtworkType()
-                    );
-                    options.put("mediums", mediums);
-                }
-
-                // Geographic location hierarchy with validation
-                if (criteria.getGeographicLocation() != null) {
-                    validateGeographicLocation(criteria.getGeographicLocation());
-                    options.put("regions", artworkRepository.findDistinctRegionsByLocation(
-                            criteria.getGeographicLocation()
-                    ));
-
-                    if (criteria.getRegion() != null) {
-                        options.put("cultures", artworkRepository.findDistinctCulturesByRegion(
-                                criteria.getRegion()
-                        ));
-                    }
-                }
-            }
-
-            addCountsToOptions(options, criteria);
+            addSimplifiedCounts(options);
             return options;
         } catch (Exception e) {
             log.error("Error fetching filter options: {}", e.getMessage());
             return Map.of(
                     "objectType", new ArrayList<>(),
                     "geographicLocations", new ArrayList<>(),
-                    "mediums", new ArrayList<>()
+                    "mediums", new ArrayList<>(),
+                    "regions", new ArrayList<>(),
+                    "cultures", new ArrayList<>()
             );
         }
     }
@@ -152,7 +130,7 @@ public class ArtworkService {
         return classification.split("/")[0];
     }
 
-    private void addCountsToOptions(Map<String, List<String>> options, ArtworkSearchCriteria criteria) {
+    private void addSimplifiedCounts(Map<String, List<String>> options) {
         for (Map.Entry<String, List<String>> entry : options.entrySet()) {
             String filterType = entry.getKey();
             List<String> values = entry.getValue();
@@ -161,19 +139,10 @@ public class ArtworkService {
             for (String value : values) {
                 long count = switch (filterType) {
                     case "objectType" -> artworkRepository.countByClassification(value);
-                    case "mediums" -> criteria.getArtworkType() != null ?
-                            artworkRepository.countByMediumAndClassification(
-                                    value, criteria.getArtworkType()
-                            ) : 0;
+                    case "mediums" -> artworkRepository.countByMedium(value);
                     case "geographicLocations" -> artworkRepository.countByGeographicLocation(value);
-                    case "regions" -> criteria.getGeographicLocation() != null ?
-                            artworkRepository.countByRegionAndGeographicLocation(
-                                    value, criteria.getGeographicLocation()
-                            ) : 0;
-                    case "cultures" -> criteria.getRegion() != null ?
-                            artworkRepository.countByCultureAndRegion(
-                                    value, criteria.getRegion()
-                            ) : 0;
+                    case "regions" -> artworkRepository.countByRegion(value);
+                    case "cultures" -> artworkRepository.countByCulture(value);
                     default -> 0;
                 };
                 valuesWithCounts.add(String.format("%s (%d)", value, count));
