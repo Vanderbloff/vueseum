@@ -12,6 +12,7 @@ public class ArtworkSummaryDTO {
     private String artistName;
     private String artistPrefix;
     private String artistRole;
+    private boolean isConfidentAttribution;
     private String fullAttribution;
     private String medium;
     private String classification;
@@ -29,6 +30,7 @@ public class ArtworkSummaryDTO {
         dto.artistName = artwork.getArtistName();
         dto.artistPrefix = artwork.getArtistPrefix();
         dto.artistRole = artwork.getArtistRole();
+        dto.isConfidentAttribution = artwork.isConfidentAttribution();
         dto.fullAttribution = artwork.getFullAttribution();
         dto.medium = artwork.getMedium();
         dto.classification = artwork.getClassification();
