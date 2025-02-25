@@ -26,21 +26,44 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
     @Query("SELECT COUNT(a) FROM Artwork a WHERE a.museum.id = :museumId")
     long countByMuseum(Long museumId);
 
-    // Count methods for classifications and mediums
     @Query("SELECT COUNT(a) FROM Artwork a WHERE a.classification = :classification")
     long countByClassification(@Param("classification") String classification);
 
-    @Query("SELECT COUNT(a) FROM Artwork a WHERE a.medium = :medium AND a.classification = :classification")
-    long countByMediumAndClassification(
-            @Param("medium") String medium,
-            @Param("classification") String classification
-    );
-
-    // Count methods for geographic hierarchy
     @Query("SELECT COUNT(a) FROM Artwork a WHERE a.country = :geographicLocation")
     long countByGeographicLocation(@Param("geographicLocation") String geographicLocation);
 
-    @Query("SELECT COUNT(a) FROM Artwork a WHERE a.region = :region AND a.country = :geographicLocation")
+    @Query("SELECT COUNT(a) FROM Artwork a WHERE a.medium = :medium")
+    long countByMedium(@Param("medium") String medium);
+
+    @Query("SELECT COUNT(a) FROM Artwork a WHERE a.region = :region")
+    long countByRegion(@Param("region") String region);
+
+    @Query("SELECT COUNT(a) FROM Artwork a WHERE a.culture = :culture")
+    long countByCulture(@Param("culture") String culture);
+
+    // Classification/Type and Medium
+    @Query("SELECT DISTINCT a.classification FROM Artwork a WHERE a.classification IS NOT NULL ORDER BY a.classification")
+    List<String> findDistinctClassifications();
+
+    // Geographic Location
+    @Query("SELECT DISTINCT a.country FROM Artwork a WHERE a.country IS NOT NULL ORDER BY a.country")
+    List<String> findDistinctGeographicLocations();
+
+    @Query("SELECT DISTINCT a.medium FROM Artwork a WHERE a.medium IS NOT NULL ORDER BY a.medium")
+    List<String> findDistinctMediums();
+
+    @Query("SELECT DISTINCT a.region FROM Artwork a WHERE a.region IS NOT NULL ORDER BY a.region")
+    List<String> findDistinctRegions();
+
+    @Query("SELECT DISTINCT a.culture FROM Artwork a WHERE a.culture IS NOT NULL ORDER BY a.culture")
+    List<String> findDistinctCultures();
+
+    // Additional query helpers
+    @NotNull Page<Artwork> findAll(Specification<Artwork> specification, @NotNull Pageable pageable);
+
+
+    // To be used in future for hierarchical querying
+    /*@Query("SELECT COUNT(a) FROM Artwork a WHERE a.region = :region AND a.country = :geographicLocation")
     long countByRegionAndGeographicLocation(
             @Param("region") String region,
             @Param("geographicLocation") String geographicLocation
@@ -52,23 +75,18 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
             @Param("region") String region
     );
 
-    // Classification/Type and Medium
-    @Query("SELECT DISTINCT a.classification FROM Artwork a WHERE a.classification IS NOT NULL ORDER BY a.classification")
-    List<String> findDistinctClassifications();
+    @Query("SELECT COUNT(a) FROM Artwork a WHERE a.medium = :medium AND a.classification = :classification")
+    long countByMediumAndClassification(
+            @Param("medium") String medium,
+            @Param("classification") String classification
+    );
 
     @Query("SELECT DISTINCT a.medium FROM Artwork a WHERE a.classification = :classification AND a.medium IS NOT NULL ORDER BY a.medium")
     List<String> findDistinctMediumsByClassification(@Param("classification") String classification);
-
-    // Geographic Location hierarchy
-    @Query("SELECT DISTINCT a.country FROM Artwork a WHERE a.country IS NOT NULL ORDER BY a.country")
-    List<String> findDistinctGeographicLocations();
 
     @Query("SELECT DISTINCT a.region FROM Artwork a WHERE a.country = :location AND a.region IS NOT NULL ORDER BY a.region")
     List<String> findDistinctRegionsByLocation(@Param("location") String location);
 
     @Query("SELECT DISTINCT a.culture FROM Artwork a WHERE a.region = :region AND a.culture IS NOT NULL ORDER BY a.culture")
-    List<String> findDistinctCulturesByRegion(@Param("region") String region);
-
-    // Additional query helpers
-    @NotNull Page<Artwork> findAll(Specification<Artwork> specification, @NotNull Pageable pageable);
+    List<String> findDistinctCulturesByRegion(@Param("region") String region);*/
 }
