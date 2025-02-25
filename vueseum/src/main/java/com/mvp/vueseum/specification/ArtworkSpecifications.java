@@ -48,35 +48,88 @@ public class ArtworkSpecifications {
             if (criteria.getPeriod() != null && !criteria.getPeriod().isEmpty()) {
                 String periodStr = criteria.getPeriod();
                 try {
-                    String[] parts = periodStr.split("-");
-                    if (parts.length == 2) {
-                        String startPeriod = parts[0].trim();
-                        String endPeriod = parts[1].trim();
+                    // Special case handling for specific period formats
+                    if (periodStr.equals("1000 B.C.-A.D. 1")) {
+                        Expression<String> creationDate = root.get("creationDate");
+                        predicates.add(cb.and(
+                                cb.isNotNull(creationDate),
+                                cb.between(
+                                        cb.function(
+                                                "extract_year_from_date",
+                                                Integer.class,
+                                                creationDate
+                                        ),
+                                        -1000, // 1000 B.C.
+                                        1      // A.D. 1
+                                )
+                        ));
+                    }
+                    else if (periodStr.equals("2000-1000 B.C.")) {
+                        Expression<String> creationDate = root.get("creationDate");
+                        predicates.add(cb.and(
+                                cb.isNotNull(creationDate),
+                                cb.between(
+                                        cb.function(
+                                                "extract_year_from_date",
+                                                Integer.class,
+                                                creationDate
+                                        ),
+                                        -2000, // 2000 B.C.
+                                        -1000  // 1000 B.C.
+                                )
+                        ));
+                    }
+                    else if (periodStr.startsWith("A.D.")) {
+                        // Handle A.D. ranges
+                        String yearPart = periodStr.substring(4).trim(); // Remove "A.D. "
+                        String[] rangeParts = yearPart.split("-");
 
-                        int startYear = DateParsingUtil.extractYear(startPeriod);
-                        if (endPeriod.equalsIgnoreCase("present")) {
-                            log.info("Period filter: {} to present day, extracted start year: {}",
-                                    periodStr, startYear);
+                        if (rangeParts.length == 2) {
+                            int startYear;
+                            int endYear;
+
+                            try {
+                                startYear = Integer.parseInt(rangeParts[0].trim());
+                            } catch (NumberFormatException e) {
+                                log.warn("Failed to parse start year: {}", rangeParts[0]);
+                                throw e;
+                            }
+
+                            if (rangeParts[1].trim().equals("present")) {
+                                endYear = java.time.Year.now().getValue(); // Current year
+                            } else {
+                                try {
+                                    endYear = Integer.parseInt(rangeParts[1].trim());
+                                } catch (NumberFormatException e) {
+                                    log.warn("Failed to parse end year: {}", rangeParts[1]);
+                                    throw e;
+                                }
+                            }
+
+                            log.info("A.D. Period filter: parsed years {} to {}", startYear, endYear);
 
                             Expression<String> creationDate = root.get("creationDate");
                             predicates.add(cb.and(
                                     cb.isNotNull(creationDate),
-                                    cb.greaterThanOrEqualTo(
+                                    cb.between(
                                             cb.function(
                                                     "extract_year_from_date",
                                                     Integer.class,
                                                     creationDate
                                             ),
-                                            startYear
+                                            startYear,
+                                            endYear
                                     )
                             ));
+                        }
+                    } else {
+                        String[] parts = periodStr.split("-");
+                        if (parts.length == 2) {
+                            String startPeriod = parts[0].trim();
+                            String endPeriod = parts[1].trim();
 
-                        } else {
-                            // Regular range handling
+                            int startYear = DateParsingUtil.extractYear(startPeriod);
                             int endYear = DateParsingUtil.extractYear(endPeriod);
-
-                            log.info("Period filter: {}, extracted years: {} to {}",
-                                    periodStr, startYear, endYear);
 
                             Expression<String> creationDate = root.get("creationDate");
                             predicates.add(cb.and(
