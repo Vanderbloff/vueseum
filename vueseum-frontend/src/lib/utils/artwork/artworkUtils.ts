@@ -1,5 +1,5 @@
 import type { Artwork } from '$lib/types/artwork';
-import type { ArtworkFilters } from '$lib/components/homepage/artwork/ArtworkFilters.svelte';
+import type { ArtworkFilters } from '$lib/types/filters';
 import { DateUtils } from '../dateUtils';
 
 export class ArtworkUtils {
@@ -31,11 +31,8 @@ export class ArtworkUtils {
 	static hasActiveFilters(filters: ArtworkFilters): boolean {
 		return (
 			filters.searchTerm.length > 0 ||
-			filters.objectType.length > 0 ||
-			filters.materials.length > 0 ||
-			filters.country.length > 0 ||
-			filters.region.length > 0 ||
-			filters.culture.length > 0 ||
+			filters.category.length > 0 ||
+			filters.origin.length > 0 ||
 			filters.era.length > 0 ||
 			filters.museumId.length > 0 ||
 			filters.hasImage
@@ -78,46 +75,33 @@ export class ArtworkUtils {
 				if (!matchesTerm) return false;
 			}
 
-			// Object Type filter
-			if (filters.objectType.length > 0) {
-				const classificationMatches = artwork.classification &&
-					filters.objectType.includes(artwork.classification);
-				if (!classificationMatches) return false;
+			// Category filter (combines objectType and medium)
+			if (filters.category.length > 0) {
+				const categoryValue = filters.category[0].toLowerCase();
+				const matchesCategory =
+					(artwork.classification?.toLowerCase().includes(categoryValue) ?? false) ||
+					(artwork.medium?.toLowerCase().includes(categoryValue) ?? false);
+				if (!matchesCategory) return false;
 			}
 
-			// Medium filter
-			if (filters.materials.length > 0) {
-				const mediumMatches = artwork.medium &&
-					filters.materials.some(medium => artwork.medium?.includes(medium));
-				if (!mediumMatches) return false;
+			// Origin filter (combines country, region, and culture)
+			if (filters.origin.length > 0) {
+				const originValue = filters.origin[0].toLowerCase();
+				const matchesOrigin =
+					(artwork.country?.toLowerCase().includes(originValue) ?? false) ||
+					(artwork.region?.toLowerCase().includes(originValue) ?? false) ||
+					(artwork.culture?.toLowerCase().includes(originValue) ?? false);
+				if (!matchesOrigin) return false;
 			}
 
-			// Geographic Location filter
-			if (filters.country.length > 0) {
-				const countryMatches = artwork.country === filters.country[0];
-				if (!countryMatches) return false;
-
-				if (filters.region.length > 0) {
-					const regionMatches = artwork.region === filters.region[0];
-					if (!regionMatches) return false;
-				}
-			}
-
-			// Culture filter
-			if (filters.culture.length > 0) {
-				const cultureMatches = artwork.culture &&
-					filters.culture.includes(artwork.culture);
-				if (!cultureMatches) return false;
-			}
-
+			// Era filter
 			if (filters.era.length > 0 && artwork.creationDate) {
 				try {
 					const year = DateUtils.extractYear(artwork.creationDate);
 					const eraMatches = filters.era.some(period =>
 						DateUtils.isYearInPeriod(year, period));
 					if (!eraMatches) return false;
-					// eslint-disable-next-line @typescript-eslint/no-unused-vars
-				} catch (error) {
+				} catch {
 					return false;
 				}
 			}
@@ -130,11 +114,8 @@ export class ArtworkUtils {
 		return {
 			searchTerm: [],
 			searchField: 'all',
-			objectType: [],
-			materials: [],
-			country: [],
-			region: [],
-			culture: [],
+			category: [],
+			origin: [],
 			era: [],
 			hasImage: false,
 			museumId: []
