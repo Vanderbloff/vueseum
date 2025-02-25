@@ -1,33 +1,23 @@
 // src/lib/api/artwork.ts
-
 import type { ArtworkSearchCriteria } from '$lib/types/search';
 import { criteriaToUrlParams, mapFiltersToSearchCriteria } from '$lib/types/filterMapping';
 import type { Artwork, PaginatedResponse } from '$lib/types/artwork';
 import { BaseApiClient } from '$lib/api/base';
 import { DateUtils } from '$lib/utils/dateUtils';
 import { ArtworkUtils } from '$lib/utils/artwork/artworkUtils';
-import type { ArtworkFilters, FilterOptionsResponse } from '$lib/types/filters';
+import type { ArtworkFilters } from '$lib/types/filters';
 
 export interface FilterOptions {
 	objectType: string[];
-	mediums: string[];
+	materials: string[];
 	geographicLocations: string[];
 	regions: string[];
 	cultures: string[];
 }
 
-/**
- * Cache artwork data in development mode only.
- * This improves filter performance by preventing repeated fetches.
- * In production, the backend handles filtering with proper database queries.
- *
- * Note: This is specifically for development convenience and would not be
- * an appropriate pattern for production where we rely on backend pagination
- * and filtering.
- */
 export class ArtworkApiClient extends BaseApiClient {
 	constructor() {
-		super('/artworks');  // This sets up the base URL correctly
+		super('/artworks');
 	}
 
 	private cachedArtworks: Artwork[] | null = null;
@@ -40,9 +30,7 @@ export class ArtworkApiClient extends BaseApiClient {
 	): Promise<PaginatedResponse<Artwork>> {
 		if (import.meta.env.DEV) {
 			// Fetch all artworks
-			// Apply filters
 			let filteredData = await this.fetchWithError<Artwork[]>('');
-
 			filteredData = ArtworkUtils.filterArtworks(filteredData, filters);
 
 			// Apply sorting if needed
@@ -54,40 +42,7 @@ export class ArtworkApiClient extends BaseApiClient {
 				);
 			}
 
-			if (filters.country?.length > 0) {
-				filteredData = filteredData.filter(
-					artwork => artwork.country === filters.country[0]
-				);
-
-				if (filters.region?.length > 0) {
-					filteredData = filteredData.filter(
-						artwork => artwork.region === filters.region[0]
-					);
-				}
-			}
-
-			// Apply other filters
-			if (filters.objectType?.length > 0) {
-				filteredData = filteredData.filter(
-					artwork => artwork.classification &&
-						filters.objectType.includes(artwork.classification)
-				);
-			}
-
-			if (filters.materials?.length > 0) {
-				filteredData = filteredData.filter(
-					artwork => artwork.medium &&
-						filters.materials.includes(artwork.medium)
-				);
-			}
-
-			if (filters.culture?.length > 0) {
-				filteredData = filteredData.filter(
-					artwork => artwork.culture &&
-						filters.culture.includes(artwork.culture)
-				);
-			}
-
+			// Apply era filter
 			if (filters.era?.length > 0) {
 				filteredData = filteredData.filter(artwork => {
 					if (!artwork.creationDate) return false;
@@ -115,7 +70,7 @@ export class ArtworkApiClient extends BaseApiClient {
 		}
 
 		const criteria = mapFiltersToSearchCriteria(filters);
-		const params = criteriaToUrlParams(criteria, page, size);
+		const params = criteriaToUrlParams(criteria, page, size, sort);
 		return this.fetchWithError<PaginatedResponse<Artwork>>(`?${params}`);
 	}
 
@@ -129,7 +84,7 @@ export class ArtworkApiClient extends BaseApiClient {
 
 	async getFilterOptions(
 		criteria: Partial<ArtworkSearchCriteria>
-	): Promise<FilterOptionsResponse> {
+	): Promise<FilterOptions> {
 		// Create query params
 		const params = new URLSearchParams();
 		Object.entries(criteria).forEach(([key, value]) => {
@@ -139,14 +94,14 @@ export class ArtworkApiClient extends BaseApiClient {
 		});
 
 		// Get response from API
-		const response = await this.fetchWithError<FilterOptionsResponse>(
+		const response = await this.fetchWithError<FilterOptions>(
 			`/filter-options?${params}`
 		);
 
 		// Return filtered and sorted data
 		return {
 			objectType: response.objectType?.filter(Boolean).sort() ?? [],
-			mediums: response.mediums?.filter(Boolean).sort() ?? [],
+			materials: response.materials?.filter(Boolean).sort() ?? [],
 			geographicLocations: response.geographicLocations?.filter(Boolean).sort() ?? [],
 			regions: response.regions?.filter(Boolean).sort() ?? [],
 			cultures: response.cultures?.filter(Boolean).sort() ?? []
