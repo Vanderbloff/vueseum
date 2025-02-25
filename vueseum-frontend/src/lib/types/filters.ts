@@ -5,14 +5,11 @@ export type SearchField = 'all' | 'title' | 'artist' | 'culture';
 export interface ArtworkFilters {
 	searchTerm: string[];
 	searchField: SearchField;
-	objectType: string[];
-	materials: string[];
-	country: string[];
-	region: string[];
-	culture: string[];
 	era: StandardPeriod[];
 	hasImage: boolean;
 	museumId: string[];
+	origin: string[];
+	category: string[];
 }
 
 export type FilterChangeHandler = (
