@@ -51,18 +51,12 @@ class ArtworkServiceTest {
                 .maximumSize(100)
                 .build();
 
-        Cache<String, List<String>> filterValueCache = Caffeine.newBuilder()
-                .expireAfterWrite(Duration.ofHours(24))
-                .maximumSize(100)
-                .build();
-
         // Initialize service
         artworkService = new ArtworkService(
                 artworkRepository,
                 artistService,
                 museumService,
-                artworkCache,
-                filterValueCache
+                artworkCache
         );
 
         // Setup test data
