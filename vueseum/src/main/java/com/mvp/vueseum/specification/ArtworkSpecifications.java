@@ -151,45 +151,35 @@ public class ArtworkSpecifications {
                 }
             }
 
-            // Artwork Type filter
-            if (criteria.getArtworkType() != null && !criteria.getArtworkType().isEmpty()) {
-                predicates.add(cb.equal(
-                        root.get("classification"),
-                        criteria.getArtworkType()
-                ));
-            }
-
-            // Handle medium separately
-            if (criteria.getMedium() != null) {
-                predicates.add(
-                        cb.like(
-                                cb.lower(root.get("medium")),
-                                "%" + criteria.getMedium().toLowerCase() + "%"
-                        )
-                );
-            }
-
-            // Handle geographic and cultural relationships
-            if (criteria.getCulture() != null) {
-                // Direct culture match takes priority
-                predicates.add(cb.equal(
-                        cb.lower(root.get("culture")),
-                        criteria.getCulture().toLowerCase()
-                ));
-            } else if (criteria.getGeographicLocation() != null) {
-                // If no direct culture specified, use geographic location with mapping
-                List<String> cultures = CulturalMapping
-                        .getCulturesForRegion(criteria.getGeographicLocation());
-
+            // Handle combined category filter
+            if (StringUtils.hasText(criteria.getCategory())) {
+                String categoryTerm = criteria.getCategory().toLowerCase();
                 predicates.add(cb.or(
-                        // Direct geographic location match
-                        cb.equal(
-                                cb.lower(root.get("culture")),
-                                criteria.getGeographicLocation().toLowerCase()
-                        ),
-                        // Related cultures from mapping
-                        root.get("culture").in(cultures)
+                        cb.like(cb.lower(root.get("classification")), "%" + categoryTerm + "%"),
+                        cb.like(cb.lower(root.get("medium")), "%" + categoryTerm + "%")
                 ));
+            }
+
+            if (StringUtils.hasText(criteria.getOrigin())) {
+                String originTerm = criteria.getOrigin().toLowerCase();
+
+                // Basic text matching across all fields
+                Predicate basicMatch = cb.or(
+                        cb.like(cb.lower(root.get("culture")), "%" + originTerm + "%"),
+                        cb.like(cb.lower(root.get("country")), "%" + originTerm + "%"),
+                        cb.like(cb.lower(root.get("region")), "%" + originTerm + "%")
+                );
+
+                List<String> relatedCultures = CulturalMapping.getCulturesForRegion(originTerm);
+
+                if (!relatedCultures.isEmpty()) {
+                    // Include related cultures as part of the search
+                    Predicate relatedCultureMatch = root.get("culture").in(relatedCultures);
+                    // Combine with OR
+                    predicates.add(cb.or(basicMatch, relatedCultureMatch));
+                } else {
+                    predicates.add(basicMatch);
+                }
             }
 
             if (criteria.getSortField() != null &&
