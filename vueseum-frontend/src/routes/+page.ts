@@ -12,11 +12,8 @@ export const load = (async ({ url }): Promise<PageData> => {
 	const initialFilters = {
 		searchTerm: [searchParams.get('q') ?? ''],
 		searchField: (searchParams.get('searchField') ?? 'all') as 'all' | 'title' | 'artist' | 'culture',
-		objectType: searchParams.getAll('objectType'),
-		materials: searchParams.getAll('medium'),
-		country: searchParams.getAll('country'),
-		region: searchParams.getAll('region'),
-		culture: searchParams.getAll('culture'),
+		category: searchParams.getAll('category'),
+		origin: searchParams.getAll('origin'),
 		era: searchParams.getAll('period') as StandardPeriod[],
 		hasImage: true,
 		museumId: searchParams.getAll('museumId')
