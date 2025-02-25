@@ -32,24 +32,24 @@ export function mapFiltersToSearchCriteria(
 
 	// Map object type and materials
 	if (filters.objectType.length > 0) {
-		criteria.artworkType = filters.objectType[0];
+		criteria.artworkType = filters.objectType[0].split(' (')[0];
 	}
 
 	if (filters.materials.length > 0) {
-		criteria.medium = filters.materials[0];
+		criteria.medium = filters.materials[0].split(' (')[0];
 	}
 
 	// Map geographic and cultural data
 	if (filters.country.length > 0) {
-		criteria.geographicLocation = filters.country[0];
+		criteria.geographicLocation = filters.country[0].split(' (')[0];
 	}
 
 	if (filters.region.length > 0) {
-		criteria.region = filters.region[0];
+		criteria.region = filters.region[0].split(' (')[0];
 	}
 
 	if (filters.culture.length > 0) {
-		criteria.culture = filters.culture[0];
+		criteria.culture = filters.culture[0].split(' (')[0];
 	}
 
 	// Map period/era
@@ -59,6 +59,8 @@ export function mapFiltersToSearchCriteria(
 
 	// Explicitly map hasImage
 	criteria.hasImage = filters.hasImage;
+
+	console.log('Mapped criteria:', criteria);
 
 	return criteria;
 }
