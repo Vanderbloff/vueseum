@@ -115,15 +115,10 @@
 		debouncedSearch(filters);
 	}
 
-	async function loadFilterOptions(criteria: {
-		objectType?: string[];
-		country?: string[];
-		region?: string[];
-	} = {}) {
-		// Create a request identifier
-		const requestId = JSON.stringify(criteria);
+	async function loadAllFilterOptions() {
+		const requestId = "allOptions";
 
-		// Skips if this exact request is already in flight
+		// Skip if already loading
 		if (state.pendingRequests.has(requestId)) {
 			return;
 		}
@@ -132,29 +127,21 @@
 			state.pendingRequests.add(requestId);
 			state.loading.options = true;
 
-			const options = await artworkApi.getFilterOptions({
-				artworkType: criteria.objectType?.[0],
-				country: criteria.country?.[0],
-				region: criteria.region?.[0]
-			});
+			const options = await artworkApi.getFilterOptions({});
 
-			// Update only the relevant filter options
+			// Update all filter options at once
 			state.filterOptions = {
-				...state.filterOptions,
-				...(criteria.objectType ? { materials: options.mediums } : {}),
-				...(criteria.country ? { regions: options.regions } : {}),
-				...(criteria.region ? { cultures: options.cultures } : {}),
-				// Always update base options if no criteria
-				...(!Object.keys(criteria).length ? {
-					objectType: options.objectType,
-					countries: options.geographicLocations
-				} : {})
+				objectType: options.objectType || [],
+				materials: options.mediums || [],
+				countries: options.geographicLocations || [],
+				regions: options.regions || [],
+				cultures: options.cultures || []
 			};
-		} catch  {
+		} catch {
 			state.error = {
 				type: 'load',
 				message: 'Failed to load filter options',
-				retryFn: () => loadFilterOptions(criteria)
+				retryFn: () => loadAllFilterOptions()
 			};
 		} finally {
 			state.loading.options = false;
@@ -162,52 +149,8 @@
 		}
 	}
 
-	const debouncedLoadFilterOptions = debounce(loadFilterOptions, 300);
-	type Filters = typeof state.currentFilters.filters;
-
-	// Update the handler for filter changes
-	function handleFilterChange<K extends keyof Filters>(
-		key: K,
-		value: Filters[K]
-	) {
-		console.log('Filter change:', key, value);
-		state.currentFilters.filters[key] = value;
-
-		if (key === 'hasImage') {
-			console.log('hasImage updated to:', value);
-		}
-
-		// Load dependent options based on the changed filter
-		switch(key) {
-			case 'objectType':
-				if (value && (value as string[]).length > 0) {
-					debouncedLoadFilterOptions({ objectType: value as string[] });
-				}
-				break;
-			case 'country':
-				if (value && (value as string[]).length > 0) {
-					debouncedLoadFilterOptions({ country: value as string[] });
-				} else {
-					// Reset dependent filters when country is cleared
-					state.currentFilters.filters.region = [];
-					state.currentFilters.filters.culture = [];
-				}
-				break;
-			case 'region':
-				if (value && (value as string[]).length > 0) {
-					debouncedLoadFilterOptions({
-						country: state.currentFilters.filters.country,
-						region: value as string[]
-					});
-				} else {
-					// Reset dependent filters when region is cleared
-					state.currentFilters.filters.culture = [];
-				}
-				break;
-		}
-
-		// Trigger search with updated filters
-		console.log('Search with filters:', state.currentFilters.filters);
+	function handleFilterChange(key: string, value: any) {
+		state.currentFilters.filters[key as keyof ArtworkFilters] = value;
 		handleSearch(state.currentFilters.filters);
 	}
 
@@ -352,33 +295,10 @@
 			const initializeFilters = async () => {
 				state.loading.initialLoad = true;
 				try {
-					const options = await artworkApi.getFilterOptions({});
-					state.filterOptions = {
-						objectType: options.objectType.sort(),
-						materials: options.mediums.sort(),
-						countries: options.geographicLocations.sort(),
-						regions: options.regions,
-						cultures: options.cultures
-					};
+					// Load all filter options at once
+					await loadAllFilterOptions();
 
-					const filters = state.currentFilters.filters;
-					const loadPromises: Promise<void>[] = [];
-
-					if (filters.objectType.length > 0) {
-						loadPromises.push(loadFilterOptions({
-							objectType: filters.objectType
-						}));
-					}
-
-					if (filters.country.length > 0) {
-						loadPromises.push(loadFilterOptions({
-							country: filters.country,
-							...(filters.region.length > 0 ? { region: filters.region } : {})
-						}));
-					}
-
-					await Promise.all(loadPromises);
-
+					// Search with current filters
 					state.loading.results = true;
 					await handleSearch(state.currentFilters.filters);
 				} catch (error) {
@@ -444,14 +364,14 @@
 							filterOptions={state.filterOptions}
 							loading={state.loading}
 							error={state.error?.message ?? null}
-							onFilterChange={handleFilterChange}
+							onFilterChange={(key, value) => handleFilterChange(key, value)}
 							onSearch={handleSearch}
-							>
+						>
 							<SortControls
 								onSortChange={(field, direction) => {
-										state.currentFilters.sort = { field, direction };
-										handlePageChange(1);
-								}}
+								state.currentFilters.sort = { field, direction };
+								handlePageChange(1);
+							}}
 							/>
 						</ArtworkFilters>
 					</CardContent>
