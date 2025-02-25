@@ -1,7 +1,8 @@
 // src/lib/utils/filterMapping.ts
 
-import type { ArtworkFilters } from '../components/homepage/artwork/ArtworkFilters.svelte';
+
 import type { ArtworkSearchCriteria } from './search';
+import type { ArtworkFilters } from '$lib/types/filters';
 
 export function mapFiltersToSearchCriteria(
 	filters: ArtworkFilters
@@ -23,27 +24,28 @@ export function mapFiltersToSearchCriteria(
 					criteria.culture = searchTerm;
 					break;
 				case 'all':
-					criteria.title = searchTerm;  // Default to title search for 'all'
+					criteria.title = searchTerm;
 					break;
 			}
 		}
 	}
 
+	// Map object type and materials
 	if (filters.objectType.length > 0) {
 		criteria.artworkType = filters.objectType[0];
+	}
 
-		if (filters.materials.length > 0) {
-			criteria.medium = filters.materials[0];
-		}
+	if (filters.materials.length > 0) {
+		criteria.medium = filters.materials[0];
 	}
 
 	// Map geographic and cultural data
 	if (filters.country.length > 0) {
-		criteria.country = filters.country[0];
+		criteria.geographicLocation = filters.country[0];
+	}
 
-		if (filters.region.length > 0) {
-			criteria.region = filters.region[0];
-		}
+	if (filters.region.length > 0) {
+		criteria.region = filters.region[0];
 	}
 
 	if (filters.culture.length > 0) {
@@ -55,7 +57,7 @@ export function mapFiltersToSearchCriteria(
 		criteria.period = filters.era[0];
 	}
 
-	// Map hasImage
+	// Explicitly map hasImage
 	criteria.hasImage = filters.hasImage;
 
 	return criteria;
