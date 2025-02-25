@@ -5,11 +5,10 @@ export interface ArtworkSearchCriteria {
 	artistName?: string;
 	medium?: string;
 	period?: string;
-	culture?: string;
-	geographicLocation?: string;
-	region?: string;
 	artworkType?: string;
 	museums?: string[];
 	tags?: string[];
 	hasImage?: boolean;
+	origin?: string;
+	category?: string;
 }

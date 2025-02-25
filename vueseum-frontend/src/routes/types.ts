@@ -9,11 +9,8 @@ export interface PageData {
 	initialFilters: {
 		searchTerm: string[];
 		searchField: 'all' | 'title' | 'artist' | 'culture';
-		objectType: string[];
-		materials: string[];
-		country: string[];
-		region: string[];
-		culture: string[];
+		category: string[];
+		origin: string[]
 		era: StandardPeriod[];
 		hasImage: boolean;
 		museumId: string[];
