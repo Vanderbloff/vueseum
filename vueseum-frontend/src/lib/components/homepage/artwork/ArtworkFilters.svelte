@@ -41,19 +41,23 @@
 	}>();
 
 	function handleClassificationChange(classification: string | undefined) {
-		onFilterChange('objectType', classification ? [classification] : []);
+		const cleanValue = classification?.split(' (')[0];
+		onFilterChange('objectType', cleanValue ? [cleanValue] : []);
 	}
 
 	function handleCountryChange(country: string | undefined) {
-		onFilterChange('country', country ? [country] : []);
+		const cleanValue = country?.split(' (')[0];
+		onFilterChange('country', cleanValue ? [cleanValue] : []);
 	}
 
 	function handleRegionChange(region: string | undefined) {
-		onFilterChange('region', region ? [region] : []);
+		const cleanValue = region?.split(' (')[0];
+		onFilterChange('region', cleanValue ? [cleanValue] : []);
 	}
 
 	function handleCultureChange(culture: string | undefined) {
-		onFilterChange('culture', culture ? [culture] : []);
+		const cleanValue = culture?.split(' (')[0];
+		onFilterChange('culture', cleanValue ? [cleanValue] : []);
 	}
 
 	function handleEraChange(value: string | undefined) {
@@ -61,7 +65,11 @@
 	}
 
 	function handleMaterialsChange(materials: string[]) {
-		onFilterChange('materials', materials);
+		const cleanMaterials = materials.map(material => {
+			return material.split(' (')[0];
+		});
+
+		onFilterChange('materials', cleanMaterials);
 	}
 
 	function handleSearchFieldChange(value: string) {
@@ -168,14 +176,21 @@
 					value={filters.objectType[0]}
 					onValueChange={handleClassificationChange}
 				>
-					<SelectTrigger class="max-w-[300px]">
-            <span class={!filters.objectType[0] ? "text-muted-foreground" : ""}>
-              {filters.objectType[0] || 'Object type'}
-            </span>
+					<SelectTrigger class="w-full">
+    <span class={!filters.objectType[0] ? "text-muted-foreground" : ""}>
+      {filters.objectType[0]?.split(' (')[0] || 'Object type'}
+    </span>
 					</SelectTrigger>
-					<SelectContent>
+					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
 						{#each filterOptions.objectType as type}
-							<SelectItem value={type}>{type}</SelectItem>
+							<SelectItem value={type}>
+								{type.split(' (')[0]}
+								{#if type.includes('(')}
+          <span class="text-muted-foreground ml-1">
+            {type.match(/\((\d+)\)/)?.[0] || ''}
+          </span>
+								{/if}
+							</SelectItem>
 						{/each}
 					</SelectContent>
 				</Select>
@@ -185,18 +200,25 @@
 					value={filters.materials}
 					onValueChange={handleMaterialsChange}
 				>
-					<SelectTrigger class="text-left">
+					<SelectTrigger class="text-left w-full">
 						<div class="flex-1 min-w-0">
-              <span id="materials-content" class="truncate block text">
-                {filters.materials.length === 0
-									? 'Medium'
-									: filters.materials.join(', ')}
-              </span>
+      <span id="materials-content" class="truncate block text">
+        {filters.materials.length === 0
+					? 'Medium'
+					: filters.materials.map(m => m.split(' (')[0]).join(', ')}
+      </span>
 						</div>
 					</SelectTrigger>
-					<SelectContent>
+					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
 						{#each filterOptions.materials as material}
-							<SelectItem value={material}>{material}</SelectItem>
+							<SelectItem value={material}>
+								{material.split(' (')[0]}
+								{#if material.includes('(')}
+          <span class="text-muted-foreground ml-1">
+            {material.match(/\((\d+)\)/)?.[0] || ''}
+          </span>
+								{/if}
+							</SelectItem>
 						{/each}
 					</SelectContent>
 				</Select>
@@ -223,14 +245,21 @@
 					value={filters.country[0]}
 					onValueChange={handleCountryChange}
 				>
-					<SelectTrigger>
-            <span class={!filters.country[0] ? "text-muted-foreground" : ""}>
-              {filters.country[0] || 'Select country'}
-            </span>
+					<SelectTrigger class="w-full">
+    <span class={!filters.country[0] ? "text-muted-foreground" : ""}>
+      {filters.country[0]?.split(' (')[0] || 'Select country'}
+    </span>
 					</SelectTrigger>
-					<SelectContent>
+					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
 						{#each filterOptions.geographicLocations as country}
-							<SelectItem value={country}>{country}</SelectItem>
+							<SelectItem value={country}>
+								{country.split(' (')[0]}
+								{#if country.includes('(')}
+          <span class="text-muted-foreground ml-1">
+            {country.match(/\((\d+)\)/)?.[0] || ''}
+          </span>
+								{/if}
+							</SelectItem>
 						{/each}
 					</SelectContent>
 				</Select>
@@ -240,14 +269,21 @@
 					value={filters.region[0]}
 					onValueChange={handleRegionChange}
 				>
-					<SelectTrigger>
-            <span class={!filters.region[0] ? "text-muted-foreground" : ""}>
-              {filters.region[0] || 'Select region'}
-            </span>
+					<SelectTrigger class="w-full">
+    <span class={!filters.region[0] ? "text-muted-foreground" : ""}>
+      {filters.region[0]?.split(' (')[0] || 'Select region'}
+    </span>
 					</SelectTrigger>
-					<SelectContent>
+					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
 						{#each filterOptions.regions as region}
-							<SelectItem value={region}>{region}</SelectItem>
+							<SelectItem value={region}>
+								{region.split(' (')[0]}
+								{#if region.includes('(')}
+          <span class="text-muted-foreground ml-1">
+            {region.match(/\((\d+)\)/)?.[0] || ''}
+          </span>
+								{/if}
+							</SelectItem>
 						{/each}
 					</SelectContent>
 				</Select>
@@ -257,14 +293,21 @@
 					value={filters.culture[0]}
 					onValueChange={handleCultureChange}
 				>
-					<SelectTrigger>
-            <span class={!filters.culture[0] ? "text-muted-foreground" : ""}>
-              {filters.culture[0] || 'Select culture'}
-            </span>
+					<SelectTrigger class="w-full">
+    <span class={!filters.culture[0] ? "text-muted-foreground" : ""}>
+      {filters.culture[0]?.split(' (')[0] || 'Select culture'}
+    </span>
 					</SelectTrigger>
-					<SelectContent>
+					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
 						{#each filterOptions.cultures as culture}
-							<SelectItem value={culture}>{culture}</SelectItem>
+							<SelectItem value={culture}>
+								{culture.split(' (')[0]}
+								{#if culture.includes('(')}
+          <span class="text-muted-foreground ml-1">
+            {culture.match(/\((\d+)\)/)?.[0] || ''}
+          </span>
+								{/if}
+							</SelectItem>
 						{/each}
 					</SelectContent>
 				</Select>
@@ -290,12 +333,12 @@
 					value={filters.era[0]}
 					onValueChange={handleEraChange}
 				>
-					<SelectTrigger>
-            <span class={!filters.era[0] ? "text-muted-foreground" : ""}>
-              {filters.era[0] || 'Time period'}
-            </span>
+					<SelectTrigger class="w-full">
+    <span class={!filters.era[0] ? "text-muted-foreground" : ""}>
+      {filters.era[0] || 'Time period'}
+    </span>
 					</SelectTrigger>
-					<SelectContent>
+					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
 						{#each PERIOD_OPTIONS as period}
 							<SelectItem value={period}>{period}</SelectItem>
 						{/each}
