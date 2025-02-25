@@ -20,6 +20,18 @@ export class DateUtils {
 
 		const normalized = dateString.trim().toLowerCase();
 
+		// Handle simple "A.D. X" pattern (when it's the complete string)
+		if (/^a\.d\.\s+\d+$/i.test(normalized)) {
+			const yearStr = normalized.replace(/^a\.d\.\s+(\d+)$/i, "$1");
+			return parseInt(yearStr);
+		}
+
+		// Handle simple "X B.C." pattern (when it's the complete string)
+		if (/^\d+\s+b\.c\.$/i.test(normalized)) {
+			const yearStr = normalized.replace(/^(\d+)\s+b\.c\.$/i, "$1");
+			return -parseInt(yearStr);
+		}
+
 		const ceMatch = normalized.match(this.CE_PATTERN);
 		if (ceMatch) {
 			return parseInt(ceMatch[1]);
@@ -116,32 +128,32 @@ export class DateUtils {
 	}
 
 	static isYearInPeriod(year: number, periodStr: string): boolean {
-		// Handle A.D. 1900-present format
-		if (periodStr === "A.D. 1900-present") {
-			return year >= 1900;
+		// Handle special cases for specific period formats
+		if (periodStr === "2000-1000 B.C.") {
+			return year >= -2000 && year <= -1000;
 		}
 
-		// Handle A.D. range format with explicit pattern
-		const adRangeMatch = periodStr.match(/A\.D\.\s+(\d+)-(\d+|present)/i);
-		if (adRangeMatch) {
-			const startYear = parseInt(adRangeMatch[1]);
-			const endStr = adRangeMatch[2];
-			const endYear = endStr === 'present'
-				? new Date().getFullYear()
-				: parseInt(endStr);
-			return year >= startYear && year <= endYear;
+		if (periodStr === "1000 B.C.-A.D. 1") {
+			return year >= -1000 && year <= 1;
 		}
 
-		// Handle B.C. range pattern with explicit "B.C."
-		const bcMatch = periodStr.match(/(\d+)\s*B\.C\.-/i);
-		if (bcMatch) {
-			const startYearBC = parseInt(bcMatch[1]);
+		// Handle explicit A.D. formats
+		if (periodStr.startsWith("A.D.")) {
+			const yearsMatch = periodStr.match(/A\.D\.\s+(\d+)-(\d+|present)/i);
+			if (yearsMatch) {
+				const startYear = parseInt(yearsMatch[1]);
+				if (yearsMatch[2] === "present") {
+					return year >= startYear;
+				} else {
+					const endYear = parseInt(yearsMatch[2]);
+					return year >= startYear && year <= endYear;
+				}
+			}
 
-			// Handle the combined B.C.-A.D. format
-			const adPart = periodStr.match(/-A\.D\.\s+(\d+)/i);
-			if (adPart) {
-				const endYearAD = parseInt(adPart[1]);
-				return year >= -startYearBC && year <= endYearAD;
+			// Single A.D. year format
+			const singleMatch = periodStr.match(/A\.D\.\s+(\d+)/i);
+			if (singleMatch) {
+				return year === parseInt(singleMatch[1]);
 			}
 		}
 
@@ -154,22 +166,39 @@ export class DateUtils {
 			return year <= -endYearBC && year >= -startYearBC;
 		}
 
-		console.log(`Period: ${periodStr}, Year: ${year}, No pattern matched`);
+		// For debugging
+		console.log(`Period: ${periodStr}, Year: ${year}, Attempting generic parsing`);
 
-		// Fallback for other formats
-		const parts = periodStr.split('-')
-			.map(p => p.trim())
-			.map(p => {
-				if (p === 'present') return new Date().getFullYear();
-				if (p.includes('B.C.')) return -parseInt(p.replace(/\s*B\.C\./, ''));
-				if (p.includes('A.D.')) return parseInt(p.replace(/A\.D\.\s+/, ''));
-				return parseInt(p);
-			});
+		// Generic parsing for other formats
+		try {
+			const parts: number[] = periodStr.split('-')
+				.map((p: string) => {
+					if (p.trim() === 'present') return new Date().getFullYear();
+					if (p.includes('B.C.')) return -parseInt(p.replace(/\s*B\.C\./, ''));
+					if (p.includes('A.D.')) return parseInt(p.replace(/A\.D\.\s+/, ''));
+					return parseInt(p);
+				});
 
-		if (parts.length === 2) {
-			return year >= parts[0] && year <= parts[1];
+			if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+				return year >= parts[0] && year <= parts[1];
+			}
+		} catch (e) {
+			console.error(`Error parsing period: ${periodStr}`, e);
 		}
 
+		console.warn(`Could not parse period format: ${periodStr}`);
 		return false;
+	}
+
+	static formatDate(dateString: string | null): string {
+		if (!dateString) return 'Date unknown';
+
+		try {
+			const year = this.extractYear(dateString);
+			const period = this.mapYearToPeriod(year);
+			return `${dateString} (${period})`;
+		} catch {
+			return dateString;
+		}
 	}
 }
