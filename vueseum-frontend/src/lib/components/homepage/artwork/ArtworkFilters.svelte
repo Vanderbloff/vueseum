@@ -1,30 +1,13 @@
-<script module lang="ts">
-	export interface ArtworkFilters {
-		searchTerm: string[];
-		searchField: SearchField;
-		objectType: string[];
-		materials: string[];
-		country: string[];
-		region: string[];
-		culture: string[];
-		era: StandardPeriod[];
-		hasImage: boolean;
-		museumId: string[];
-	}
-
-	export type SearchField = 'all' | 'title' | 'artist' | 'culture';
-</script>
-
 <script lang="ts">
 	import type { StandardPeriod } from '$lib/types/artwork';
 	import type { FilterOptions } from '$lib/api/artwork';
-	import { artworkApi } from '$lib/api/artwork';
 	import { Select, SelectContent, SelectItem, SelectTrigger } from '$lib/components/ui/select';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import Search from 'lucide-svelte/icons/search';
 	import { Label } from '$lib/components/ui/label';
 	import { Checkbox } from '$lib/components/ui/checkbox';
+	import type { ArtworkFilters, FilterChangeHandler } from '$lib/types/filters';
 
 	const PERIOD_OPTIONS: StandardPeriod[] = [
 		"2000-1000 B.C.",
@@ -52,141 +35,41 @@
 			options: boolean;
 		};
 		error: string | null;
-		onFilterChange: (key: keyof ArtworkFilters, value: string[] | StandardPeriod[] | SearchField | boolean) => void;
+		onFilterChange: FilterChangeHandler
 		onSearch: (filters: ArtworkFilters) => void;
 		children?: unknown;
 	}>();
 
-	console.log('Initial filterOptions:', filterOptions);
-
-	// Maintain set of in-flight requests to prevent duplicates
-	const state = $state({
-		pendingRequests: new Set<string>()
-	});
-
-	/**
-	 * Loads filter options based on current selection criteria.
-	 * Only loads dependent options when parent selections change.
-	 */
-	async function loadFilterOptions(criteria: {
-		objectType?: string;
-		country?: string;
-		region?: string;
-	} = {}) {
-		const requestId = JSON.stringify(criteria);
-
-		// Skip if this exact request is already in flight
-		if (state.pendingRequests.has(requestId)) {
-			return;
-		}
-
-		try {
-			state.pendingRequests.add(requestId);
-			loading.options = true;
-
-			const options = await artworkApi.getFilterOptions(criteria);
-
-			// Update only the options that should change based on criteria
-			filterOptions = {
-				...filterOptions,
-				...(criteria.objectType ? { materials: options.mediums } : {}),
-				...(criteria.country ? { regions: options.regions } : {}),
-				...(criteria.region ? { cultures: options.cultures } : {}),
-				// Update base options only if no criteria
-				...(!Object.keys(criteria).length ? {
-					objectType: options.objectType,
-					geographicLocations: options.geographicLocations
-				} : {})
-			};
-		} catch {
-			error = 'Failed to load filter options';
-		} finally {
-			loading.options = false;
-			state.pendingRequests.delete(requestId);
-		}
-	}
-
-	/**
-	 * Handles changes to object type selection.
-	 * Updates available materials based on selected type.
-	 */
 	function handleClassificationChange(classification: string | undefined) {
 		onFilterChange('objectType', classification ? [classification] : []);
-		if (classification) {
-			loadFilterOptions({ objectType: classification });
-		}
-		// Reset materials when type changes
-		onFilterChange('materials', []);
 	}
 
-	/**
-	 * Handles changes to country selection.
-	 * Updates available regions based on selected country.
-	 */
 	function handleCountryChange(country: string | undefined) {
 		onFilterChange('country', country ? [country] : []);
-		if (country) {
-			loadFilterOptions({ country });
-		}
-		// Reset dependent fields
-		onFilterChange('region', []);
-		onFilterChange('culture', []);
 	}
 
-	/**
-	 * Handles changes to region selection.
-	 * Updates available cultures based on selected region.
-	 */
 	function handleRegionChange(region: string | undefined) {
 		onFilterChange('region', region ? [region] : []);
-		if (region) {
-			loadFilterOptions({
-				country: filters.country[0],
-				region
-			});
-		}
-		// Reset culture when region changes
-		onFilterChange('culture', []);
 	}
 
-	/**
-	 * Handles changes to culture selection.
-	 * No dependent fields to update.
-	 */
 	function handleCultureChange(culture: string | undefined) {
 		onFilterChange('culture', culture ? [culture] : []);
 	}
 
-	/**
-	 * Handles changes to era selection.
-	 * Uses predefined PERIOD_OPTIONS for valid values.
-	 */
 	function handleEraChange(value: string | undefined) {
 		onFilterChange('era', value ? [value as StandardPeriod] : []);
 	}
 
-	/**
-	 * Handles changes to materials selection.
-	 * Supports multiple selection.
-	 */
 	function handleMaterialsChange(materials: string[]) {
 		onFilterChange('materials', materials);
 	}
 
-	/**
-	 * Handles changes to search field selection.
-	 * Validates against allowed search field values.
-	 */
 	function handleSearchFieldChange(value: string) {
 		if (value === "all" || value === "title" || value === "artist" || value === "culture") {
 			onFilterChange('searchField', value);
 		}
 	}
 
-	/**
-	 * Handles search term changes.
-	 * Trims whitespace and handles empty values.
-	 */
 	function handleSearch() {
 		const searchTerms = filters.searchTerm[0]?.trim()
 			? [filters.searchTerm[0]]
@@ -194,15 +77,22 @@
 		onFilterChange('searchTerm', searchTerms);
 	}
 
-	$effect(() => {
-		console.log('filterOptions changed:', filterOptions);
-	});
+	// Reset functions for individual filter groups
+	function resetArtworkTypeFilters() {
+		handleClassificationChange(undefined);
+		onFilterChange('materials', []);
+	}
+
+	function resetLocationFilters() {
+		handleCountryChange(undefined);
+		handleRegionChange(undefined);
+		handleCultureChange(undefined);
+	}
 </script>
 
 <div class="space-y-6">
 	<!-- Search Bar Section -->
 	<div class="space-y-4">
-		<!-- Search Field and Button -->
 		<div class="flex gap-2">
 			<Select
 				type="single"
@@ -266,7 +156,7 @@
 						<Button
 							variant="ghost"
 							size="sm"
-							onclick={() => handleClassificationChange(undefined)}
+							onclick={resetArtworkTypeFilters}
 						>
 							Reset
 						</Button>
@@ -279,9 +169,9 @@
 					onValueChange={handleClassificationChange}
 				>
 					<SelectTrigger class="max-w-[300px]">
-						<span class={!filters.objectType[0] ? "text-muted-foreground" : ""}>
-            {filters.objectType[0] || 'Object type'}
-        </span>
+            <span class={!filters.objectType[0] ? "text-muted-foreground" : ""}>
+              {filters.objectType[0] || 'Object type'}
+            </span>
 					</SelectTrigger>
 					<SelectContent>
 						{#each filterOptions.objectType as type}
@@ -290,29 +180,26 @@
 					</SelectContent>
 				</Select>
 
-				<!-- Materials selection appears when classification is selected -->
-				{#if filters.objectType.length > 0 && filterOptions.materials.length > 0}
-					<Select
-						type="multiple"
-						value={filters.materials}
-						onValueChange={handleMaterialsChange}
-					>
-						<SelectTrigger class="text-left">
-							<div class="flex-1 min-w-0">
-								<span id="materials-content" class="truncate block text">
-										{filters.materials.length === 0
-											? 'Medium'
-											: filters.materials.join(', ')}
-								</span>
-							</div>
-						</SelectTrigger>
-						<SelectContent>
-							{#each filterOptions.materials as material}
-								<SelectItem value={material}>{material}</SelectItem>
-							{/each}
-						</SelectContent>
-					</Select>
-				{/if}
+				<Select
+					type="multiple"
+					value={filters.materials}
+					onValueChange={handleMaterialsChange}
+				>
+					<SelectTrigger class="text-left">
+						<div class="flex-1 min-w-0">
+              <span id="materials-content" class="truncate block text">
+                {filters.materials.length === 0
+									? 'Medium'
+									: filters.materials.join(', ')}
+              </span>
+						</div>
+					</SelectTrigger>
+					<SelectContent>
+						{#each filterOptions.materials as material}
+							<SelectItem value={material}>{material}</SelectItem>
+						{/each}
+					</SelectContent>
+				</Select>
 			</div>
 
 			<!-- Geographic Location Filter -->
@@ -323,7 +210,7 @@
 						<Button
 							variant="ghost"
 							size="sm"
-							onclick={() => handleCountryChange(undefined)}
+							onclick={resetLocationFilters}
 						>
 							Reset
 						</Button>
@@ -337,9 +224,9 @@
 					onValueChange={handleCountryChange}
 				>
 					<SelectTrigger>
-						<span class={!filters.country[0] ? "text-muted-foreground" : ""}>
-								{filters.country[0] || 'Select country'}
-						</span>
+            <span class={!filters.country[0] ? "text-muted-foreground" : ""}>
+              {filters.country[0] || 'Select country'}
+            </span>
 					</SelectTrigger>
 					<SelectContent>
 						{#each filterOptions.geographicLocations as country}
@@ -348,45 +235,39 @@
 					</SelectContent>
 				</Select>
 
-				<!-- Region Selection - Only show if country is selected -->
-				{#if filters.country.length > 0 && filterOptions.regions.length > 0}
-					<Select
-						type="single"
-						value={filters.region[0]}
-						onValueChange={handleRegionChange}
-					>
-						<SelectTrigger>
-							<span class={!filters.region[0] ? "text-muted-foreground" : ""}>
-									{filters.region[0] || 'Select region'}
-							</span>
-						</SelectTrigger>
-						<SelectContent>
-							{#each filterOptions.regions as region}
-								<SelectItem value={region}>{region}</SelectItem>
-							{/each}
-						</SelectContent>
-					</Select>
-				{/if}
+				<Select
+					type="single"
+					value={filters.region[0]}
+					onValueChange={handleRegionChange}
+				>
+					<SelectTrigger>
+            <span class={!filters.region[0] ? "text-muted-foreground" : ""}>
+              {filters.region[0] || 'Select region'}
+            </span>
+					</SelectTrigger>
+					<SelectContent>
+						{#each filterOptions.regions as region}
+							<SelectItem value={region}>{region}</SelectItem>
+						{/each}
+					</SelectContent>
+				</Select>
 
-				<!-- Culture Selection - Show based on selected region -->
-				{#if filters.region.length > 0 && filterOptions.cultures.length > 0}
-					<Select
-						type="single"
-						value={filters.culture[0]}
-						onValueChange={handleCultureChange}
-					>
-						<SelectTrigger>
-							<span class={!filters.culture[0] ? "text-muted-foreground" : ""}>
-									{filters.culture[0] || 'Select culture'}
-							</span>
-						</SelectTrigger>
-						<SelectContent>
-							{#each filterOptions.cultures as culture}
-								<SelectItem value={culture}>{culture}</SelectItem>
-							{/each}
-						</SelectContent>
-					</Select>
-				{/if}
+				<Select
+					type="single"
+					value={filters.culture[0]}
+					onValueChange={handleCultureChange}
+				>
+					<SelectTrigger>
+            <span class={!filters.culture[0] ? "text-muted-foreground" : ""}>
+              {filters.culture[0] || 'Select culture'}
+            </span>
+					</SelectTrigger>
+					<SelectContent>
+						{#each filterOptions.cultures as culture}
+							<SelectItem value={culture}>{culture}</SelectItem>
+						{/each}
+					</SelectContent>
+				</Select>
 			</div>
 
 			<!-- Era Filter -->
@@ -410,9 +291,9 @@
 					onValueChange={handleEraChange}
 				>
 					<SelectTrigger>
-						<span class={!filters.era[0] ? "text-muted-foreground" : ""}>
-								{filters.era[0] || 'Time period'}
-						</span>
+            <span class={!filters.era[0] ? "text-muted-foreground" : ""}>
+              {filters.era[0] || 'Time period'}
+            </span>
 					</SelectTrigger>
 					<SelectContent>
 						{#each PERIOD_OPTIONS as period}
