@@ -21,7 +21,7 @@ export function mapFiltersToSearchCriteria(
 					criteria.artistName = searchTerm;
 					break;
 				case 'culture':
-					criteria.culture = searchTerm;
+					criteria.origin = searchTerm;
 					break;
 				case 'all':
 					criteria.title = searchTerm;
@@ -30,26 +30,12 @@ export function mapFiltersToSearchCriteria(
 		}
 	}
 
-	// Map object type and materials
-	if (filters.objectType.length > 0) {
-		criteria.artworkType = filters.objectType[0].split(' (')[0];
+	if (filters.category.length > 0) {
+		criteria.category = filters.category[0].split(' (')[0];
 	}
 
-	if (filters.materials.length > 0) {
-		criteria.medium = filters.materials[0].split(' (')[0];
-	}
-
-	// Map geographic and cultural data
-	if (filters.country.length > 0) {
-		criteria.geographicLocation = filters.country[0].split(' (')[0];
-	}
-
-	if (filters.region.length > 0) {
-		criteria.region = filters.region[0].split(' (')[0];
-	}
-
-	if (filters.culture.length > 0) {
-		criteria.culture = filters.culture[0].split(' (')[0];
+	if (filters.origin.length > 0) {
+		criteria.origin = filters.origin[0].split(' (')[0];
 	}
 
 	// Map period/era
