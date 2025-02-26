@@ -124,33 +124,50 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                 throw new RuntimeException(e);
             }
             int total = rootNode.path("total").asInt();
+            log.info("Met API reports {} total artworks on display", total);
 
             List<String> allIds = new ArrayList<>(parseSearchResponse(initialResponse, "objectIDs"));
+            log.info("Initial page returned {} artwork IDs", allIds.size());
 
-            while (allIds.size() < total) {
+            int emptyPageCounter = 0;
+            int maxEmptyPages = 3; // Allow some empty pages before giving up
+
+            while (allIds.size() < total && emptyPageCounter < maxEmptyPages) {
                 rateLimiter.acquire();
                 final int pageNum = currentPage.incrementAndGet();
 
-                String response = restClient.get()
-                        .uri(uriBuilder -> uriBuilder
-                                .path("/search")
-                                .queryParam("q", "*")
-                                .queryParam("isOnView", true)
-                                .queryParam("page", pageNum)
-                                .build())
-                        .retrieve()
-                        .body(String.class);
+                try {
+                    String response = restClient.get()
+                            .uri(uriBuilder -> uriBuilder
+                                    .path("/search")
+                                    .queryParam("q", "*")
+                                    .queryParam("isOnView", true)
+                                    .queryParam("page", pageNum)
+                                    .build())
+                            .retrieve()
+                            .body(String.class);
 
-                List<String> pageIds = parseSearchResponse(response, "objectIDs");
-                if (pageIds.isEmpty()) {
-                    break;
+                    List<String> pageIds = parseSearchResponse(response, "objectIDs");
+                    log.info("Page {} returned {} artwork IDs", pageNum, pageIds.size());
+
+                    if (pageIds.isEmpty()) {
+                        emptyPageCounter++;
+                        log.warn("Empty result page {} (empty page counter: {}/{})",
+                                pageNum, emptyPageCounter, maxEmptyPages);
+                        continue;
+                    } else {
+                        emptyPageCounter = 0;
+                    }
+
+                    allIds.addAll(pageIds);
+                    log.info("Fetched page {} of artwork IDs, total so far: {}/{}",
+                            pageNum, allIds.size(), total);
+                } catch (Exception e) {
+                    log.error("Error fetching page {}: {}", pageNum, e.getMessage());
                 }
-
-                allIds.addAll(pageIds);
-                log.info("Fetched page {} of artwork IDs, total so far: {}", pageNum, allIds.size());
             }
 
-            log.info("Total artwork IDs fetched: {}", allIds.size());
+            log.info("Total artwork IDs fetched: {} out of reported {}", allIds.size(), total);
             return allIds;
         }, "fetch displayed artwork IDs");
     }
