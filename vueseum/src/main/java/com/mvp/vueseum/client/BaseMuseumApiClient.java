@@ -82,6 +82,12 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
                             continue;
                         }
 
+                        if (details.getMedium() != null && details.getMedium().length() > 1000) {
+                            // Either truncate or log a warning
+                            details.setMedium(details.getMedium().substring(0, 997) + "...");
+                            log.warn("Truncated medium field for artwork {}", details.getExternalId());
+                        }
+
                         artworkService.saveFromDetails(details);
                         processedCount.incrementAndGet();
 
