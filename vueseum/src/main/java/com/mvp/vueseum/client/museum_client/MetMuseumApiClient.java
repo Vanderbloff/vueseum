@@ -104,6 +104,9 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
         return withRetry(() -> {
             AtomicInteger currentPage = new AtomicInteger(1);  // Thread-safe counter
 
+            String fullUrl = baseUrl + "/search?q=*&isOnView=true&page=" + currentPage.get();
+            log.info("Requesting Met API URL: {}", fullUrl);
+
             // Get first page to determine total
             rateLimiter.acquire();
             String initialResponse = restClient.get()
@@ -123,8 +126,15 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
+
             int total = rootNode.path("total").asInt();
             log.info("Met API reports {} total artworks on display", total);
+
+            log.info("API Response: total={}, firstFewIds={}",
+                    rootNode.path("total").asInt(),
+                    rootNode.path("objectIDs").isArray() ?
+                            rootNode.path("objectIDs").toString().substring(0, Math.min(100, rootNode.path("objectIDs").toString().length())) :
+                            "not an array");
 
             List<String> allIds = new ArrayList<>(parseSearchResponse(initialResponse, "objectIDs"));
             log.info("Initial page returned {} artwork IDs", allIds.size());
@@ -187,7 +197,7 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                     .retrieve()
                     .body(String.class);
 
-            List<String> updatedIds = parseSearchResponse(response, "ObjectIDs");
+            List<String> updatedIds = parseSearchResponse(response, "objectIDs");
 
             // Filter for displayed artworks
             return updatedIds.stream()
