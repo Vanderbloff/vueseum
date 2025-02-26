@@ -27,10 +27,8 @@ import org.springframework.web.client.RestClient;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("UnstableApiUsage")
@@ -102,20 +100,13 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
     @Override
     public List<String> getCurrentlyDisplayedArtworkIds() {
         return withRetry(() -> {
-            AtomicInteger currentPage = new AtomicInteger(1);  // Thread-safe counter
+            // Use the Met Museum's recommended format, with parameters in this specific order
+            String initialUrl = baseUrl + "/search?isOnView=true&q=*";
+            log.info("Requesting Met API URL: {}", initialUrl);
 
-            String fullUrl = baseUrl + "/search?q=*&isOnView=true&page=" + currentPage.get();
-            log.info("Requesting Met API URL: {}", fullUrl);
-
-            // Get first page to determine total
             rateLimiter.acquire();
             String initialResponse = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/search")
-                            .queryParam("q", "*")
-                            .queryParam("isOnView", true)
-                            .queryParam("page", currentPage.get())
-                            .build())
+                    .uri(initialUrl)
                     .retrieve()
                     .body(String.class);
 
@@ -127,57 +118,12 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
                 throw new RuntimeException(e);
             }
 
-            int total = rootNode.path("total").asInt();
-            log.info("Met API reports {} total artworks on display", total);
+            int totalArtworks = rootNode.path("total").asInt();
+            log.info("Met API reports {} total artworks on display", totalArtworks);
 
-            log.info("API Response: total={}, firstFewIds={}",
-                    rootNode.path("total").asInt(),
-                    rootNode.path("objectIDs").isArray() ?
-                            rootNode.path("objectIDs").toString().substring(0, Math.min(100, rootNode.path("objectIDs").toString().length())) :
-                            "not an array");
+            List<String> allIds = parseSearchResponse(initialResponse, "objectIDs");
+            log.info("Retrieved {} artwork IDs", allIds.size());
 
-            List<String> allIds = new ArrayList<>(parseSearchResponse(initialResponse, "objectIDs"));
-            log.info("Initial page returned {} artwork IDs", allIds.size());
-
-            int emptyPageCounter = 0;
-            int maxEmptyPages = 3; // Allow some empty pages before giving up
-
-            while (allIds.size() < total && emptyPageCounter < maxEmptyPages) {
-                rateLimiter.acquire();
-                final int pageNum = currentPage.incrementAndGet();
-
-                try {
-                    String response = restClient.get()
-                            .uri(uriBuilder -> uriBuilder
-                                    .path("/search")
-                                    .queryParam("q", "*")
-                                    .queryParam("isOnView", true)
-                                    .queryParam("page", pageNum)
-                                    .build())
-                            .retrieve()
-                            .body(String.class);
-
-                    List<String> pageIds = parseSearchResponse(response, "objectIDs");
-                    log.info("Page {} returned {} artwork IDs", pageNum, pageIds.size());
-
-                    if (pageIds.isEmpty()) {
-                        emptyPageCounter++;
-                        log.warn("Empty result page {} (empty page counter: {}/{})",
-                                pageNum, emptyPageCounter, maxEmptyPages);
-                        continue;
-                    } else {
-                        emptyPageCounter = 0;
-                    }
-
-                    allIds.addAll(pageIds);
-                    log.info("Fetched page {} of artwork IDs, total so far: {}/{}",
-                            pageNum, allIds.size(), total);
-                } catch (Exception e) {
-                    log.error("Error fetching page {}: {}", pageNum, e.getMessage());
-                }
-            }
-
-            log.info("Total artwork IDs fetched: {} out of reported {}", allIds.size(), total);
             return allIds;
         }, "fetch displayed artwork IDs");
     }
