@@ -130,12 +130,13 @@
 			// Update all filter options at once
 			state.filterOptions = {
 				objectType: options.objectType || [],
-				materials: options.mediums || [],
+				materials: options.materials || [],
 				countries: options.geographicLocations || [],
 				regions: options.regions || [],
 				cultures: options.cultures || []
 			};
-		} catch {
+		} catch (error) {
+			console.error('Error loading filter options:', error);
 			state.error = {
 				type: 'load',
 				message: 'Failed to load filter options',
@@ -192,8 +193,7 @@
 
 			state.artworksData = results;
 			state.currentPage = newPage;
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		} catch (error) {
+		} catch {
 			state.error = {
 				type: 'pagination',
 				message: 'An error occurred while loading the page. Please try again.',
