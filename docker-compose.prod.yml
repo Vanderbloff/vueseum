@@ -50,7 +50,7 @@ services:
     user: "1000:1000"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - JAVA_OPTS=-Xms512m -Xmx1024m -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/log/vueseum/heapdump.hprof
+      - JAVA_OPTS=-Xms384m -Xmx768m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/log/vueseum/heapdump.hprof
       - LOG_PATH=/var/log/vueseum
     restart: unless-stopped
     healthcheck:
@@ -60,8 +60,8 @@ services:
       retries: 3
     networks:
       - vueseum-network
-    mem_limit: 512m
-    mem_reservation: 384m
+    mem_limit: 1024m
+    mem_reservation: 512m
 
 networks:
   vueseum-network:
