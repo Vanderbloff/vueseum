@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { Select, SelectTrigger, SelectContent } from "$lib/components/ui/select";
-	import { onMount } from "svelte";
-	import { debounce } from "$lib/utils/debounce";
+	import { clickOutside } from '$lib/utils/clickOutside';
+	import { onMount, tick } from 'svelte';
+	import { debounce } from '$lib/utils/debounce';
+	import ChevronDown from 'lucide-svelte/icons/chevron-down';
 
 	export let value: string | undefined = undefined;
 	export let placeholder: string = "Select option";
@@ -10,11 +11,12 @@
 	export let label: string = "";
 	export let loading: boolean = false;
 
-	const ITEM_HEIGHT = 35; // Height of each item in pixels
-	const MAX_VISIBLE_ITEMS = 8; // Maximum number of visible items
-	const BUFFER_SIZE = 2; // Buffer rows above and below visible area
+	const ITEM_HEIGHT = 35;
+	const MAX_VISIBLE_ITEMS = 8;
 
 	let containerRef: HTMLDivElement;
+	let dropdownRef: HTMLDivElement;
+	let searchInput: HTMLInputElement;
 	let searchTerm = "";
 	let scrollTop = 0;
 	let isOpen = false;
@@ -26,113 +28,92 @@
 		: items;
 
 	// Virtual list calculations
-	$: containerHeight = Math.min(filteredItems.length, MAX_VISIBLE_ITEMS) * ITEM_HEIGHT;
+	$: containerHeight = Math.min(filteredItems.length * ITEM_HEIGHT, MAX_VISIBLE_ITEMS * ITEM_HEIGHT);
 	$: totalHeight = filteredItems.length * ITEM_HEIGHT;
-	$: startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE);
+	$: startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT));
 	$: endIndex = Math.min(
 		filteredItems.length - 1,
-		Math.floor((scrollTop + containerHeight) / ITEM_HEIGHT) + BUFFER_SIZE
+		Math.floor((scrollTop + containerHeight) / ITEM_HEIGHT) + 2
 	);
 	$: visibleItems = filteredItems.slice(startIndex, endIndex + 1);
 
-	// Clear search when dropdown closes
-	$: if (!isOpen) {
-		searchTerm = "";
-	}
-
 	function handleScroll() {
 		scrollTop = containerRef?.scrollTop ?? 0;
-		console.log("Scroll:", scrollTop, "Items:", startIndex, "-", endIndex);
 	}
 
-	const debouncedSearch = debounce((term: string) => {
-		searchTerm = term;
-		// Reset scroll position when search changes
-		if (containerRef) {
-			containerRef.scrollTop = 0;
-			scrollTop = 0;
-		}
-	}, 150);
-
-	function handleSearchInput(e: Event) {
-		const input = e.target as HTMLInputElement;
-		debouncedSearch(input.value);
-	}
-
-	function handleOpenChange(open: boolean) {
-		isOpen = open;
-		if (open) {
-			// Reset scroll position when opening
-			if (containerRef) {
-				containerRef.scrollTop = 0;
-				scrollTop = 0;
-			}
-
-			setTimeout(() => {
-				const searchInputElement = document.querySelector('.virtualized-select-search input');
-				if (searchInputElement instanceof HTMLInputElement) {
-					searchInputElement.focus();
+	function toggleDropdown() {
+		isOpen = !isOpen;
+		if (isOpen) {
+			searchTerm = "";
+			// Focus search input on open
+			tick().then(() => {
+				searchInput?.focus();
+				if (containerRef) {
+					containerRef.scrollTop = 0;
+					scrollTop = 0;
 				}
-			}, 50);
+			});
 		}
 	}
 
-	function handleSelect(value: string) {
-		onChange(value);
+	function handleClickOutside() {
+		isOpen = false;
+	}
+
+	function handleSelectItem(item: {value: string, label: string}) {
+		onChange(item.value);
 		isOpen = false;
 	}
 
 	onMount(() => {
-		console.log("VirtualizedSelect mounted", {
-			itemCount: items.length,
-			filteredCount: filteredItems.length,
-			containerHeight,
-			totalHeight
-		});
-
 		if (containerRef) {
 			containerRef.addEventListener('scroll', handleScroll);
-
-			// Initial check to ensure everything is set up correctly
-			setTimeout(() => {
-				if (containerRef) {
-					console.log("Container scroll height:", containerRef.scrollHeight);
-					console.log("Container client height:", containerRef.clientHeight);
-				}
-			}, 100);
-
 			return () => {
 				containerRef.removeEventListener('scroll', handleScroll);
 			};
 		}
 	});
+
+	const debouncedSearch = debounce((term: string) => {
+		searchTerm = term;
+		if (containerRef) {
+			containerRef.scrollTop = 0;
+			scrollTop = 0;
+		}
+	}, 150);
 </script>
 
-<div class="relative w-full">
-	<Select
-		type="single"
-		{value}
-		onOpenChange={handleOpenChange}
-		onValueChange={handleSelect}
+<div class="relative w-full" use:clickOutside={handleClickOutside}>
+	<!-- Trigger button -->
+	<button
+		type="button"
+		class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background
+      data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+		onclick={toggleDropdown}
+		aria-haspopup="listbox"
+		aria-expanded={isOpen}
 	>
-		<SelectTrigger class="w-full">
-      <span class={!value ? "text-muted-foreground" : ""}>
-        {value ? items.find(i => i.value === value)?.label || value : placeholder}
-      </span>
-		</SelectTrigger>
-		<SelectContent
-			align="start"
-			side="bottom"
-			class="w-[300px] p-0"
+    <span class={!value ? "text-muted-foreground" : ""}>
+      {value ? items.find(i => i.value === value)?.label || value : placeholder}
+    </span>
+		<ChevronDown class="h-4 w-4 opacity-50" />
+	</button>
+
+	<!-- Dropdown -->
+	{#if isOpen}
+		<div
+			bind:this={dropdownRef}
+			class="absolute z-50 w-full min-w-[8rem] overflow-hidden rounded-md border border-slate-200 bg-white text-slate-950 shadow-md animate-in fade-in-80 data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 mt-1"
 		>
 			<!-- Search input -->
-			<div class="p-2 border-b sticky top-0 bg-background z-10 virtualized-select-search">
+			<div class="p-2 border-b sticky top-0 bg-background z-10">
 				<input
+					bind:this={searchInput}
 					type="text"
 					class="h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
 					placeholder={`Search ${label.toLowerCase()}...`}
 					value={searchTerm}
-					oninput={handleSearchInput}
+					oninput={(e) => debouncedSearch(e.currentTarget.value)}
 				/>
 			</div>
 
@@ -151,7 +132,7 @@
 				<div
 					bind:this={containerRef}
 					class="overflow-y-auto"
-					style="height: {containerHeight || MAX_VISIBLE_ITEMS * ITEM_HEIGHT}px; max-height: 280px;"
+					style="height: {containerHeight}px; max-height: 280px;"
 				>
 					<div style="height: {totalHeight}px; position: relative;">
 						{#each visibleItems as item, i}
@@ -161,16 +142,16 @@
 								role="option"
 								aria-selected={value === item.value}
 								tabindex="0"
-								class="absolute w-full text-left cursor-pointer hover:bg-accent hover:text-accent-foreground
-                       {value === item.value ? 'bg-accent text-accent-foreground' : ''}"
+								class="absolute w-full text-left cursor-pointer hover:bg-slate-100
+                     {value === item.value ? 'bg-slate-100' : ''}"
 								style="top: {(itemIndex) * ITEM_HEIGHT}px; height: {ITEM_HEIGHT}px;"
-								onclick={() => handleSelect(item.value)}
-								onkeydown={(e) => e.key === 'Enter' && handleSelect(item.value)}
+								onclick={() => handleSelectItem(item)}
+								onkeydown={(e) => e.key === 'Enter' && handleSelectItem(item)}
 							>
 								<div class="flex items-center justify-between px-3 py-2">
 									<span>{item.label}</span>
 									{#if item.count !== undefined}
-										<span class="text-muted-foreground text-sm">({item.count})</span>
+										<span class="text-slate-500 text-sm">({item.count})</span>
 									{/if}
 								</div>
 							</button>
@@ -178,6 +159,6 @@
 					</div>
 				</div>
 			{/if}
-		</SelectContent>
-	</Select>
+		</div>
+	{/if}
 </div>
