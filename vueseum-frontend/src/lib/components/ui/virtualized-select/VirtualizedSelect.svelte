@@ -12,6 +12,7 @@
 
 	const ITEM_HEIGHT = 35; // Height of each item in pixels
 	const MAX_VISIBLE_ITEMS = 8; // Maximum number of visible items
+	const BUFFER_SIZE = 2; // Buffer rows above and below visible area
 
 	let containerRef: HTMLDivElement;
 	let searchTerm = "";
@@ -27,10 +28,10 @@
 	// Virtual list calculations
 	$: containerHeight = Math.min(filteredItems.length, MAX_VISIBLE_ITEMS) * ITEM_HEIGHT;
 	$: totalHeight = filteredItems.length * ITEM_HEIGHT;
-	$: startIndex = Math.floor(scrollTop / ITEM_HEIGHT);
+	$: startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE);
 	$: endIndex = Math.min(
 		filteredItems.length - 1,
-		Math.floor((scrollTop + containerHeight) / ITEM_HEIGHT)
+		Math.floor((scrollTop + containerHeight) / ITEM_HEIGHT) + BUFFER_SIZE
 	);
 	$: visibleItems = filteredItems.slice(startIndex, endIndex + 1);
 
@@ -41,6 +42,7 @@
 
 	function handleScroll() {
 		scrollTop = containerRef?.scrollTop ?? 0;
+		console.log("Scroll:", scrollTop, "Items:", startIndex, "-", endIndex);
 	}
 
 	const debouncedSearch = debounce((term: string) => {
@@ -60,6 +62,12 @@
 	function handleOpenChange(open: boolean) {
 		isOpen = open;
 		if (open) {
+			// Reset scroll position when opening
+			if (containerRef) {
+				containerRef.scrollTop = 0;
+				scrollTop = 0;
+			}
+
 			setTimeout(() => {
 				const searchInputElement = document.querySelector('.virtualized-select-search input');
 				if (searchInputElement instanceof HTMLInputElement) {
@@ -75,8 +83,24 @@
 	}
 
 	onMount(() => {
+		console.log("VirtualizedSelect mounted", {
+			itemCount: items.length,
+			filteredCount: filteredItems.length,
+			containerHeight,
+			totalHeight
+		});
+
 		if (containerRef) {
 			containerRef.addEventListener('scroll', handleScroll);
+
+			// Initial check to ensure everything is set up correctly
+			setTimeout(() => {
+				if (containerRef) {
+					console.log("Container scroll height:", containerRef.scrollHeight);
+					console.log("Container client height:", containerRef.clientHeight);
+				}
+			}, 100);
+
 			return () => {
 				containerRef.removeEventListener('scroll', handleScroll);
 			};
@@ -102,7 +126,7 @@
 			class="w-[300px] p-0"
 		>
 			<!-- Search input -->
-			<div class="p-2 border-b sticky top-0 bg-background z-10">
+			<div class="p-2 border-b sticky top-0 bg-background z-10 virtualized-select-search">
 				<input
 					type="text"
 					class="h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
@@ -127,7 +151,7 @@
 				<div
 					bind:this={containerRef}
 					class="overflow-y-auto"
-					style="height: {containerHeight}px; max-height: 280px;"
+					style="height: {containerHeight || MAX_VISIBLE_ITEMS * ITEM_HEIGHT}px; max-height: 280px;"
 				>
 					<div style="height: {totalHeight}px; position: relative;">
 						{#each visibleItems as item, i}
