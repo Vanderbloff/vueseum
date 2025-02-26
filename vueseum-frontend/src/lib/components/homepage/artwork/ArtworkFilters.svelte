@@ -8,6 +8,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import type { ArtworkFilters, FilterChangeHandler } from '$lib/types/filters';
+	import VirtualizedSelect from "$lib/components/ui/virtualized-select/VirtualizedSelect.svelte";
 
 	const PERIOD_OPTIONS: StandardPeriod[] = [
 		"2000-1000 B.C.",
@@ -40,6 +41,77 @@
 		children?: unknown;
 	}>();
 
+	// Process filter options efficiently with memoization
+	const state = $state({
+		categoryOptions: [] as Array<{value: string, label: string, count: number}>,
+		originOptions: [] as Array<{value: string, label: string, count: number}>
+	});
+
+	let categoryOptionsLoaded = false;
+	let originOptionsLoaded = false;
+
+	// Process category options once and cache the result
+	$effect(() => {
+		if (!categoryOptionsLoaded && filterOptions.objectType?.length) {
+			state.categoryOptions = processFilterOptions([
+				...(filterOptions.objectType || []),
+				...(filterOptions.materials || [])
+			]);
+			categoryOptionsLoaded = true;
+		}
+	});
+
+	// Process origin options once and cache the result
+	$effect(() => {
+		if (!originOptionsLoaded && filterOptions.cultures?.length) {
+			state.originOptions = processFilterOptions([
+				...(filterOptions.cultures || []),
+				...(filterOptions.geographicLocations || []),
+				...(filterOptions.regions || [])
+			]);
+			originOptionsLoaded = true;
+		}
+	});
+
+	// Shared processing function
+	function processFilterOptions(options: string[]) {
+		// Clean options by removing count information
+		const cleanOptions = options.map(opt => opt.split(' (')[0]);
+
+		// Remove duplicates while preserving order of first occurrence
+		const uniqueOptions = [...new Set(cleanOptions)];
+
+		// Sort alphabetically
+		uniqueOptions.sort((a, b) => a.localeCompare(b));
+
+		// Re-add count information and format for virtualized select
+		return uniqueOptions.map(cleanOption => {
+			// Find matching options and total their counts
+			const matchingOptions = options.filter(opt =>
+				opt.split(' (')[0] === cleanOption
+			);
+
+			if (matchingOptions.length === 0) {
+				return { value: cleanOption, label: cleanOption, count: 0 };
+			}
+
+			// Extract and sum counts
+			const counts = matchingOptions
+				.map(opt => {
+					const match = opt.match(/\((\d+)\)/);
+					return match ? parseInt(match[1]) : 0;
+				});
+
+			const totalCount = counts.reduce((sum, count) => sum + count, 0);
+
+			return {
+				value: cleanOption,
+				label: cleanOption,
+				count: totalCount
+			};
+		});
+	}
+
 	function handleEraChange(value: string | undefined) {
 		onFilterChange('era', value ? [value as StandardPeriod] : []);
 	}
@@ -57,91 +129,11 @@
 		onFilterChange('searchTerm', searchTerms);
 	}
 
-	function getAllCategoryOptions() {
-		// Combine object types and materials
-		const allOptions = [
-			...(filterOptions.objectType || []),
-			...(filterOptions.materials || [])
-		];
-
-		// Clean options by removing count information
-		const cleanOptions = allOptions.map(opt => opt.split(' (')[0]);
-
-		// Remove duplicates while preserving order of first occurrence
-		const uniqueOptions = [...new Set(cleanOptions)];
-
-		// Sort alphabetically
-		uniqueOptions.sort((a, b) => a.localeCompare(b));
-
-		// Re-add count information where available
-		return uniqueOptions.map(cleanOption => {
-			// Find the original option with count information
-			const matchingOptions = allOptions.filter(opt =>
-				opt.split(' (')[0] === cleanOption
-			);
-
-			if (matchingOptions.length === 0) {
-				return cleanOption;
-			}
-
-			// Extract counts and find total
-			const counts = matchingOptions
-				.map(opt => {
-					const match = opt.match(/\((\d+)\)/);
-					return match ? parseInt(match[1]) : 0;
-				});
-
-			const totalCount = counts.reduce((sum, count) => sum + count, 0);
-
-			return `${cleanOption} (${totalCount})`;
-		});
-	}
-
 	function handleCategoryChange(value: string | undefined) {
 		const cleanValue = value?.split(' (')[0];
 		onFilterChange('category', cleanValue ? [cleanValue] : []);
 	}
 
-	function getAllOriginOptions() {
-		// Combine cultures, countries, and regions
-		const allOptions = [
-			...(filterOptions.cultures || []),
-			...(filterOptions.geographicLocations || []),
-			...(filterOptions.regions || [])
-		];
-
-		// Clean options by removing count information
-		const cleanOptions = allOptions.map(opt => opt.split(' (')[0]);
-
-		// Remove duplicates while preserving order of first occurrence
-		const uniqueOptions = [...new Set(cleanOptions)];
-
-		// Sort alphabetically
-		uniqueOptions.sort((a, b) => a.localeCompare(b));
-
-		// Re-add count information where available
-		return uniqueOptions.map(cleanOption => {
-			// Find the original option with the highest count
-			const matchingOptions = allOptions.filter(opt =>
-				opt.split(' (')[0] === cleanOption
-			);
-
-			if (matchingOptions.length === 0) {
-				return cleanOption;
-			}
-
-			// Extract counts and find highest
-			const counts = matchingOptions
-				.map(opt => {
-					const match = opt.match(/\((\d+)\)/);
-					return match ? parseInt(match[1]) : 0;
-				});
-
-			const totalCount = counts.reduce((sum, count) => sum + count, 0);
-
-			return `${cleanOption} (${totalCount})`;
-		});
-	}
 
 	function handleOriginChange(value: string | undefined) {
 		const cleanValue = value?.split(' (')[0];
@@ -230,29 +222,14 @@
 					{/if}
 				</div>
 
-				<Select
-					type="single"
+				<VirtualizedSelect
 					value={filters.category[0]}
-					onValueChange={handleCategoryChange}
-				>
-					<SelectTrigger class="w-full">
-						<span class={!filters.category[0] ? "text-muted-foreground" : ""}>
-							{filters.category[0]?.split(' (')[0] || 'Select category'}
-						</span>
-					</SelectTrigger>
-					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
-						{#each getAllCategoryOptions() as option}
-							<SelectItem value={option}>
-								{option.split(' (')[0]}
-								{#if option.includes('(')}
-									<span class="text-muted-foreground ml-1">
-										{option.match(/\((\d+)\)/)?.[0] || ''}
-									</span>
-								{/if}
-							</SelectItem>
-						{/each}
-					</SelectContent>
-				</Select>
+					placeholder="Select category"
+					items={state.categoryOptions}
+					onChange={handleCategoryChange}
+					label="Categories"
+					loading={loading.options}
+				/>
 			</div>
 
 			<!-- Origin Filter -->
@@ -270,29 +247,14 @@
 					{/if}
 				</div>
 
-				<Select
-					type="single"
+				<VirtualizedSelect
 					value={filters.origin[0]}
-					onValueChange={(value) => handleOriginChange(value)}
-				>
-					<SelectTrigger class="w-full">
-						<span class={!filters.origin[0] ? "text-muted-foreground" : ""}>
-							{filters.origin[0]?.split(' (')[0] || 'Select origin'}
-						</span>
-					</SelectTrigger>
-					<SelectContent align="start" side="bottom" class="w-[300px] max-h-[300px]">
-						{#each getAllOriginOptions() as option}
-							<SelectItem value={option}>
-								{option.split(' (')[0]}
-								{#if option.includes('(')}
-									<span class="text-muted-foreground ml-1">
-										{option.match(/\((\d+)\)/)?.[0] || ''}
-									</span>
-								{/if}
-							</SelectItem>
-						{/each}
-					</SelectContent>
-				</Select>
+					placeholder="Select origin"
+					items={state.originOptions}
+					onChange={handleOriginChange}
+					label="Origins"
+					loading={loading.options}
+				/>
 			</div>
 
 			<!-- Era Filter -->
