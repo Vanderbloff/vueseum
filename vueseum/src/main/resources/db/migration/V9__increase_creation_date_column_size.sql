@@ -1,0 +1,1 @@
+ALTER TABLE artworks ALTER COLUMN creation_date TYPE VARCHAR(1000);
