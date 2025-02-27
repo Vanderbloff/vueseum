@@ -62,40 +62,41 @@ export function extractValue(option: string): string {
  */
 export function standardizeFilterOptions(
 	options: string[],
+	minCount: number = 5,
 	type?: 'category' | 'origin'
 ): { value: string, label: string, count: number }[] {
 	// Step 1: Extract values and counts
-	const processedOptions = options.map(option => {
-		const count = extractCount(option);
-		const rawValue = extractValue(option);
-		const standardizedValue = standardizeFilterOption(rawValue);
+	const processedOptions = options
+		.map((option) => {
+			const count = extractCount(option);
+			const rawValue = extractValue(option);
+			const standardizedValue = standardizeFilterOption(rawValue);
 
-		return {
-			originalValue: rawValue,
-			standardizedValue,
-			count
-		};
-	});
+			return {
+				originalValue: rawValue,
+				standardizedValue,
+				count
+			};
+		})
+		.filter((option) => option.standardizedValue);
 
 	// Step 2: Group by standardized value and sum counts
 	const groupedOptions = new Map<string, number>();
 
 	if (type === 'origin') {
-		processedOptions.forEach(option => {
+		processedOptions.forEach((option) => {
 			option.standardizedValue = standardizeCountryName(option.standardizedValue);
 		});
 	}
 
-	processedOptions.forEach(option => {
-		if (!option.standardizedValue) return;
-
+	processedOptions.forEach((option) => {
 		const currentCount = groupedOptions.get(option.standardizedValue) || 0;
 		groupedOptions.set(option.standardizedValue, currentCount + option.count);
 	});
 
 	// Step 3: Convert to final format and filter empty or zero count options
 	return Array.from(groupedOptions.entries())
-		.filter(([value, count]) => value && count > 0)
+		.filter(([, count]) => count >= minCount)
 		.map(([value, count]) => ({
 			value,
 			label: value,
