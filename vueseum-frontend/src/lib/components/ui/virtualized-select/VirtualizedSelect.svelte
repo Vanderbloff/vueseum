@@ -11,8 +11,6 @@
 	export let label: string = "";
 	export let loading: boolean = false;
 
-	const ITEMS_PER_PAGE = 50;
-
 	let dropdownRef: HTMLDivElement;
 	let searchInput: HTMLInputElement;
 	let searchTerm = "";
@@ -20,13 +18,26 @@
 	let currentPage = 0;
 
 	// Filtered items based on search
+	$: itemsPerPage = items.length > 1000 ? 50 : (items.length > 500 ? 100 : 200);
+
 	$: filteredItems = searchTerm
-		? items.filter(item =>
-			item.label.toLowerCase().includes(searchTerm.toLowerCase()))
+		? items.filter(item => {
+			const searchLower = searchTerm.toLowerCase();
+			const labelLower = item.label.toLowerCase();
+
+			// Prioritize starts-with matches
+			if (labelLower.startsWith(searchLower)) return true;
+
+			// Then check for word boundaries
+			if (labelLower.includes(' ' + searchLower)) return true;
+
+			// Finally, fall back to general inclusion
+			return labelLower.includes(searchLower);
+		})
 		: items;
 
 	// Paginated items
-	$: paginatedItems = filteredItems.slice(0, (currentPage + 1) * ITEMS_PER_PAGE);
+	$: paginatedItems = filteredItems.slice(0, (currentPage + 1) * itemsPerPage);
 	$: hasMoreItems = paginatedItems.length < filteredItems.length;
 
 	function toggleDropdown() {
