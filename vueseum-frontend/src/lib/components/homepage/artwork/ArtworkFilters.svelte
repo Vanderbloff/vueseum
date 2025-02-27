@@ -9,6 +9,7 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import type { ArtworkFilters, FilterChangeHandler } from '$lib/types/filters';
 	import VirtualizedSelect from "$lib/components/ui/virtualized-select/VirtualizedSelect.svelte";
+	import { standardizeFilterOptions } from '$lib/utils/filterStandardization';
 
 	const PERIOD_OPTIONS: StandardPeriod[] = [
 		"2000-1000 B.C.",
@@ -53,7 +54,7 @@
 	// Process category options once and cache the result
 	$effect(() => {
 		if (!categoryOptionsLoaded && filterOptions.objectType?.length) {
-			state.categoryOptions = processFilterOptions([
+			state.categoryOptions = standardizeFilterOptions([
 				...(filterOptions.objectType || []),
 				...(filterOptions.materials || [])
 			]);
@@ -64,7 +65,7 @@
 	// Process origin options once and cache the result
 	$effect(() => {
 		if (!originOptionsLoaded && filterOptions.cultures?.length) {
-			state.originOptions = processFilterOptions([
+			state.originOptions = standardizeFilterOptions([
 				...(filterOptions.cultures || []),
 				...(filterOptions.geographicLocations || []),
 				...(filterOptions.regions || [])
@@ -74,7 +75,7 @@
 	});
 
 	// Shared processing function
-	function processFilterOptions(options: string[]) {
+	/*function processFilterOptions(options: string[]) {
 		// Clean options by removing count information
 		const cleanOptions = options.map(opt => opt.split(' (')[0]);
 
@@ -110,7 +111,7 @@
 				count: totalCount
 			};
 		});
-	}
+	}*/
 
 	function handleEraChange(value: string | undefined) {
 		onFilterChange('era', value ? [value as StandardPeriod] : []);
