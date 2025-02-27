@@ -54,10 +54,13 @@
 	// Process category options once and cache the result
 	$effect(() => {
 		if (!categoryOptionsLoaded && filterOptions.objectType?.length) {
-			state.categoryOptions = standardizeFilterOptions([
-				...(filterOptions.objectType || []),
-				...(filterOptions.materials || [])
-			]);
+			state.categoryOptions = standardizeFilterOptions(
+				[
+					...(filterOptions.objectType || []),
+					...(filterOptions.materials || [])
+				],
+				5
+			);
 			categoryOptionsLoaded = true;
 		}
 	});
@@ -65,11 +68,14 @@
 	// Process origin options once and cache the result
 	$effect(() => {
 		if (!originOptionsLoaded && filterOptions.cultures?.length) {
-			state.originOptions = standardizeFilterOptions([
-				...(filterOptions.cultures || []),
-				...(filterOptions.geographicLocations || []),
-				...(filterOptions.regions || [])
-			]);
+			state.originOptions = standardizeFilterOptions(
+				[
+					...(filterOptions.cultures || []),
+					...(filterOptions.geographicLocations || []),
+					...(filterOptions.regions || [])
+				],
+				5
+			);
 			originOptionsLoaded = true;
 		}
 	});
