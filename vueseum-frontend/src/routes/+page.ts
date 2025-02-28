@@ -61,7 +61,6 @@ export const load = (async ({ url }): Promise<PageData> => {
 			filterOptionsPromise
 		]);
 
-		console.log('Loaded filter options (+page.ts):', filterOptions);
 		return {
 			artworks,
 			tours,
