@@ -6,7 +6,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>Vueseum</title>
 
-	<!-- Inline loading screen styles (ensures they load immediately) -->
+	<!-- Inline loading screen styles -->
 	<style>
       #vueseum-splash {
           position: fixed;
@@ -20,6 +20,7 @@
           justify-content: center;
           align-items: center;
           visibility: visible;
+          opacity: 1;
           transition: opacity 0.4s;
       }
 
@@ -42,55 +43,63 @@
       }
 	</style>
 
-	<!-- Force the loading screen to display before anything else -->
+	<!-- Immediate splash screen creation script -->
 	<script>
-		document.addEventListener('DOMContentLoaded', function() {
-			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-			const storedTheme = localStorage.getItem('theme');
-			const isDark = (storedTheme === 'dark') || (!storedTheme && prefersDark);
-
-			const splash = document.getElementById('vueseum-splash') || document.createElement('div');
+		(function() {
+			// Create splash element
+			const splash = document.createElement('div');
 			splash.id = 'vueseum-splash';
-			if (isDark) splash.classList.add('dark');
 
+			try {
+				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+				const storedTheme = localStorage.getItem('theme');
+				const isDark = (storedTheme === 'dark') || (!storedTheme && prefersDark);
+				if (isDark) splash.classList.add('dark');
+			} catch (e) {
+				// Ignore theme errors
+			}
+
+			// Add content to splash
 			splash.innerHTML = `
-					<div style="text-align: center; padding: 1rem;">
-						<h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">Vueseum</h1>
-						<p style="margin-bottom: 1rem;">Loading collection data...</p>
-						<div class="pulse-animation" style="font-size: 1.5rem;">🎨</div>
-					</div>
-				`;
+                <div style="text-align: center; padding: 1rem;">
+                    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">Vueseum</h1>
+                    <p style="margin-bottom: 1rem;">Loading collection data...</p>
+                    <div class="pulse-animation" style="font-size: 1.5rem;">🎨</div>
+                </div>
+            `;
 
-			document.body.appendChild(splash);
-			window.VUESEUM_SPLASH_START = Date.now();
-		});
+			function addSplash() {
+				if (document.body && !document.getElementById('vueseum-splash')) {
+					document.body.appendChild(splash);
+				}
+			}
+
+			// Try to add immediately if body exists
+			if (document.body) {
+				addSplash();
+			} else {
+				// Otherwise add on DOMContentLoaded
+				document.addEventListener('DOMContentLoaded', addSplash);
+			}
+
+			// Fallback removal after 6 seconds (safety)
+			setTimeout(function() {
+				const splashEl = document.getElementById('vueseum-splash');
+				if (splashEl) {
+					splashEl.style.opacity = '0';
+					setTimeout(function() {
+						if (splashEl && splashEl.parentNode) {
+							splashEl.parentNode.removeChild(splashEl);
+						}
+					}, 400);
+				}
+			}, 6000);
+		})();
 	</script>
 
 	%sveltekit.head%
 </head>
 <body data-sveltekit-preload-data="hover">
 <div style="display: contents">%sveltekit.body%</div>
-
-<script>
-	// Remove splash after a minimum display time
-	window.addEventListener('load', function() {
-		const minDisplayTime = 2000; // 2 seconds minimum
-		const splash = document.getElementById('vueseum-splash');
-		if (!splash) return;
-
-		const elapsedTime = Date.now() - (window.VUESEUM_SPLASH_START || 0);
-		const remainingTime = Math.max(0, minDisplayTime - elapsedTime);
-
-		// Wait for remaining time + give extra time for rendering
-		setTimeout(function() {
-			splash.style.opacity = '0';
-			setTimeout(function() {
-				if (splash.parentNode) {
-					splash.parentNode.removeChild(splash);
-				}
-			}, 400);
-		}, remainingTime + 500);
-	});
-</script>
 </body>
 </html>
