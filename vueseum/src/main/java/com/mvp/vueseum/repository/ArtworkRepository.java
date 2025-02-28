@@ -27,7 +27,7 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
     @Query("SELECT COUNT(a) FROM Artwork a WHERE a.museum.id = :museumId")
     long countByMuseum(Long museumId);
 
-    // Original individual count methods - (kept for backward compatibility)
+    // Keep existing count methods for backward compatibility
     @Query("SELECT COUNT(a) FROM Artwork a WHERE a.classification = :classification")
     long countByClassification(@Param("classification") String classification);
 
@@ -43,7 +43,7 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
     @Query("SELECT COUNT(a) FROM Artwork a WHERE a.culture = :culture")
     long countByCulture(@Param("culture") String culture);
 
-    // Original unlimited distinct queries - (kept for backward compatibility)
+    // Keep existing distinct methods for backward compatibility
     @Query("SELECT DISTINCT a.classification FROM Artwork a WHERE a.classification IS NOT NULL ORDER BY a.classification")
     List<String> findDistinctClassifications();
 
@@ -59,35 +59,41 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
     @Query("SELECT DISTINCT a.culture FROM Artwork a WHERE a.culture IS NOT NULL ORDER BY a.culture")
     List<String> findDistinctCultures();
 
-    @Query("SELECT DISTINCT a.classification FROM Artwork a WHERE a.classification IS NOT NULL ORDER BY a.classification LIMIT :limit")
-    List<String> findDistinctClassificationsLimited(@Param("limit") int limit);
+    @Query("SELECT a.classification as name, COUNT(a) as count FROM Artwork a " +
+            "WHERE a.classification IS NOT NULL " +
+            "GROUP BY a.classification " +
+            "ORDER BY count DESC " +
+            "LIMIT :limit")
+    List<Object[]> findClassificationsWithCountsLimited(@Param("limit") int limit);
 
-    @Query("SELECT DISTINCT a.country FROM Artwork a WHERE a.country IS NOT NULL ORDER BY a.country LIMIT :limit")
-    List<String> findDistinctGeographicLocationsLimited(@Param("limit") int limit);
+    @Query("SELECT a.medium as name, COUNT(a) as count FROM Artwork a " +
+            "WHERE a.medium IS NOT NULL " +
+            "GROUP BY a.medium " +
+            "ORDER BY count DESC " +
+            "LIMIT :limit")
+    List<Object[]> findMediumsWithCountsLimited(@Param("limit") int limit);
 
-    @Query("SELECT DISTINCT a.medium FROM Artwork a WHERE a.medium IS NOT NULL ORDER BY a.medium LIMIT :limit")
-    List<String> findDistinctMediumsLimited(@Param("limit") int limit);
+    @Query("SELECT a.country as name, COUNT(a) as count FROM Artwork a " +
+            "WHERE a.country IS NOT NULL " +
+            "GROUP BY a.country " +
+            "ORDER BY count DESC " +
+            "LIMIT :limit")
+    List<Object[]> findGeographicLocationsWithCountsLimited(@Param("limit") int limit);
 
-    @Query("SELECT DISTINCT a.region FROM Artwork a WHERE a.region IS NOT NULL ORDER BY a.region LIMIT :limit")
-    List<String> findDistinctRegionsLimited(@Param("limit") int limit);
+    @Query("SELECT a.region as name, COUNT(a) as count FROM Artwork a " +
+            "WHERE a.region IS NOT NULL " +
+            "GROUP BY a.region " +
+            "ORDER BY count DESC " +
+            "LIMIT :limit")
+    List<Object[]> findRegionsWithCountsLimited(@Param("limit") int limit);
 
-    @Query("SELECT DISTINCT a.culture FROM Artwork a WHERE a.culture IS NOT NULL ORDER BY a.culture LIMIT :limit")
-    List<String> findDistinctCulturesLimited(@Param("limit") int limit);
+    @Query("SELECT a.culture as name, COUNT(a) as count FROM Artwork a " +
+            "WHERE a.culture IS NOT NULL " +
+            "GROUP BY a.culture " +
+            "ORDER BY count DESC " +
+            "LIMIT :limit")
+    List<Object[]> findCulturesWithCountsLimited(@Param("limit") int limit);
 
-    @Query("SELECT a.classification, COUNT(a) FROM Artwork a WHERE a.classification IS NOT NULL GROUP BY a.classification")
-    List<Object[]> countByClassificationGrouped();
-
-    @Query("SELECT a.country, COUNT(a) FROM Artwork a WHERE a.country IS NOT NULL GROUP BY a.country")
-    List<Object[]> countByGeographicLocationGrouped();
-
-    @Query("SELECT a.medium, COUNT(a) FROM Artwork a WHERE a.medium IS NOT NULL GROUP BY a.medium")
-    List<Object[]> countByMediumGrouped();
-
-    @Query("SELECT a.region, COUNT(a) FROM Artwork a WHERE a.region IS NOT NULL GROUP BY a.region")
-    List<Object[]> countByRegionGrouped();
-
-    @Query("SELECT a.culture, COUNT(a) FROM Artwork a WHERE a.culture IS NOT NULL GROUP BY a.culture")
-    List<Object[]> countByCultureGrouped();
-
+    // Additional query helpers
     @NotNull Page<Artwork> findAll(Specification<Artwork> specification, @NotNull Pageable pageable);
 }
