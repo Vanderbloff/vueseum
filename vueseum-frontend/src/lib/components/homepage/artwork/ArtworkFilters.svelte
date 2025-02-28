@@ -152,8 +152,6 @@
 			filterOptions.countries = filterOptions.geographicLocations;
 		}
 	});
-
-	console.log("Filter options structure:", filterOptions);
 </script>
 
 <div class="space-y-6">
