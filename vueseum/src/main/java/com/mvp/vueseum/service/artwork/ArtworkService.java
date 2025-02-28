@@ -90,18 +90,41 @@ public class ArtworkService {
     @Cacheable(value = "filterOptions", key = "'all'")
     public Map<String, List<String>> getFilterOptions(ArtworkSearchCriteria criteria) {
         Map<String, List<String>> options = new HashMap<>();
-        final int LIMIT = 100;
+        final int CATEGORY_LIMIT = 200; // Higher limit for categories
+        final int ORIGIN_LIMIT = 100;   // Standard limit for origins
 
         try {
             log.info("Cache miss for filter options - executing database query");
 
-            options.put("objectType", artworkRepository.findDistinctClassificationsLimited(LIMIT));
-            options.put("geographicLocations", artworkRepository.findDistinctGeographicLocationsLimited(LIMIT));
-            options.put("materials", artworkRepository.findDistinctMediumsLimited(LIMIT));
-            options.put("regions", artworkRepository.findDistinctRegionsLimited(LIMIT));
-            options.put("cultures", artworkRepository.findDistinctCulturesLimited(LIMIT));
+            // Get classification options with counts
+            List<String> objectTypeOptions = convertToFormattedOptions(
+                    artworkRepository.findClassificationsWithCountsLimited(CATEGORY_LIMIT)
+            );
+            options.put("objectType", objectTypeOptions);
 
-            addBatchCounts(options);
+            // Get medium options with counts
+            List<String> materialsOptions = convertToFormattedOptions(
+                    artworkRepository.findMediumsWithCountsLimited(CATEGORY_LIMIT)
+            );
+            options.put("materials", materialsOptions);
+
+            // Get geographic location options with counts
+            List<String> geographicOptions = convertToFormattedOptions(
+                    artworkRepository.findGeographicLocationsWithCountsLimited(ORIGIN_LIMIT)
+            );
+            options.put("geographicLocations", geographicOptions);
+
+            // Get region options with counts
+            List<String> regionOptions = convertToFormattedOptions(
+                    artworkRepository.findRegionsWithCountsLimited(ORIGIN_LIMIT)
+            );
+            options.put("regions", regionOptions);
+
+            // Get culture options with counts
+            List<String> cultureOptions = convertToFormattedOptions(
+                    artworkRepository.findCulturesWithCountsLimited(ORIGIN_LIMIT)
+            );
+            options.put("cultures", cultureOptions);
 
             return options;
         } catch (Exception e) {
@@ -116,87 +139,18 @@ public class ArtworkService {
         }
     }
 
-    private void addBatchCounts(Map<String, List<String>> options) {
-        try {
-            // Get batch counts for all filter types
-            Map<String, Long> classificationCounts = artworkRepository.countByClassificationGrouped()
-                    .stream()
-                    .collect(Collectors.toMap(
-                            result -> (String)result[0],
-                            result -> (Long)result[1],
-                            (a, _) -> a, // In case of duplicate keys (shouldn't happen)
-                            HashMap::new
-                    ));
-
-            Map<String, Long> mediumCounts = artworkRepository.countByMediumGrouped()
-                    .stream()
-                    .collect(Collectors.toMap(
-                            result -> (String)result[0],
-                            result -> (Long)result[1],
-                            (a, _) -> a,
-                            HashMap::new
-                    ));
-
-            Map<String, Long> geographicLocationCounts = artworkRepository.countByGeographicLocationGrouped()
-                    .stream()
-                    .collect(Collectors.toMap(
-                            result -> (String)result[0],
-                            result -> (Long)result[1],
-                            (a, _) -> a,
-                            HashMap::new
-                    ));
-
-            Map<String, Long> regionCounts = artworkRepository.countByRegionGrouped()
-                    .stream()
-                    .collect(Collectors.toMap(
-                            result -> (String)result[0],
-                            result -> (Long)result[1],
-                            (a, _) -> a,
-                            HashMap::new
-                    ));
-
-            Map<String, Long> cultureCounts = artworkRepository.countByCultureGrouped()
-                    .stream()
-                    .collect(Collectors.toMap(
-                            result -> (String)result[0],
-                            result -> (Long)result[1],
-                            (a, _) -> a,
-                            HashMap::new
-                    ));
-
-            applyCountsToFilterOption(options, "objectType", classificationCounts);
-            applyCountsToFilterOption(options, "materials", mediumCounts);
-            applyCountsToFilterOption(options, "geographicLocations", geographicLocationCounts);
-            applyCountsToFilterOption(options, "regions", regionCounts);
-            applyCountsToFilterOption(options, "cultures", cultureCounts);
-
-        } catch (Exception e) {
-            log.error("Error adding counts to filter options: {}", e.getMessage(), e);
-            // If counting fails, at least return the options without counts
-        }
-    }
-
-    private void applyCountsToFilterOption(Map<String, List<String>> options,
-                                           String optionKey,
-                                           Map<String, Long> countMap) {
-        if (!options.containsKey(optionKey)) {
-            return;
-        }
-
-        List<String> valuesWithCounts = options.get(optionKey).stream()
-                .map(value -> {
-                    if (!StringUtils.hasText(value)) {
-                        return value;
-                    }
-
-                    long count = countMap.getOrDefault(value, 0L);
-                    return String.format("%s (%d)", value, count);
+    /**
+     * Converts query results (name, count) into formatted strings: "Name (count)"
+     */
+    private List<String> convertToFormattedOptions(List<Object[]> queryResults) {
+        return queryResults.stream()
+                .map(result -> {
+                    String name = (String) result[0];
+                    Long count = (Long) result[1];
+                    return String.format("%s (%d)", name, count);
                 })
                 .collect(Collectors.toList());
-
-        options.put(optionKey, valuesWithCounts);
     }
-
 
     @Transactional(readOnly = true)
     public Page<ArtworkDetails> searchArtworks(ArtworkSearchCriteria criteria, Pageable pageable) {
