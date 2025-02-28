@@ -18,6 +18,7 @@ import com.mvp.vueseum.specification.ArtworkSpecifications;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
@@ -86,20 +87,25 @@ public class ArtworkService {
         }
     }
 
+    @Cacheable(value = "filterOptions", key = "'all'")
     public Map<String, List<String>> getFilterOptions(ArtworkSearchCriteria criteria) {
         Map<String, List<String>> options = new HashMap<>();
-        try {
-            // Always load all base options with a single database query
-            options.put("objectType", artworkRepository.findDistinctClassifications());
-            options.put("geographicLocations", artworkRepository.findDistinctGeographicLocations());
-            options.put("materials", artworkRepository.findDistinctMediums());
-            options.put("regions", artworkRepository.findDistinctRegions());
-            options.put("cultures", artworkRepository.findDistinctCultures());
+        final int LIMIT = 100;
 
-            addSimplifiedCounts(options);
+        try {
+            log.info("Cache miss for filter options - executing database query");
+
+            options.put("objectType", artworkRepository.findDistinctClassificationsLimited(LIMIT));
+            options.put("geographicLocations", artworkRepository.findDistinctGeographicLocationsLimited(LIMIT));
+            options.put("materials", artworkRepository.findDistinctMediumsLimited(LIMIT));
+            options.put("regions", artworkRepository.findDistinctRegionsLimited(LIMIT));
+            options.put("cultures", artworkRepository.findDistinctCulturesLimited(LIMIT));
+
+            addBatchCounts(options);
+
             return options;
         } catch (Exception e) {
-            log.error("Error fetching filter options: {}", e.getMessage());
+            log.error("Error fetching filter options: {}", e.getMessage(), e);
             return Map.of(
                     "objectType", new ArrayList<>(),
                     "geographicLocations", new ArrayList<>(),
@@ -110,27 +116,85 @@ public class ArtworkService {
         }
     }
 
-    private void addSimplifiedCounts(Map<String, List<String>> options) {
-        for (Map.Entry<String, List<String>> entry : options.entrySet()) {
-            String filterType = entry.getKey();
-            List<String> values = entry.getValue();
-            List<String> valuesWithCounts = new ArrayList<>();
+    private void addBatchCounts(Map<String, List<String>> options) {
+        try {
+            // Get batch counts for all filter types
+            Map<String, Long> classificationCounts = artworkRepository.countByClassificationGrouped()
+                    .stream()
+                    .collect(Collectors.toMap(
+                            result -> (String)result[0],
+                            result -> (Long)result[1],
+                            (a, _) -> a, // In case of duplicate keys (shouldn't happen)
+                            HashMap::new
+                    ));
 
-            for (String value : values) {
-                if (StringUtils.hasText(value)) {
-                    long count = switch (filterType) {
-                        case "objectType" -> artworkRepository.countByClassification(value);
-                        case "materials" -> artworkRepository.countByMedium(value); // Changed from "mediums" to "materials"
-                        case "geographicLocations" -> artworkRepository.countByGeographicLocation(value);
-                        case "regions" -> artworkRepository.countByRegion(value);
-                        case "cultures" -> artworkRepository.countByCulture(value);
-                        default -> 0;
-                    };
-                    valuesWithCounts.add(String.format("%s (%d)", value, count));
-                }
-            }
-            entry.setValue(valuesWithCounts);
+            Map<String, Long> mediumCounts = artworkRepository.countByMediumGrouped()
+                    .stream()
+                    .collect(Collectors.toMap(
+                            result -> (String)result[0],
+                            result -> (Long)result[1],
+                            (a, _) -> a,
+                            HashMap::new
+                    ));
+
+            Map<String, Long> geographicLocationCounts = artworkRepository.countByGeographicLocationGrouped()
+                    .stream()
+                    .collect(Collectors.toMap(
+                            result -> (String)result[0],
+                            result -> (Long)result[1],
+                            (a, _) -> a,
+                            HashMap::new
+                    ));
+
+            Map<String, Long> regionCounts = artworkRepository.countByRegionGrouped()
+                    .stream()
+                    .collect(Collectors.toMap(
+                            result -> (String)result[0],
+                            result -> (Long)result[1],
+                            (a, _) -> a,
+                            HashMap::new
+                    ));
+
+            Map<String, Long> cultureCounts = artworkRepository.countByCultureGrouped()
+                    .stream()
+                    .collect(Collectors.toMap(
+                            result -> (String)result[0],
+                            result -> (Long)result[1],
+                            (a, _) -> a,
+                            HashMap::new
+                    ));
+
+            applyCountsToFilterOption(options, "objectType", classificationCounts);
+            applyCountsToFilterOption(options, "materials", mediumCounts);
+            applyCountsToFilterOption(options, "geographicLocations", geographicLocationCounts);
+            applyCountsToFilterOption(options, "regions", regionCounts);
+            applyCountsToFilterOption(options, "cultures", cultureCounts);
+
+        } catch (Exception e) {
+            log.error("Error adding counts to filter options: {}", e.getMessage(), e);
+            // If counting fails, at least return the options without counts
         }
+    }
+
+    private void applyCountsToFilterOption(Map<String, List<String>> options,
+                                           String optionKey,
+                                           Map<String, Long> countMap) {
+        if (!options.containsKey(optionKey)) {
+            return;
+        }
+
+        List<String> valuesWithCounts = options.get(optionKey).stream()
+                .map(value -> {
+                    if (!StringUtils.hasText(value)) {
+                        return value;
+                    }
+
+                    long count = countMap.getOrDefault(value, 0L);
+                    return String.format("%s (%d)", value, count);
+                })
+                .collect(Collectors.toList());
+
+        options.put(optionKey, valuesWithCounts);
     }
 
 
