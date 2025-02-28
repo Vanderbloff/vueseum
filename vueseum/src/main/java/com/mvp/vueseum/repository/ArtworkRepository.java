@@ -18,6 +18,7 @@ import java.util.Optional;
 @Repository
 public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpecificationExecutor<Artwork> {
     Optional<Artwork> findByExternalIdAndMuseum(String externalId, Museum museum);
+
     @Query("SELECT a FROM Artwork a " +
             "LEFT JOIN FETCH a.artist " +
             "LEFT JOIN FETCH a.museum")
@@ -26,6 +27,7 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
     @Query("SELECT COUNT(a) FROM Artwork a WHERE a.museum.id = :museumId")
     long countByMuseum(Long museumId);
 
+    // Original individual count methods - (kept for backward compatibility)
     @Query("SELECT COUNT(a) FROM Artwork a WHERE a.classification = :classification")
     long countByClassification(@Param("classification") String classification);
 
@@ -41,11 +43,10 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
     @Query("SELECT COUNT(a) FROM Artwork a WHERE a.culture = :culture")
     long countByCulture(@Param("culture") String culture);
 
-    // Classification/Type and Medium
+    // Original unlimited distinct queries - (kept for backward compatibility)
     @Query("SELECT DISTINCT a.classification FROM Artwork a WHERE a.classification IS NOT NULL ORDER BY a.classification")
     List<String> findDistinctClassifications();
 
-    // Geographic Location
     @Query("SELECT DISTINCT a.country FROM Artwork a WHERE a.country IS NOT NULL ORDER BY a.country")
     List<String> findDistinctGeographicLocations();
 
@@ -58,35 +59,35 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
     @Query("SELECT DISTINCT a.culture FROM Artwork a WHERE a.culture IS NOT NULL ORDER BY a.culture")
     List<String> findDistinctCultures();
 
-    // Additional query helpers
+    @Query("SELECT DISTINCT a.classification FROM Artwork a WHERE a.classification IS NOT NULL ORDER BY a.classification LIMIT :limit")
+    List<String> findDistinctClassificationsLimited(@Param("limit") int limit);
+
+    @Query("SELECT DISTINCT a.country FROM Artwork a WHERE a.country IS NOT NULL ORDER BY a.country LIMIT :limit")
+    List<String> findDistinctGeographicLocationsLimited(@Param("limit") int limit);
+
+    @Query("SELECT DISTINCT a.medium FROM Artwork a WHERE a.medium IS NOT NULL ORDER BY a.medium LIMIT :limit")
+    List<String> findDistinctMediumsLimited(@Param("limit") int limit);
+
+    @Query("SELECT DISTINCT a.region FROM Artwork a WHERE a.region IS NOT NULL ORDER BY a.region LIMIT :limit")
+    List<String> findDistinctRegionsLimited(@Param("limit") int limit);
+
+    @Query("SELECT DISTINCT a.culture FROM Artwork a WHERE a.culture IS NOT NULL ORDER BY a.culture LIMIT :limit")
+    List<String> findDistinctCulturesLimited(@Param("limit") int limit);
+
+    @Query("SELECT a.classification, COUNT(a) FROM Artwork a WHERE a.classification IS NOT NULL GROUP BY a.classification")
+    List<Object[]> countByClassificationGrouped();
+
+    @Query("SELECT a.country, COUNT(a) FROM Artwork a WHERE a.country IS NOT NULL GROUP BY a.country")
+    List<Object[]> countByGeographicLocationGrouped();
+
+    @Query("SELECT a.medium, COUNT(a) FROM Artwork a WHERE a.medium IS NOT NULL GROUP BY a.medium")
+    List<Object[]> countByMediumGrouped();
+
+    @Query("SELECT a.region, COUNT(a) FROM Artwork a WHERE a.region IS NOT NULL GROUP BY a.region")
+    List<Object[]> countByRegionGrouped();
+
+    @Query("SELECT a.culture, COUNT(a) FROM Artwork a WHERE a.culture IS NOT NULL GROUP BY a.culture")
+    List<Object[]> countByCultureGrouped();
+
     @NotNull Page<Artwork> findAll(Specification<Artwork> specification, @NotNull Pageable pageable);
-
-
-    // To be used in future for hierarchical querying
-    /*@Query("SELECT COUNT(a) FROM Artwork a WHERE a.region = :region AND a.country = :geographicLocation")
-    long countByRegionAndGeographicLocation(
-            @Param("region") String region,
-            @Param("geographicLocation") String geographicLocation
-    );
-
-    @Query("SELECT COUNT(a) FROM Artwork a WHERE a.culture = :culture AND a.region = :region")
-    long countByCultureAndRegion(
-            @Param("culture") String culture,
-            @Param("region") String region
-    );
-
-    @Query("SELECT COUNT(a) FROM Artwork a WHERE a.medium = :medium AND a.classification = :classification")
-    long countByMediumAndClassification(
-            @Param("medium") String medium,
-            @Param("classification") String classification
-    );
-
-    @Query("SELECT DISTINCT a.medium FROM Artwork a WHERE a.classification = :classification AND a.medium IS NOT NULL ORDER BY a.medium")
-    List<String> findDistinctMediumsByClassification(@Param("classification") String classification);
-
-    @Query("SELECT DISTINCT a.region FROM Artwork a WHERE a.country = :location AND a.region IS NOT NULL ORDER BY a.region")
-    List<String> findDistinctRegionsByLocation(@Param("location") String location);
-
-    @Query("SELECT DISTINCT a.culture FROM Artwork a WHERE a.region = :region AND a.culture IS NOT NULL ORDER BY a.culture")
-    List<String> findDistinctCulturesByRegion(@Param("region") String region);*/
 }
