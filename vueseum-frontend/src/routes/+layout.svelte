@@ -14,6 +14,7 @@
 	} from "$lib/components/ui/dropdown-menu";
 
 	import DisclaimerAlert from '$lib/components/shared/DisclaimerAlert.svelte';
+	import { browser } from '$app/environment';
 
 	let { children } = $props();
 	const state = $state({
@@ -23,6 +24,20 @@
 	$effect(() => {
 		if (typeof window !== 'undefined') {
 			state.hasSeenDisclaimer = localStorage.getItem('hasSeenDisclaimer') === 'true';
+		}
+	});
+
+	$effect(() => {
+		if (browser) {
+			const splash = document.getElementById('vueseum-splash');
+			if (splash) {
+				splash.style.opacity = '0';
+				setTimeout(() => {
+					if (splash.parentNode) {
+						splash.parentNode.removeChild(splash);
+					}
+				}, 400);
+			}
 		}
 	});
 </script>
