@@ -38,6 +38,7 @@
 					}
 				}, 400);
 			}
+			document.body.classList.add('app-ready');
 		}
 	});
 </script>

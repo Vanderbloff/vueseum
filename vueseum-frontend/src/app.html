@@ -41,46 +41,38 @@
               opacity: 0.5;
           }
       }
+
+      /* Hide everything else until the app is ready */
+      body > div:not(#vueseum-splash) {
+          opacity: 0;
+          transition: opacity 0.4s;
+      }
+      body.app-ready > div:not(#vueseum-splash) {
+          opacity: 1;
+      }
 	</style>
 
-	<!-- Immediate splash screen creation script -->
+	<!-- Script to handle theme detection -->
 	<script>
 		(function() {
-			// Create splash element
-			const splash = document.createElement('div');
-			splash.id = 'vueseum-splash';
-
-			try {
-				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-				const storedTheme = localStorage.getItem('theme');
-				const isDark = (storedTheme === 'dark') || (!storedTheme && prefersDark);
-				if (isDark) splash.classList.add('dark');
-			} catch (e) {
-				// Ignore theme errors
-			}
-
-			// Add content to splash
-			splash.innerHTML = `
-                <div style="text-align: center; padding: 1rem;">
-                    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">Vueseum</h1>
-                    <p style="margin-bottom: 1rem;">Loading collection data...</p>
-                    <div class="pulse-animation" style="font-size: 1.5rem;">🎨</div>
-                </div>
-            `;
-
-			function addSplash() {
-				if (document.body && !document.getElementById('vueseum-splash')) {
-					document.body.appendChild(splash);
+			function applyTheme() {
+				try {
+					const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+					const storedTheme = localStorage.getItem('theme');
+					const isDark = (storedTheme === 'dark') || (!storedTheme && prefersDark);
+					if (isDark) {
+						document.documentElement.classList.add('dark');
+						const splash = document.getElementById('vueseum-splash');
+						if (splash) splash.classList.add('dark');
+					}
+				} catch (e) {
+					// Ignore theme errors
 				}
 			}
 
-			// Try to add immediately if body exists
-			if (document.body) {
-				addSplash();
-			} else {
-				// Otherwise add on DOMContentLoaded
-				document.addEventListener('DOMContentLoaded', addSplash);
-			}
+			// Apply theme immediately and on load
+			applyTheme();
+			document.addEventListener('DOMContentLoaded', applyTheme);
 
 			// Fallback removal after 6 seconds (safety)
 			setTimeout(function() {
@@ -93,6 +85,7 @@
 						}
 					}, 400);
 				}
+				document.body.classList.add('app-ready');
 			}, 6000);
 		})();
 	</script>
@@ -100,6 +93,15 @@
 	%sveltekit.head%
 </head>
 <body data-sveltekit-preload-data="hover">
+<!-- Loading screen directly in the HTML -->
+<div id="vueseum-splash">
+	<div style="text-align: center; padding: 1rem;">
+		<h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">Vueseum</h1>
+		<p style="margin-bottom: 1rem;">Loading collection data...</p>
+		<div class="pulse-animation" style="font-size: 1.5rem;">🎨</div>
+	</div>
+</div>
+
 <div style="display: contents">%sveltekit.body%</div>
 </body>
 </html>
