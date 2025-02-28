@@ -14,7 +14,7 @@ export class DeviceFingerprintClient extends BaseApiClient {
 		try {
 			console.log('Attempting to get device fingerprint...');
 
-			const response = await this.fetchWithError<string>('/fingerprint', {
+			const response = await this.fetchWithError<{ fingerprint: string }>('/fingerprint', {
 				headers: {
 					'User-Agent': navigator.userAgent,
 					'X-Screen-Resolution': `${window.screen.width}x${window.screen.height}`,
@@ -24,7 +24,7 @@ export class DeviceFingerprintClient extends BaseApiClient {
 			});
 
 			console.log('Fingerprint response:', response);
-			return response;
+			return response.fingerprint;
 		} catch (error) {
 			console.error('Device fingerprint error details:', error);
 			throw error;
