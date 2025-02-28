@@ -54,7 +54,6 @@ export const load = (async ({ url }): Promise<PageData> => {
 				number: 0
 			};
 
-		// Add filterOptions to Promise.all
 		const [artworks, tours, filterOptions] = await Promise.all([
 			artworksPromise,
 			toursPromise,
