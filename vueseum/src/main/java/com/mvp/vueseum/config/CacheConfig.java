@@ -44,4 +44,13 @@ public class CacheConfig {
                 .maximumSize(maxSize)
                 .build();
     }
+
+    /**
+     * Cache for storing device fingerprints by token
+     * Longer expiration to maintain device identity
+     */
+    @Bean
+    public Cache<String, String> deviceFingerprintCache() {
+        return createCache(Duration.ofDays(30), 100_000);
+    }
 }
