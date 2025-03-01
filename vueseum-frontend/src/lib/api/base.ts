@@ -79,15 +79,17 @@ export class BaseApiClient {
 
 	private getCsrfToken(): string {
 		try {
-			if (process.env.NODE_ENV !== 'production') {
-				console.debug('Available cookies:', document.cookie);
-			}
-
 			const cookies = document.cookie.split(';');
+			console.log('All cookies:', cookies);
+
 			for (const cookie of cookies) {
 				const [name, value] = cookie.trim().split('=');
+				console.log(`Cookie: '${name}' = '${value}'`);
 				if (name === 'XSRF-TOKEN') {
-					return decodeURIComponent(value);
+					const decodedValue = decodeURIComponent(value);
+					console.log('Found XSRF-TOKEN:', value);
+					console.log('Decoded XSRF-TOKEN:', decodedValue);
+					return decodedValue;
 				}
 			}
 		} catch (error) {
