@@ -13,11 +13,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
 
 import java.net.SocketTimeoutException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.*;
 
@@ -48,7 +50,6 @@ public class OpenAiDescriptionService extends BaseDescriptionService {
 
     @Override
     protected String generateDescription(String prompt) {
-        // Log prompt size to help diagnose timeout issues
         log.info("Generating description - prompt length: {} characters", prompt.length());
 
         // Add warning if prompt is very large
@@ -77,34 +78,37 @@ public class OpenAiDescriptionService extends BaseDescriptionService {
                 log.warn("Invalid Retry-After header: {}", retryAfter);
             }
         }
-        return Duration.ofMinutes(1); // Default retry after
+        return Duration.ofMinutes(1);
     }
 
     private String makeOpenAiRequest(String prompt) {
-        // Create headers with API key
-        Map<String, String> headers = Map.of(
-                "Authorization", "Bearer " + apiKey
-        );
-
-        try {
+        try ( HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(30)).build() ) {
             Map<String, Object> requestPayload = getStringObjectMap(prompt);
             String requestBody = objectMapper.writeValueAsString(requestPayload);
 
             log.debug("OpenAI request payload: {}", requestBody);
 
-            String response = RestClient.builder()
-                    .baseUrl(apiUrl)
-                    .build()
-                    .post()
-                    .headers(headerConsumer -> headers.forEach(headerConsumer::add))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(requestBody)
-                    .retrieve()
-                    .body(String.class);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl + "/v1/chat/completions"))
+                    .timeout(Duration.ofMinutes(3))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
 
-            return extractContentFromResponse(response);
+            HttpResponse<String> response = client.send(request,
+                    HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                return extractContentFromResponse(response.body());
+            } else {
+                throw new AiProviderException("API error: " + response.statusCode() +
+                        ", " + response.body());
+            }
         } catch (Exception e) {
-            if (e.getCause() instanceof SocketTimeoutException || e.getMessage().contains("timeout") || e.getMessage().contains("Read timed out")) {
+            if (e.getCause() instanceof SocketTimeoutException ||
+                    e.getMessage().contains("timeout") ||
+                    e.getMessage().contains("Read timed out")) {
 
                 log.error("OpenAI request timed out: {}", e.getMessage());
                 log.error("This usually indicates network latency issues or an overloaded API endpoint");
