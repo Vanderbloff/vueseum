@@ -118,7 +118,7 @@ export class TourApiClient extends BaseApiClient {
 		}
 
 		try {
-			return await this.fetchWithError<Tour>(
+			const response = await this.fetchWithError<Tour>(
 				'/generate',
 				{
 					method: 'POST',
@@ -138,6 +138,13 @@ export class TourApiClient extends BaseApiClient {
 					})
 				}
 			);
+
+			// Ensure ID is a number before returning
+			if (response && response.id !== undefined) {
+				response.id = Number(response.id);
+			}
+
+			return response;
 		} catch (error) {
 			if (error instanceof ApiError) {
 				if (error.status === 507) {
