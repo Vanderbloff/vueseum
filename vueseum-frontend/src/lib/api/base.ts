@@ -49,6 +49,9 @@ export class BaseApiClient {
 		try {
 			const response = await fetch(fullUrl, requestOptions);
 
+			// Store text content immediately to avoid multiple body reads
+			const responseText = await response.text();
+
 			if (!response.ok) {
 				console.log('Response not OK:', {
 					status: response.status,
@@ -56,18 +59,26 @@ export class BaseApiClient {
 					url: response.url
 				});
 
+				// Try to parse the response as JSON
 				let errorMessage: string;
 				try {
-					const errorData = await response.json();
+					const errorData = JSON.parse(responseText);
 					errorMessage = errorData.message || errorData.error || response.statusText;
 				} catch {
-					errorMessage = await response.text();
+					// If parsing fails, use the raw text
+					errorMessage = responseText;
 				}
 
 				throw new ApiError(response.status, errorMessage);
 			}
 
-			return response.json();
+			// Parse the already-read response text
+			try {
+				return JSON.parse(responseText) as T;
+			} catch {
+				console.warn('Failed to parse response as JSON, returning raw text');
+				return responseText as unknown as T;
+			}
 		} catch (error) {
 			if (error instanceof ApiError) {
 				throw error;
