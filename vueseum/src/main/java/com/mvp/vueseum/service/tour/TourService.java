@@ -101,6 +101,8 @@ public class TourService {
         List<Artwork> candidates = new ArrayList<>(artworkService.findArtworkCandidates(prefs));
         List<Artwork> selectedArtworks = new ArrayList<>();
 
+        Random random = new Random(System.currentTimeMillis());
+
         // First, handle required artworks
         candidates.stream()
                 .filter(a -> prefs.getRequiredArtworkIds().contains(a.getId()))
@@ -109,18 +111,23 @@ public class TourService {
         // Remove selected artworks from candidates
         candidates.removeAll(selectedArtworks);
 
-        // Then select remaining artworks based on scores
-        while (selectedArtworks.size() < prefs.getMaxStops() && !candidates.isEmpty()) {
-            // Find the best next artwork based on scoring
-            Artwork bestCandidate = candidates.stream()
-                    .max((a1, a2) -> Double.compare(
-                            scoringService.scoreArtwork(a1, prefs, selectedArtworks),
-                            scoringService.scoreArtwork(a2, prefs, selectedArtworks)
-                    ))
-                    .orElseThrow(() -> new InvalidRequestException("Could not find suitable artwork"));
+        // Shuffle candidates to introduce initial randomness
+        Collections.shuffle(candidates, random);
 
-            selectedArtworks.add(bestCandidate);
-            candidates.remove(bestCandidate);
+        // Then select remaining artworks based on scores with random factor
+        while (selectedArtworks.size() < prefs.getMaxStops() && !candidates.isEmpty()) {
+            candidates.sort((a1, a2) -> Double.compare(
+                    scoringService.scoreArtwork(a2, prefs, selectedArtworks),
+                    scoringService.scoreArtwork(a1, prefs, selectedArtworks)
+            ));
+
+            // Select from top 30% candidates (or at least 3 candidates)
+            int topCandidateCount = Math.max(3, (int)(candidates.size() * 0.3));
+            int randomIndex = random.nextInt(Math.min(topCandidateCount, candidates.size()));
+
+            Artwork selectedArtwork = candidates.get(randomIndex);
+            selectedArtworks.add(selectedArtwork);
+            candidates.remove(selectedArtwork);
         }
 
         return selectedArtworks;

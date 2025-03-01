@@ -4,9 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mvp.vueseum.exception.RetryException;
-import com.mvp.vueseum.exception.AiProviderAuthException;
 import com.mvp.vueseum.exception.AiProviderException;
-import com.mvp.vueseum.exception.AiProviderRateLimitException;
 import com.mvp.vueseum.service.BaseDescriptionService;
 import com.mvp.vueseum.util.RetryUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -17,14 +15,11 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
+import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.*;
-
-import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
-import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 @Service
 @Primary
@@ -53,6 +48,15 @@ public class OpenAiDescriptionService extends BaseDescriptionService {
 
     @Override
     protected String generateDescription(String prompt) {
+        // Log prompt size to help diagnose timeout issues
+        log.info("Generating description - prompt length: {} characters", prompt.length());
+
+        // Add warning if prompt is very large
+        if (prompt.length() > 4000) {
+            log.warn("Very large prompt detected ({} chars) - may cause timeout issues",
+                    prompt.length());
+        }
+
         try {
             return retryUtil.withRetry(
                     () -> makeOpenAiRequest(prompt),
@@ -84,7 +88,6 @@ public class OpenAiDescriptionService extends BaseDescriptionService {
 
         try {
             Map<String, Object> requestPayload = getStringObjectMap(prompt);
-
             String requestBody = objectMapper.writeValueAsString(requestPayload);
 
             log.debug("OpenAI request payload: {}", requestBody);
@@ -100,20 +103,17 @@ public class OpenAiDescriptionService extends BaseDescriptionService {
                     .body(String.class);
 
             return extractContentFromResponse(response);
-        } catch (JsonProcessingException e) {
-            throw new AiProviderException("Failed to create request payload", e);
-        } catch (HttpClientErrorException e) {
-            switch (e.getStatusCode()) {
-                case UNAUTHORIZED:
-                    throw new AiProviderAuthException("Invalid API key");
-                case TOO_MANY_REQUESTS:
-                    Duration retryAfter = parseRetryAfter(Objects.requireNonNull(e.getResponseHeaders()));
-                    throw new AiProviderRateLimitException("Too many requests", retryAfter);
-                default:
-                    log.error("OpenAI request failed: {}, Response: {}",
-                            e.getMessage(), e.getResponseBodyAsString());
-                    throw new AiProviderException("OpenAI request failed: " + e.getMessage());
+        } catch (Exception e) {
+            if (e.getCause() instanceof SocketTimeoutException || e.getMessage().contains("timeout") || e.getMessage().contains("Read timed out")) {
+
+                log.error("OpenAI request timed out: {}", e.getMessage());
+                log.error("This usually indicates network latency issues or an overloaded API endpoint");
+                log.error("Consider increasing the timeout or reducing prompt size");
+            } else {
+                log.error("OpenAI request failed: {} ({})", e.getMessage(), e.getClass().getName());
             }
+
+            throw new AiProviderException("OpenAI request failed: " + e.getMessage(), e);
         }
     }
 
