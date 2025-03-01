@@ -192,9 +192,9 @@ export class TourApiClient extends BaseApiClient {
 		return this.fetchWithError<TourValidationResult>(`/${id}/validate`);
 	}
 
-	private getEmptyPaginatedResponse(size: number, page: number): PaginatedResponse<Tour> {
+	protected getEmptyPaginatedResponse<T = Tour>(size: number, page: number): PaginatedResponse<T> {
 		return {
-			content: [],
+			content: [] as T[],
 			totalElements: 0,
 			totalPages: 0,
 			size,
@@ -255,7 +255,7 @@ export class TourApiClient extends BaseApiClient {
 					country: artwork.country,
 					region: artwork.region,
 					culture: artwork.culture,
-					imageUrl: artwork.imageUrl,
+					imageUrl: artwork.primaryImageUrl,
 					description: artwork.description,
 					galleryNumber: artwork.galleryNumber,
 					department: artwork.department,
