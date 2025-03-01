@@ -4,10 +4,12 @@ import { tourApi } from '$lib/api/tour';
 
 export const load: Load = async ({ params }) => {
 	try {
+		const tourIdParam = params.id;
 		const tourId = parseInt(<string>params.id);
+
 		if (isNaN(tourId)) {
 			throw error(400, {
-				message: 'Invalid tour ID'
+				message: 'Invalid tour ID format'
 			});
 		}
 
@@ -15,6 +17,7 @@ export const load: Load = async ({ params }) => {
 
 		return {
 			tourId,
+			tourIdParam,
 			tour,
 			loadError: null as string | null
 		};
