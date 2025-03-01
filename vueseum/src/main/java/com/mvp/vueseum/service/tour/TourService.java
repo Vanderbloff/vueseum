@@ -54,8 +54,7 @@ public class TourService {
 
 
         validateRequest(request);
-        String deviceFingerprint = deviceFingerprintService.generateFingerprint(httpRequest);
-        handleVisitorTracking(request.getVisitorId(), deviceFingerprint);
+        handleVisitorTracking(visitorId);
 
         progressListener.updateProgress(requestId, 0.2, "Selecting artworks...");
         List<Artwork> selectedArtworks = selectArtworks(
@@ -64,7 +63,7 @@ public class TourService {
 
         progressListener.updateProgress(requestId, 0.6, "Filling in descriptions...");
         String description = getOrGenerateDescription(request, selectedArtworks);
-        return createTour(selectedArtworks, description, request.getPreferences(), requestId, deviceFingerprint);
+        return createTour(selectedArtworks, description, request.getPreferences(), requestId, visitorId);
     }
 
     @Transactional(readOnly = true)
@@ -125,9 +124,9 @@ public class TourService {
     /**
      * Handles visitor tracking and enforces generation limits
      */
-    private void handleVisitorTracking(String visitorId, String fingerprint) {
-        long totalTours = tourRepository.countByDeviceFingerprintAndDeletedFalse(fingerprint);
-        if (totalTours >= 10 || !visitorTrackingService.recordTourGeneration(visitorId, fingerprint)) {
+    private void handleVisitorTracking(String visitorId) {
+        long totalTours = tourRepository.countByDeviceFingerprintAndDeletedFalse(visitorId);
+        if (totalTours >= 10 || !visitorTrackingService.recordTourGeneration(visitorId)) {
             String message = totalTours >= 10
                     ? "Maximum tour limit reached. Please delete an existing tour before creating a new one."
                     : "Daily tour generation limit reached. Please try again tomorrow.";
@@ -165,10 +164,10 @@ public class TourService {
     /**
      * Creates a tour entity from the selected artworks and description
      */
-    private Tour createTour(List<Artwork> artworks, String description, TourPreferences prefs, String requestId, String deviceFingerprint) {
+    private Tour createTour(List<Artwork> artworks, String description, TourPreferences prefs, String requestId, String visitorId) {
         progressListener.updateProgress(requestId, 0.9, "Creating tour...");
         Tour tour = new Tour();
-        tour.setDeviceFingerprint(deviceFingerprint);
+        tour.setDeviceFingerprint(visitorId);
         tour.setName(String.format("%s Tour - %s",
                 prefs.getTheme(),
                 LocalDateTime.now().toLocalDate()));
