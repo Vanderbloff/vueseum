@@ -40,8 +40,7 @@ class TourStopValidationTest {
             TourStop stop = new TourStop(tour, artwork, -1);
 
             // Validation should happen during persist/update
-            assertThrows(IllegalStateException.class, () ->
-                    stop.validateSequenceNumber()
+            assertThrows(IllegalStateException.class, stop::validateSequenceNumber
             );
         }
 

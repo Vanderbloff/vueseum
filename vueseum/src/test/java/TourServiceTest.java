@@ -63,7 +63,7 @@ class TourServiceTest {
     private TourService tourService;
     private Museum testMuseum;
     private List<Artwork> testArtworks;
-    private static final String TEST_DEVICE_FINGERPRINT = "test-fingerprint";
+    private static final String TEST_DEVICE_FINGERPRINT = "test-visitor";
 
     @BeforeEach
     void setUp() {
@@ -118,7 +118,7 @@ class TourServiceTest {
                 .thenReturn(testArtworks.subList(0, 3));
         when(scoringService.scoreArtwork(any(), any(), any()))
                 .thenReturn(1.0);
-        when(visitorTrackingService.recordTourGeneration(anyString(), anyString()))
+        when(visitorTrackingService.recordTourGeneration(anyString()))
                 .thenReturn(true);
         when(tourRepository.countByDeviceFingerprintAndDeletedFalse(anyString()))
                 .thenReturn(0L);
@@ -141,7 +141,8 @@ class TourServiceTest {
                 .thenReturn(testArtworks.subList(0, 3));
         when(scoringService.scoreArtwork(any(), any(), any()))
                 .thenReturn(1.0);
-        when(visitorTrackingService.recordTourGeneration(anyString(), anyString()))
+        // Update from two parameters to one
+        when(visitorTrackingService.recordTourGeneration(anyString()))
                 .thenReturn(true);
         when(tourRepository.countByDeviceFingerprintAndDeletedFalse(anyString()))
                 .thenReturn(0L);
@@ -150,7 +151,7 @@ class TourServiceTest {
 
         TourGenerationRequest request = createTestRequest();
 
-                Tour result = tourService.generateTour(request, httpRequest);
+        Tour result = tourService.generateTour(request, httpRequest);
 
         assertThat(result)
                 .isNotNull()
@@ -179,7 +180,7 @@ class TourServiceTest {
                 .thenReturn(testArtworks);
         when(scoringService.scoreArtwork(any(), any(), any()))
                 .thenReturn(1.0);
-        when(visitorTrackingService.recordTourGeneration(anyString(), anyString()))
+        when(visitorTrackingService.recordTourGeneration(anyString()))
                 .thenReturn(true);
         when(tourRepository.countByDeviceFingerprintAndDeletedFalse(anyString()))
                 .thenReturn(0L);
@@ -197,7 +198,7 @@ class TourServiceTest {
     @Test
     @DisplayName("when daily limit reached, then throws exception")
     void whenDailyLimitReached_thenThrowsException() {
-        when(visitorTrackingService.recordTourGeneration(anyString(), anyString()))
+        when(visitorTrackingService.recordTourGeneration(anyString()))
                 .thenReturn(false);
         when(tourRepository.countByDeviceFingerprintAndDeletedFalse(anyString()))
                 .thenReturn(0L);
