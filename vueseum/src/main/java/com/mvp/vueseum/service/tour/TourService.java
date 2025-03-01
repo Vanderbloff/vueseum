@@ -20,6 +20,7 @@ import com.mvp.vueseum.service.visitor.DeviceFingerprintService;
 import com.mvp.vueseum.service.visitor.VisitorTrackingService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 @RequiredArgsConstructor
+@Slf4j
 public class TourService {
     private final DescriptionGenerationService descriptionService;
     private final ArtworkService artworkService;
@@ -50,6 +52,12 @@ public class TourService {
     public Tour generateTour(TourGenerationRequest request, HttpServletRequest httpRequest) {
         String requestId = UUID.randomUUID().toString();
         String visitorId = request.getVisitorId();
+        log.debug("Tour generation requested with visitorId: {}", visitorId);
+
+        String serverFingerprint = deviceFingerprintService.generateFingerprint(httpRequest);
+        log.debug("Server-generated fingerprint: {}", serverFingerprint);
+        log.debug("Fingerprints match: {}", visitorId.equals(serverFingerprint));
+
         progressListener.initializeProgress(requestId, visitorId);
 
 
