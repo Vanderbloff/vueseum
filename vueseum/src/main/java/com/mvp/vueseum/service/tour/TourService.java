@@ -51,16 +51,28 @@ public class TourService {
 
     public Tour generateTour(TourGenerationRequest request, HttpServletRequest httpRequest) {
         String requestId = UUID.randomUUID().toString();
-        String visitorId = request.getVisitorId();
-        log.debug("Tour generation requested with visitorId: {}", visitorId);
+        String clientProvidedId = request.getVisitorId();
+        log.debug("Tour generation requested with client-provided visitorId: {}", clientProvidedId);
 
-        String serverFingerprint = deviceFingerprintService.generateFingerprint(httpRequest);
-        log.debug("Server-generated fingerprint: {}", serverFingerprint);
-        log.debug("Fingerprints match: {}", visitorId.equals(serverFingerprint));
+        String storedFingerprint = deviceFingerprintService.getStoredFingerprint(httpRequest);
+
+        String visitorId;
+
+        if (storedFingerprint != null) {
+            log.debug("Found stored fingerprint from token cookie: {}", storedFingerprint);
+            if (!storedFingerprint.equals(clientProvidedId)) {
+                log.warn("Client-provided fingerprint doesn't match stored fingerprint");
+                log.warn("Using stored fingerprint for consistency and security");
+            }
+            visitorId = storedFingerprint;
+        } else {
+            // Fall back to client-provided if we have no cookie (happens if cookies disabled)
+            log.warn("No stored fingerprint found - using client-provided fingerprint");
+            log.warn("This may cause inconsistent tour tracking if client changes fingerprints");
+            visitorId = clientProvidedId;
+        }
 
         progressListener.initializeProgress(requestId, visitorId);
-
-
         validateRequest(request);
         handleVisitorTracking(visitorId);
 
