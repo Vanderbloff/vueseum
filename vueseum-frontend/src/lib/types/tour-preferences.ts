@@ -38,4 +38,5 @@ export interface TourInputState {
 	generatedToursToday: number;
 	error: { type: 'DAILY_LIMIT' | 'TOTAL_LIMIT' | null; message: string; } | null;
 	isGenerating: boolean;
+	generationStage: 'selecting' | 'describing' | 'finalizing' | 'complete' | null;
 }
