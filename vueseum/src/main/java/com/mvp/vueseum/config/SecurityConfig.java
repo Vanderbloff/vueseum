@@ -55,6 +55,7 @@ public class SecurityConfig {
                         .ignoringRequestMatchers(
                                 new AntPathRequestMatcher("/api/v1/public/**"),
                                 new AntPathRequestMatcher("/api/v1/admin/**"),
+                                new AntPathRequestMatcher("/api/v1/tours/generate"),
                                 request -> request.getMethod().equals("GET"),
                                 request -> request.getMethod().equals("OPTIONS")
                         )
