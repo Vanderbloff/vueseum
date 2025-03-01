@@ -84,6 +84,7 @@
 		generatedToursToday: 0,
 		error: null,
 		isGenerating: false,
+		generationStage: null as null | 'selecting' | 'describing' | 'finalizing' | 'complete',
 	});
 
 	const canGenerateTour = $derived(state.generatedToursToday < 3);
@@ -122,6 +123,7 @@
 	async function generateTour() {
 		state.isGenerating = true;
 		state.error = null;
+		state.generationStage = 'selecting';
 
 		try {
 			const visitorId = await getOrCreateFingerprint();
@@ -137,13 +139,19 @@
 				preferredPeriods: state.tourPreferences.preferredPeriods,
 			};
 
+			state.generationStage = 'describing';
+
 			const newTour = await tourApi.generateTour(visitorId, preferences);
+
+			state.generationStage = 'finalizing';
 
 			// Clean up
 			artistInputRef?.clearSelections();
 			mediumInputRef?.clearSelections();
 			cultureInputRef?.clearSelections();
 			state.isOpen = false;
+
+			state.generationStage = 'complete';
 
 			await goto(`/tours/${newTour.id}`);
 		} catch (error) {
@@ -339,12 +347,21 @@
 									</Select>
 								</div>
 
-								{#if state.isGenerating}
-									<div class="text-center py-4">
-										<p class="text-lg font-medium text-foreground">Your tour is on the way!</p>
-										<p class="text-sm text-muted-foreground mt-2">
-											We're crafting a personalized experience just for you.
-										</p>
+								{#if state.isGenerating && state.generationStage}
+									<div class="mb-4 text-center">
+										<div class="flex justify-between mb-1 text-xs text-muted-foreground">
+											<span>Selecting artworks</span>
+											<span>Creating descriptions</span>
+											<span>Finalizing tour</span>
+										</div>
+										<div class="w-full bg-muted rounded-full h-2.5">
+											<div class="bg-primary h-2.5 rounded-full transition-all duration-300"
+													 style="width: {state.generationStage === 'selecting' ? '33%' :
+                              state.generationStage === 'describing' ? '66%' :
+                              state.generationStage === 'finalizing' ? '90%' :
+                              state.generationStage === 'complete' ? '100%' : '0%'}">
+											</div>
+										</div>
 									</div>
 								{:else}
 									<Button
@@ -352,7 +369,17 @@
 										onclick={generateTour}
 										disabled={state.isGenerating}
 									>
-										{state.isGenerating ? 'Generating...' : 'Generate Tour'}
+										{#if state.isGenerating}
+											<div class="flex items-center justify-center">
+												<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+													<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+													<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+												</svg>
+												Creating your personalized tour...
+											</div>
+										{:else}
+											Generate Tour
+										{/if}
 									</Button>
 								{/if}
 							</div>
