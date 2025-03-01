@@ -78,16 +78,15 @@ public class VisitorTrackingService {
         Duration visitorDataRetention = Duration.ofDays(retentionDays);
         this.clock = clock;
 
-        // Initialize cache with configuration
         this.visitorCache = Caffeine.newBuilder()
                 .expireAfterAccess(visitorDataRetention)
-                .maximumSize(100_000)  // Adjust based on expected concurrent visitors
+                .maximumSize(100_000)
                 .build();
     }
 
-    public boolean recordTourGeneration(String visitorId, String deviceFingerprint) {
+    public boolean recordTourGeneration(String visitorId) {
         VisitorData data = visitorCache.get(visitorId,
-                _ -> new VisitorData(deviceFingerprint, clock));
+                _ -> new VisitorData(visitorId, clock));
 
         return data.incrementCount(dailyGenerationLimit, clock);
     }
