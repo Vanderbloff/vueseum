@@ -213,9 +213,11 @@ public class ArtworkService {
         if (remainingNeeded > 0) {
             Page<Artwork> initialCandidates = artworkRepository.findAll(
                     spec,
-                    PageRequest.of(0, remainingNeeded, Sort.by("id"))
+                    PageRequest.of(0, remainingNeeded * 2)
             );
-            candidates.addAll(initialCandidates.getContent());
+            List<Artwork> initialContent = new ArrayList<>(initialCandidates.getContent());
+            Collections.shuffle(initialContent, new Random(System.currentTimeMillis()));
+            candidates.addAll(initialContent.subList(0, Math.min(initialContent.size(), remainingNeeded)));
         }
 
         // If we don't have enough candidates, try relaxed constraints
@@ -229,10 +231,12 @@ public class ArtworkService {
                 remainingNeeded = preferences.getMinStops() - candidates.size();
                 Page<Artwork> additionalCandidates = artworkRepository.findAll(
                         relaxedSpec,
-                        PageRequest.of(0, remainingNeeded, Sort.by("id"))
+                        PageRequest.of(0, remainingNeeded * 2)
                 );
+                List<Artwork> additionalContent = new ArrayList<>(additionalCandidates.getContent());
+                Collections.shuffle(additionalContent, new Random(System.currentTimeMillis()));
 
-                candidates.addAll(additionalCandidates.getContent());
+                candidates.addAll(additionalContent.subList(0, Math.min(additionalContent.size(), remainingNeeded)));
                 if (candidates.size() >= preferences.getMinStops()) {
                     break;
                 }
