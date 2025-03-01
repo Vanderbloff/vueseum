@@ -10,6 +10,7 @@ import com.mvp.vueseum.exception.AiProviderRateLimitException;
 import com.mvp.vueseum.service.BaseDescriptionService;
 import com.mvp.vueseum.util.RetryUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
@@ -20,8 +21,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
@@ -82,25 +82,13 @@ public class OpenAiDescriptionService extends BaseDescriptionService {
                 "Authorization", "Bearer " + apiKey
         );
 
-        // Construct the request body according to OpenAI's API format
-        String requestBody = """
-            {
-                "model": "%s",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are an expert museum curator and art historian."
-                    },
-                    {
-                        "role": "user",
-                        "content": "%s"
-                    }
-                ],
-                "temperature": 0.7
-            }
-            """.formatted(model, prompt.replace("\"", "\\\""));
-
         try {
+            Map<String, Object> requestPayload = getStringObjectMap(prompt);
+
+            String requestBody = objectMapper.writeValueAsString(requestPayload);
+
+            log.debug("OpenAI request payload: {}", requestBody);
+
             String response = RestClient.builder()
                     .baseUrl(apiUrl)
                     .build()
@@ -112,6 +100,8 @@ public class OpenAiDescriptionService extends BaseDescriptionService {
                     .body(String.class);
 
             return extractContentFromResponse(response);
+        } catch (JsonProcessingException e) {
+            throw new AiProviderException("Failed to create request payload", e);
         } catch (HttpClientErrorException e) {
             switch (e.getStatusCode()) {
                 case UNAUTHORIZED:
@@ -120,9 +110,34 @@ public class OpenAiDescriptionService extends BaseDescriptionService {
                     Duration retryAfter = parseRetryAfter(Objects.requireNonNull(e.getResponseHeaders()));
                     throw new AiProviderRateLimitException("Too many requests", retryAfter);
                 default:
+                    log.error("OpenAI request failed: {}, Response: {}",
+                            e.getMessage(), e.getResponseBodyAsString());
                     throw new AiProviderException("OpenAI request failed: " + e.getMessage());
             }
         }
+    }
+
+    private @NotNull Map<String, Object> getStringObjectMap(String prompt) {
+        Map<String, Object> requestPayload = new HashMap<>();
+        requestPayload.put("model", model);
+        requestPayload.put("temperature", 0.7);
+
+        List<Map<String, String>> messages = new ArrayList<>();
+
+        // System message
+        Map<String, String> systemMessage = new HashMap<>();
+        systemMessage.put("role", "system");
+        systemMessage.put("content", "You are an expert museum curator and art historian.");
+        messages.add(systemMessage);
+
+        // User message with the prompt
+        Map<String, String> userMessage = new HashMap<>();
+        userMessage.put("role", "user");
+        userMessage.put("content", prompt);
+        messages.add(userMessage);
+
+        requestPayload.put("messages", messages);
+        return requestPayload;
     }
 
     private String extractContentFromResponse(String response) {
