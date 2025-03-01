@@ -89,12 +89,14 @@ public class OpenAiDescriptionService extends BaseDescriptionService {
             log.debug("OpenAI request payload: {}", requestBody);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(apiUrl + "/v1/chat/completions"))
+                    .uri(URI.create(apiUrl))
                     .timeout(Duration.ofMinutes(3))
                     .header("Content-Type", "application/json")
                     .header("Authorization", "Bearer " + apiKey)
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                     .build();
+
+            log.debug("Making OpenAI request to: {}", apiUrl);
 
             HttpResponse<String> response = client.send(request,
                     HttpResponse.BodyHandlers.ofString());
@@ -102,6 +104,7 @@ public class OpenAiDescriptionService extends BaseDescriptionService {
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 return extractContentFromResponse(response.body());
             } else {
+                log.error("OpenAI API error: Status {} - {}", response.statusCode(), response.body());
                 throw new AiProviderException("API error: " + response.statusCode() +
                         ", " + response.body());
             }
