@@ -123,6 +123,13 @@ class TourServiceTest {
         when(tourRepository.countByDeviceFingerprintAndDeletedFalse(anyString()))
                 .thenReturn(0L);
 
+        // Mock the save method to return a Tour with an ID
+        when(tourRepository.save(any(Tour.class))).thenAnswer(invocation -> {
+            Tour savedTour = invocation.getArgument(0);
+            savedTour.setId(1L); // Set ID to simulate database persistence
+            return savedTour;
+        });
+
         TourGenerationRequest request = createTestRequest();
 
         Tour firstTour = tourService.generateTour(request, httpRequest);
@@ -132,6 +139,9 @@ class TourServiceTest {
                 .generateTourDescription(any(), any());
         assertThat(secondTour.getDescription())
                 .isEqualTo(firstTour.getDescription());
+
+        // Verify save is called twice (once for each tour)
+        verify(tourRepository, times(2)).save(any(Tour.class));
     }
 
     @Test
@@ -141,13 +151,19 @@ class TourServiceTest {
                 .thenReturn(testArtworks.subList(0, 3));
         when(scoringService.scoreArtwork(any(), any(), any()))
                 .thenReturn(1.0);
-        // Update from two parameters to one
         when(visitorTrackingService.recordTourGeneration(anyString()))
                 .thenReturn(true);
         when(tourRepository.countByDeviceFingerprintAndDeletedFalse(anyString()))
                 .thenReturn(0L);
         when(descriptionService.generateTourDescription(any(), any()))
                 .thenReturn("Test description");
+
+        // Mock the save method to return a Tour with an ID
+        when(tourRepository.save(any(Tour.class))).thenAnswer(invocation -> {
+            Tour savedTour = invocation.getArgument(0);
+            savedTour.setId(1L); // Set ID to simulate database persistence
+            return savedTour;
+        });
 
         TourGenerationRequest request = createTestRequest();
 
@@ -156,6 +172,7 @@ class TourServiceTest {
         assertThat(result)
                 .isNotNull()
                 .satisfies(tour -> {
+                    assertThat(tour.getId()).isEqualTo(1L); // Verify ID is set
                     assertThat(tour.getStops()).hasSize(3);
                     assertThat(tour.getDeviceFingerprint())
                             .isEqualTo(TEST_DEVICE_FINGERPRINT);
@@ -166,6 +183,7 @@ class TourServiceTest {
         verify(progressListener).initializeProgress(anyString(), eq("test-visitor"));
         verify(progressListener, atLeastOnce())
                 .updateProgress(anyString(), anyDouble(), anyString());
+        verify(tourRepository).save(any(Tour.class)); // Verify save is called
     }
 
     @Test
@@ -187,12 +205,20 @@ class TourServiceTest {
         when(descriptionService.generateTourDescription(any(), any()))
                 .thenReturn("Test description");
 
-                Tour result = tourService.generateTour(request, httpRequest);
+        // Mock the save method to return a Tour with an ID
+        when(tourRepository.save(any(Tour.class))).thenAnswer(invocation -> {
+            Tour savedTour = invocation.getArgument(0);
+            savedTour.setId(1L); // Set ID to simulate database persistence
+            return savedTour;
+        });
 
+        Tour result = tourService.generateTour(request, httpRequest);
 
         assertThat(result.getStops())
                 .extracting(stop -> stop.getArtwork().getId())
                 .contains(testArtworks.getFirst().getId());
+
+        verify(tourRepository).save(any(Tour.class)); // Verify save is called
     }
 
     @Test
