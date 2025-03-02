@@ -8,10 +8,7 @@ import com.mvp.vueseum.entity.Museum;
 import com.mvp.vueseum.entity.Tour;
 import com.mvp.vueseum.service.cultural.CulturalMapping;
 import com.mvp.vueseum.util.DateParsingUtil;
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
-import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
@@ -241,25 +238,22 @@ public class ArtworkSpecifications {
             }
 
             if (!preferences.getPreferredPeriods().isEmpty()) {
-                predicates.add(root.get("period").in(preferences.getPreferredPeriods()));
+                String periodStr = preferences.getPreferredPeriods().iterator().next();
+                Expression<String> creationDate = root.get("creationDate");
+                predicates.add(createDateRangePredicate(periodStr, creationDate, cb));
             }
 
-            if (preferences.getTheme() != null) {
-                predicates.add(root.get("theme").in(preferences.getTheme()));
-                //predicates.add(cb.equal(root.get("theme"), preferences.getTheme()));
-            }
-
-            if (preferences.getPreferredCultures() != null) {
+            if (preferences.getPreferredCultures() != null && !preferences.getPreferredCultures().isEmpty()) {
                 Predicate culturePredicate = root.get("culture").in(preferences.getPreferredCultures());
 
                 Predicate locationPredicate = preferences.getPreferredCultures().stream()
                         .flatMap(culture -> CulturalMapping.getCountriesForCulture(culture, true).stream())
-                        .map(country -> cb.equal(root.get("geographicLocation"), country))
+                        .map(country -> cb.equal(root.get("country"), country))
                         .reduce(cb::or)
                         .orElse(cb.conjunction());
 
                 // Combine predicates with OR - match either culture directly or via location
-                return cb.or(culturePredicate, locationPredicate);
+                predicates.add(cb.or(culturePredicate, locationPredicate));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -323,6 +317,126 @@ public class ArtworkSpecifications {
         }
 
         return spec;
+    }
+
+    /**
+     * Creates a predicate for matching artwork creation dates to a period range.
+     * @param periodStr The period string (e.g., "A.D. 1400-1600", "1000 B.C.-A.D. 1")
+     * @param creationDateExpr The expression for the creation date field
+     * @param cb The criteria builder
+     * @return A predicate for matching artwork to the period
+     */
+    private static Predicate createDateRangePredicate(
+            String periodStr,
+            Expression<String> creationDateExpr,
+            CriteriaBuilder cb) {
+
+        try {
+            // Special case handling for specific period formats
+            if (periodStr.equals("1000 B.C.-A.D. 1")) {
+                return cb.and(
+                        cb.isNotNull(creationDateExpr),
+                        cb.between(
+                                cb.function(
+                                        "extract_year_from_date",
+                                        Integer.class,
+                                        creationDateExpr
+                                ),
+                                -1000, // 1000 B.C.
+                                1      // A.D. 1
+                        )
+                );
+            }
+            else if (periodStr.equals("2000-1000 B.C.")) {
+                return cb.and(
+                        cb.isNotNull(creationDateExpr),
+                        cb.between(
+                                cb.function(
+                                        "extract_year_from_date",
+                                        Integer.class,
+                                        creationDateExpr
+                                ),
+                                -2000, // 2000 B.C.
+                                -1000  // 1000 B.C.
+                        )
+                );
+            }
+            else if (periodStr.startsWith("A.D.")) {
+                // Handle A.D. ranges
+                String yearPart = periodStr.substring(4).trim(); // Remove "A.D. "
+                String[] rangeParts = yearPart.split("-");
+
+                if (rangeParts.length == 2) {
+                    int startYear;
+                    int endYear;
+
+                    try {
+                        startYear = Integer.parseInt(rangeParts[0].trim());
+                    } catch (NumberFormatException e) {
+                        log.warn("Failed to parse start year: {}", rangeParts[0], e);
+                        return cb.conjunction();
+                    }
+
+                    if (rangeParts[1].trim().equals("present")) {
+                        endYear = java.time.Year.now().getValue();
+                    } else {
+                        try {
+                            endYear = Integer.parseInt(rangeParts[1].trim());
+                        } catch (NumberFormatException e) {
+                            log.warn("Failed to parse end year: {}", rangeParts[1], e);
+                            return cb.conjunction();
+                        }
+                    }
+
+                    log.debug("Parsed A.D. period: {} to {}", startYear, endYear);
+
+                    return cb.and(
+                            cb.isNotNull(creationDateExpr),
+                            cb.between(
+                                    cb.function(
+                                            "extract_year_from_date",
+                                            Integer.class,
+                                            creationDateExpr
+                                    ),
+                                    startYear,
+                                    endYear
+                            )
+                    );
+                }
+            }
+            else {
+                String[] parts = periodStr.split("-");
+                if (parts.length == 2) {
+                    String startPeriod = parts[0].trim();
+                    String endPeriod = parts[1].trim();
+
+                    int startYear = DateParsingUtil.extractYear(startPeriod);
+                    int endYear = DateParsingUtil.extractYear(endPeriod);
+
+                    log.debug("Parsed period range: {} to {}", startYear, endYear);
+
+                    return cb.and(
+                            cb.isNotNull(creationDateExpr),
+                            cb.between(
+                                    cb.function(
+                                            "extract_year_from_date",
+                                            Integer.class,
+                                            creationDateExpr
+                                    ),
+                                    startYear,
+                                    endYear
+                            )
+                    );
+                }
+            }
+
+            log.warn("Could not parse period format: {}", periodStr);
+            return cb.conjunction(); // Return TRUE predicate if parsing fails
+        } catch (Exception e) {
+            log.error("Error creating date range predicate for period {}: {}",
+                    periodStr, e.getMessage());
+            return cb.conjunction(); // Return a TRUE predicate that doesn't filter anything
+        }
     }
 
     /**
