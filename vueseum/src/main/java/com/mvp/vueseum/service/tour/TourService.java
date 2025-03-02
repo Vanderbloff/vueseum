@@ -205,6 +205,12 @@ public class TourService {
             if (newlineIndex > 0) {
                 title = description.substring(6, newlineIndex).trim();
 
+                // Remove quotes if present (handles both single and double quotes)
+                title = title.replaceAll("^[\"']|[\"']$", "");
+
+                // Remove any remaining quotes
+                title = title.replace("\"", "").replace("'", "");
+
                 if (description.length() > newlineIndex + 1) {
                     description = description.substring(newlineIndex + 1).trim();
                     while (description.startsWith("\n")) {
