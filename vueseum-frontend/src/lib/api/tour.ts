@@ -118,6 +118,11 @@ export class TourApiClient extends BaseApiClient {
 		}
 
 		try {
+			console.log("Tour generation request:", {
+				visitorId,
+				preferences
+			});
+
 			const response = await this.fetchWithError<Tour>(
 				'/generate',
 				{
@@ -139,13 +144,36 @@ export class TourApiClient extends BaseApiClient {
 				}
 			);
 
-			// Ensure ID is a number before returning
-			if (response && response.id !== undefined) {
-				response.id = Number(response.id);
+			console.log("Tour generation raw response:", response);
+
+			// Check if the response has the expected structure
+			if (!response) {
+				console.error("Tour generation returned null/undefined response");
+				throw new Error("Invalid response from server");
 			}
 
-			return response;
+			// Verify the id exists and is valid
+			if (response.id === undefined || response.id === null) {
+				console.error("Tour ID is missing from response:", response);
+				throw new Error("Tour ID is missing from response");
+			}
+
+			// Ensure ID is a number before returning
+			const tourId = Number(response.id);
+			if (isNaN(tourId) || tourId === 0) {
+				console.error("Invalid tour ID:", response.id, "Parsed as:", tourId);
+				throw new Error("Invalid tour ID received from server");
+			}
+
+			const tour: Tour = {
+				...response,
+				id: tourId
+			};
+
+			console.log("Processed tour object:", tour);
+			return tour;
 		} catch (error) {
+			console.error("Tour generation error:", error);
 			if (error instanceof ApiError) {
 				if (error.status === 507) {
 					throw new Error('TOTAL_LIMIT');
