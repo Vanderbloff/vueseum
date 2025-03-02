@@ -21,302 +21,104 @@ import java.util.List;
 @Slf4j
 public class ArtworkSpecifications {
 
-    public static Specification<Artwork> withSearchCriteria(ArtworkSearchCriteria criteria) {
-        return (root, _, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            // Has Image filter
-            if (criteria.getHasImage() != null && criteria.getHasImage()) {
-                predicates.add(cb.or(
-                        // Check primary image
-                        cb.and(
-                                cb.isNotNull(root.get("imageUrl")),
-                                cb.notEqual(root.get("imageUrl"), "")
-                        ),
-                        // Also check thumbnail image
-                        cb.and(
-                                cb.isNotNull(root.get("thumbnailImageUrl")),
-                                cb.notEqual(root.get("thumbnailImageUrl"), "")
-                        )
-                ));
-            }
-
-            // Era filter
-            if (criteria.getPeriod() != null && !criteria.getPeriod().isEmpty()) {
-                String periodStr = criteria.getPeriod();
-                try {
-                    // Special case handling for specific period formats
-                    if (periodStr.equals("1000 B.C.-A.D. 1")) {
-                        Expression<String> creationDate = root.get("creationDate");
-                        predicates.add(cb.and(
-                                cb.isNotNull(creationDate),
-                                cb.between(
-                                        cb.function(
-                                                "extract_year_from_date",
-                                                Integer.class,
-                                                creationDate
-                                        ),
-                                        -1000, // 1000 B.C.
-                                        1      // A.D. 1
-                                )
-                        ));
-                    }
-                    else if (periodStr.equals("2000-1000 B.C.")) {
-                        Expression<String> creationDate = root.get("creationDate");
-                        predicates.add(cb.and(
-                                cb.isNotNull(creationDate),
-                                cb.between(
-                                        cb.function(
-                                                "extract_year_from_date",
-                                                Integer.class,
-                                                creationDate
-                                        ),
-                                        -2000, // 2000 B.C.
-                                        -1000  // 1000 B.C.
-                                )
-                        ));
-                    }
-                    else if (periodStr.startsWith("A.D.")) {
-                        // Handle A.D. ranges
-                        String yearPart = periodStr.substring(4).trim(); // Remove "A.D. "
-                        String[] rangeParts = yearPart.split("-");
-
-                        if (rangeParts.length == 2) {
-                            int startYear;
-                            int endYear;
-
-                            try {
-                                startYear = Integer.parseInt(rangeParts[0].trim());
-                            } catch (NumberFormatException e) {
-                                log.warn("Failed to parse start year: {}", rangeParts[0]);
-                                throw e;
-                            }
-
-                            if (rangeParts[1].trim().equals("present")) {
-                                endYear = java.time.Year.now().getValue(); // Current year
-                            } else {
-                                try {
-                                    endYear = Integer.parseInt(rangeParts[1].trim());
-                                } catch (NumberFormatException e) {
-                                    log.warn("Failed to parse end year: {}", rangeParts[1]);
-                                    throw e;
-                                }
-                            }
-
-                            log.info("A.D. Period filter: parsed years {} to {}", startYear, endYear);
-
-                            Expression<String> creationDate = root.get("creationDate");
-                            predicates.add(cb.and(
-                                    cb.isNotNull(creationDate),
-                                    cb.between(
-                                            cb.function(
-                                                    "extract_year_from_date",
-                                                    Integer.class,
-                                                    creationDate
-                                            ),
-                                            startYear,
-                                            endYear
-                                    )
-                            ));
-                        }
-                    } else {
-                        String[] parts = periodStr.split("-");
-                        if (parts.length == 2) {
-                            String startPeriod = parts[0].trim();
-                            String endPeriod = parts[1].trim();
-
-                            int startYear = DateParsingUtil.extractYear(startPeriod);
-                            int endYear = DateParsingUtil.extractYear(endPeriod);
-
-                            Expression<String> creationDate = root.get("creationDate");
-                            predicates.add(cb.and(
-                                    cb.isNotNull(creationDate),
-                                    cb.between(
-                                            cb.function(
-                                                    "extract_year_from_date",
-                                                    Integer.class,
-                                                    creationDate
-                                            ),
-                                            startYear,
-                                            endYear
-                                    )
-                            ));
-                        }
-                    }
-                } catch (NumberFormatException e) {
-                    log.warn("Failed to parse era period: {}", periodStr, e);
-                }
-            }
-
-            // Handle combined category filter
-            if (StringUtils.hasText(criteria.getCategory())) {
-                String categoryTerm = criteria.getCategory().toLowerCase();
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("classification")), "%" + categoryTerm + "%"),
-                        cb.like(cb.lower(root.get("medium")), "%" + categoryTerm + "%")
-                ));
-            }
-
-            if (StringUtils.hasText(criteria.getOrigin())) {
-                String originTerm = criteria.getOrigin().toLowerCase().trim();
-                log.debug("Processing origin filter with term: {}", originTerm);
-
-                try {
-                    // Basic text matching across all fields
-                    Predicate basicMatch = cb.or(
-                            cb.like(cb.lower(root.get("culture")), "%" + originTerm + "%"),
-                            cb.like(cb.lower(root.get("country")), "%" + originTerm + "%"),
-                            cb.like(cb.lower(root.get("region")), "%" + originTerm + "%")
-                    );
-
-                    // Add basic match to predicates first (this ensures we always have a predicate)
-                    predicates.add(basicMatch);
-
-                    // Then try cultural mapping as an enhancement, not a requirement
-                    try {
-                        List<String> relatedCultures = CulturalMapping.getCulturesForRegion(originTerm);
-                        if (!relatedCultures.isEmpty()) {
-                            Predicate culturalMatch = root.get("culture").in(relatedCultures);
-                            predicates.add(culturalMatch);
-                        }
-                    } catch (Exception e) {
-                        // Log but don't fail if cultural mapping fails
-                        log.warn("Cultural mapping failed for term: {}, error: {}", originTerm, e.getMessage());
-                    }
-                } catch (Exception e) {
-                    // Log the specific error but continue with other predicates
-                    log.error("Error creating origin filter predicate: {}", e.getMessage());
-                }
-            }
-
-            if (criteria.getSortField() != null &&
-                    criteria.getSortField().equals("artist")) {
-                root.join("artist", JoinType.LEFT);
-            }
-
-            // Title search with partial matching
-            if (StringUtils.hasText(criteria.getTitle())) {
-                predicates.add(
-                        cb.like(
-                                cb.lower(root.get("title")),
-                                "%" + criteria.getTitle().toLowerCase() + "%"
-                        )
-                );
-            }
-
-            // Artist name search with partial matching
-            if (StringUtils.hasText(criteria.getArtistName())) {
-                predicates.add(
-                        cb.like(
-                                cb.lower(root.get("artist").get("artistName")),
-                                "%" + criteria.getArtistName().toLowerCase() + "%"
-                        )
-                );
-            }
-
-            // Combine all predicates with AND
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
-    }
-
-    public static Specification<Artwork> forTourPreferences(TourPreferences preferences) {
-        return (root, _, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            if (!preferences.getRequiredArtworkIds().isEmpty()) {
-                predicates.add(root.get("id").in(preferences.getRequiredArtworkIds()));
-            }
-
-            if (!preferences.getPreferredArtists().isEmpty()) {
-                Join<Artwork, Artist> artistJoin = root.join("artist");
-                predicates.add(artistJoin.get("artistName")
-                        .in(preferences.getPreferredArtists()));
-            }
-
-            if (!preferences.getPreferredMediums().isEmpty()) {
-                predicates.add(root.get("medium").in(preferences.getPreferredMediums()));
-            }
-
-            if (!preferences.getPreferredPeriods().isEmpty()) {
-                String periodStr = preferences.getPreferredPeriods().iterator().next();
-                Expression<String> creationDate = root.get("creationDate");
-                predicates.add(createDateRangePredicate(periodStr, creationDate, cb));
-            }
-
-            if (preferences.getPreferredCultures() != null && !preferences.getPreferredCultures().isEmpty()) {
-                Predicate culturePredicate = root.get("culture").in(preferences.getPreferredCultures());
-
-                Predicate locationPredicate = preferences.getPreferredCultures().stream()
-                        .flatMap(culture -> CulturalMapping.getCountriesForCulture(culture, true).stream())
-                        .map(country -> cb.equal(root.get("country"), country))
-                        .reduce(cb::or)
-                        .orElse(cb.conjunction());
-
-                // Combine predicates with OR - match either culture directly or via location
-                predicates.add(cb.or(culturePredicate, locationPredicate));
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
+    /**
+     * Creates a predicate requiring an artwork to have an image
+     */
+    public static Predicate createHasImagePredicate(Root<Artwork> root, CriteriaBuilder cb) {
+        return cb.or(
+                // Check primary image
+                cb.and(
+                        cb.isNotNull(root.get("imageUrl")),
+                        cb.notEqual(root.get("imageUrl"), "")
+                ),
+                // Also check thumbnail image
+                cb.and(
+                        cb.isNotNull(root.get("thumbnailImageUrl")),
+                        cb.notEqual(root.get("thumbnailImageUrl"), "")
+                )
+        );
     }
 
     /**
-     * Theme-specific criteria to reduce the initial candidate pool
-     * before detailed scoring
+     * Creates a predicate for matching artworks by category (classification or medium)
      */
-    public static Specification<Artwork> getThemeSpecificPreFilter(Tour.TourTheme theme, Long museumId) {
-        return (root, _, cb) -> {
-            // First add the museum filter
-            Join<Artwork, Museum> museumJoin = root.join("museum");
-            Predicate museumPredicate = cb.equal(museumJoin.get("id"), museumId);
+    private static Predicate createCategoryPredicate(String category, Root<Artwork> root, CriteriaBuilder cb) {
+        if (!StringUtils.hasText(category)) {
+            return null;
+        }
 
-            // Then add theme-specific filters
-            Predicate themePredicate = switch (theme) {
-                case CHRONOLOGICAL -> cb.and(
-                        cb.isNotNull(root.get("creationDate")),
-                        cb.notEqual(root.get("creationDate"), "")
-                );
-                case ARTIST_FOCUSED -> {
-                    Join<Artwork, Artist> artistJoin = root.join("artist");
-                    yield cb.and(
-                            cb.isNotNull(artistJoin.get("birthDate")),
-                            cb.isNotNull(artistJoin.get("nationality"))
-                    );
-                }
-                case CULTURAL -> cb.isNotNull(root.get("culture"));
-            };
-
-            return cb.and(museumPredicate, themePredicate);
-        };
+        String categoryTerm = category.toLowerCase();
+        return cb.or(
+                cb.like(cb.lower(root.get("classification")), "%" + categoryTerm + "%"),
+                cb.like(cb.lower(root.get("medium")), "%" + categoryTerm + "%")
+        );
     }
 
-    public static Specification<Artwork> buildSpecificationFromPreferences(TourPreferences prefs) {
-        Specification<Artwork> spec = Specification.where(null);
-
-        // Add specifications for each preference if they're not empty
-        if (!prefs.getPreferredArtists().isEmpty()) {
-            spec = spec.and((root, _, _) -> {
-                Join<Artwork, Artist> artistJoin = root.join("artist");
-                return artistJoin.get("artistName").in(prefs.getPreferredArtists());
-            });
+    /**
+     * Creates a predicate for matching artworks by origin (culture, country, region)
+     */
+    private static Predicate createOriginPredicate(String origin, Root<Artwork> root, CriteriaBuilder cb) {
+        if (!StringUtils.hasText(origin)) {
+            return null;
         }
 
-        if (!prefs.getPreferredMediums().isEmpty()) {
-            spec = spec.and((root, _, _) ->
-                    root.get("medium").in(prefs.getPreferredMediums()));
+        String originTerm = origin.toLowerCase().trim();
+        log.debug("Processing origin filter with term: {}", originTerm);
+
+        try {
+            // Basic text matching across all fields
+            Predicate basicMatch = cb.or(
+                    cb.like(cb.lower(root.get("culture")), "%" + originTerm + "%"),
+                    cb.like(cb.lower(root.get("country")), "%" + originTerm + "%"),
+                    cb.like(cb.lower(root.get("region")), "%" + originTerm + "%")
+            );
+
+            // Also try cultural mapping as an enhancement
+            try {
+                List<String> relatedCultures = CulturalMapping.getCulturesForRegion(originTerm);
+                if (!relatedCultures.isEmpty()) {
+                    Predicate culturalMatch = root.get("culture").in(relatedCultures);
+                    return cb.or(basicMatch, culturalMatch);
+                }
+            } catch (Exception e) {
+                // Log but don't fail if cultural mapping fails
+                log.warn("Cultural mapping failed for term: {}, error: {}", originTerm, e.getMessage());
+            }
+
+            return basicMatch;
+        } catch (Exception e) {
+            // Log the specific error but return a non-restricting predicate
+            log.error("Error creating origin filter predicate: {}", e.getMessage());
+            return cb.conjunction();
+        }
+    }
+
+    /**
+     * Creates a predicate for title search
+     */
+    private static Predicate createTitlePredicate(String title, Root<Artwork> root, CriteriaBuilder cb) {
+        if (!StringUtils.hasText(title)) {
+            return null;
         }
 
-        if (!prefs.getPreferredCultures().isEmpty()) {
-            spec = spec.and((root, _, _) ->
-                    root.get("culture").in(prefs.getPreferredCultures()));
+        return cb.like(
+                cb.lower(root.get("title")),
+                "%" + title.toLowerCase() + "%"
+        );
+    }
+
+    /**
+     * Creates a predicate for artist name search
+     */
+    private static Predicate createArtistPredicate(String artistName, Root<Artwork> root, CriteriaBuilder cb) {
+        if (!StringUtils.hasText(artistName)) {
+            return null;
         }
 
-        if (!prefs.getPreferredPeriods().isEmpty()) {
-            spec = spec.and((root, _, _) ->
-                    root.get("creationDate").in(prefs.getPreferredPeriods()));
-        }
-
-        return spec;
+        return cb.like(
+                cb.lower(root.get("artist").get("artistName")),
+                "%" + artistName.toLowerCase() + "%"
+        );
     }
 
     /**
@@ -439,6 +241,164 @@ public class ArtworkSpecifications {
         }
     }
 
+    public static Specification<Artwork> withSearchCriteria(ArtworkSearchCriteria criteria) {
+        return (root, _, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // Has Image filter
+            if (criteria.getHasImage() != null && criteria.getHasImage()) {
+                predicates.add(createHasImagePredicate(root, cb));
+            }
+
+            // Era filter
+            if (StringUtils.hasText(criteria.getPeriod())) {
+                Expression<String> creationDate = root.get("creationDate");
+                Predicate periodPredicate = createDateRangePredicate(criteria.getPeriod(), creationDate, cb);
+                predicates.add(periodPredicate);
+            }
+
+            // Category filter
+            Predicate categoryPredicate = createCategoryPredicate(criteria.getCategory(), root, cb);
+            if (categoryPredicate != null) {
+                predicates.add(categoryPredicate);
+            }
+
+            // Origin filter
+            Predicate originPredicate = createOriginPredicate(criteria.getOrigin(), root, cb);
+            if (originPredicate != null) {
+                predicates.add(originPredicate);
+            }
+
+            // Handle sort fields that require joins
+            if (criteria.getSortField() != null &&
+                    criteria.getSortField().equals("artist")) {
+                root.join("artist", JoinType.LEFT);
+            }
+
+            // Title search
+            Predicate titlePredicate = createTitlePredicate(criteria.getTitle(), root, cb);
+            if (titlePredicate != null) {
+                predicates.add(titlePredicate);
+            }
+
+            // Artist name search
+            Predicate artistPredicate = createArtistPredicate(criteria.getArtistName(), root, cb);
+            if (artistPredicate != null) {
+                predicates.add(artistPredicate);
+            }
+
+            // Combine all predicates with AND
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    public static Specification<Artwork> forTourPreferences(TourPreferences preferences) {
+        return (root, _, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            predicates.add(createHasImagePredicate(root, cb));
+
+            if (!preferences.getRequiredArtworkIds().isEmpty()) {
+                predicates.add(root.get("id").in(preferences.getRequiredArtworkIds()));
+            }
+
+            if (!preferences.getPreferredArtists().isEmpty()) {
+                Join<Artwork, Artist> artistJoin = root.join("artist");
+                predicates.add(artistJoin.get("artistName")
+                        .in(preferences.getPreferredArtists()));
+            }
+
+            if (!preferences.getPreferredMediums().isEmpty()) {
+                predicates.add(root.get("medium").in(preferences.getPreferredMediums()));
+            }
+
+            if (!preferences.getPreferredPeriods().isEmpty()) {
+                String periodStr = preferences.getPreferredPeriods().iterator().next();
+                Expression<String> creationDate = root.get("creationDate");
+                predicates.add(createDateRangePredicate(periodStr, creationDate, cb));
+            }
+
+            if (preferences.getPreferredCultures() != null && !preferences.getPreferredCultures().isEmpty()) {
+                Predicate culturePredicate = root.get("culture").in(preferences.getPreferredCultures());
+
+                Predicate locationPredicate = preferences.getPreferredCultures().stream()
+                        .flatMap(culture -> CulturalMapping.getCountriesForCulture(culture, true).stream())
+                        .map(country -> cb.equal(root.get("country"), country))
+                        .reduce(cb::or)
+                        .orElse(cb.conjunction());
+
+                // Combine predicates with OR - match either culture directly or via location
+                predicates.add(cb.or(culturePredicate, locationPredicate));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    /**
+     * Theme-specific criteria to reduce the initial candidate pool
+     * before detailed scoring
+     */
+    public static Specification<Artwork> getThemeSpecificPreFilter(Tour.TourTheme theme, Long museumId) {
+        return (root, _, cb) -> {
+            // First add the museum filter
+            Join<Artwork, Museum> museumJoin = root.join("museum");
+            Predicate museumPredicate = cb.equal(museumJoin.get("id"), museumId);
+
+            Predicate hasImagePredicate = createHasImagePredicate(root, cb);
+
+            // Then add theme-specific filters
+            Predicate themePredicate = switch (theme) {
+                case CHRONOLOGICAL -> cb.and(
+                        cb.isNotNull(root.get("creationDate")),
+                        cb.notEqual(root.get("creationDate"), "")
+                );
+                case ARTIST_FOCUSED -> {
+                    Join<Artwork, Artist> artistJoin = root.join("artist");
+                    yield cb.and(
+                            cb.isNotNull(artistJoin.get("birthDate")),
+                            cb.isNotNull(artistJoin.get("nationality"))
+                    );
+                }
+                case CULTURAL -> cb.isNotNull(root.get("culture"));
+            };
+
+            return cb.and(museumPredicate, hasImagePredicate, themePredicate);
+        };
+    }
+
+    public static Specification<Artwork> buildSpecificationFromPreferences(TourPreferences prefs) {
+        Specification<Artwork> spec = Specification.where(null);
+
+        // Add specifications for each preference if they're not empty
+        if (!prefs.getPreferredArtists().isEmpty()) {
+            spec = spec.and((root, _, _) -> {
+                Join<Artwork, Artist> artistJoin = root.join("artist");
+                return artistJoin.get("artistName").in(prefs.getPreferredArtists());
+            });
+        }
+
+        if (!prefs.getPreferredMediums().isEmpty()) {
+            spec = spec.and((root, _, _) ->
+                    root.get("medium").in(prefs.getPreferredMediums()));
+        }
+
+        if (!prefs.getPreferredCultures().isEmpty()) {
+            spec = spec.and((root, _, _) ->
+                    root.get("culture").in(prefs.getPreferredCultures()));
+        }
+
+        if (!prefs.getPreferredPeriods().isEmpty()) {
+            spec = spec.and((root, query, cb) -> {
+                String periodStr = prefs.getPreferredPeriods().iterator().next();
+                Expression<String> creationDate = root.get("creationDate");
+                return createDateRangePredicate(periodStr, creationDate, cb);
+            });
+        }
+
+        return spec;
+    }
+
     /**
      * Relaxes constraints when we can't find enough matching artworks.
      * Progressively removes restrictions while maintaining core requirements.
@@ -472,18 +432,17 @@ public class ArtworkSpecifications {
      * Builds the core specification that must be maintained across all relaxation levels
      */
     private static Specification<Artwork> buildCoreSpecification(TourPreferences preferences) {
-        // Start with theme requirements
         Specification<Artwork> core = getThemeSpecificPreFilter(preferences.getTheme(), preferences.getMuseumId());
 
-        // Add display status check
         core = core.and((root, _, cb) -> cb.isTrue(root.get("isOnDisplay")));
+
+        core = core.and((root, _, cb) -> createHasImagePredicate(root, cb));
 
         core = core.and((root, _, cb) -> {
             Join<Artwork, Museum> museumJoin = root.join("museum");
             return cb.equal(museumJoin.get("id"), preferences.getMuseumId());
         });
 
-        // Add required artworks if any
         if (!preferences.getRequiredArtworkIds().isEmpty()) {
             core = core.and((root, _, _) ->
                     root.get("id").in(preferences.getRequiredArtworkIds()));
