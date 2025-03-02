@@ -176,17 +176,18 @@ public class TourService {
      /**
      * Creates a cache key based on request parameters and selected artworks
      */
-    private String generateCacheKey(TourGenerationRequest request, List<Artwork> artworks) {
-        return String.format("%s-%s-%s",
-                request.getVisitorId(),
-                request.getPreferences().hashCode(),
-                artworks.stream()
-                        .map(Artwork::getId)
-                        .sorted()
-                        .map(Object::toString)
-                        .collect(Collectors.joining("-"))
-        );
-    }
+     private String generateCacheKey(TourGenerationRequest request, List<Artwork> artworks) {
+         return String.format("%s-%s-%s-%s",
+                 request.getVisitorId(),
+                 request.getPreferences().getTheme(),
+                 request.getPreferences().hashCode(),
+                 artworks.stream()
+                         .map(Artwork::getId)
+                         .sorted()
+                         .map(Object::toString)
+                         .collect(Collectors.joining("-"))
+         );
+     }
 
     /**
      * Creates a tour entity from the selected artworks and description
@@ -195,12 +196,32 @@ public class TourService {
         progressListener.updateProgress(requestId, 0.9, "Creating tour...");
         Tour tour = new Tour();
         tour.setDeviceFingerprint(visitorId);
-        tour.setName(String.format("%s Tour - %s",
-                prefs.getTheme(),
-                LocalDateTime.now().toLocalDate()));
-        tour.setDescription(description);
-        tour.setMuseum(artworks.getFirst().getMuseum());
         tour.setTheme(prefs.getTheme());
+        tour.setMuseum(artworks.getFirst().getMuseum());
+
+        String title;
+        if (description.startsWith("TITLE:")) {
+            int newlineIndex = description.indexOf('\n');
+            if (newlineIndex > 0) {
+                title = description.substring(6, newlineIndex).trim();
+
+                if (description.length() > newlineIndex + 1) {
+                    description = description.substring(newlineIndex + 1).trim();
+                    while (description.startsWith("\n")) {
+                        description = description.substring(1);
+                    }
+                }
+            } else {
+                // Fallback if format is unexpected
+                title = generateFallbackTitle(prefs);
+            }
+        } else {
+            // Fallback if no title found
+            title = generateFallbackTitle(prefs);
+        }
+
+        tour.setName(title);
+        tour.setDescription(description);
 
         // Add stops in sequence
         for (int i = 0; i < artworks.size(); i++) {
@@ -212,6 +233,12 @@ public class TourService {
         Tour savedTour = tourRepository.save(tour);
         progressListener.updateProgress(requestId, 1.0, "Personalized tour completed!");
         return savedTour;
+    }
+
+    private String generateFallbackTitle(TourPreferences prefs) {
+        return String.format("%s: A Curated Selection - %s",
+                prefs.getTheme().title,
+                LocalDateTime.now().toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy")));
     }
 
     @Transactional(readOnly = true)
