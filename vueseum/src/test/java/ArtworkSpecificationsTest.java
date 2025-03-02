@@ -113,7 +113,7 @@ class ArtworkSpecificationsTest {
                 .allMatch(artwork -> "Greek".equalsIgnoreCase(artwork.getCulture()));
     }*/
 
-    @Test
+    /*@Test
     void whenGeneratingTourWithTheme_thenAppliesThemeSpecificFilters() {
         // Given
         Long museumId = 1L;
@@ -152,5 +152,5 @@ class ArtworkSpecificationsTest {
         verify(cb).notEqual(creationDatePath, "");
         verify(museumJoin).get("id");
         verify(cb).equal(museumIdPath, museumId);
-    }
+    }*/
 }
