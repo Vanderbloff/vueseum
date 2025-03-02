@@ -37,7 +37,7 @@ public abstract class BaseDescriptionService implements DescriptionGenerationSer
         Create an engaging museum tour description with a creative title focused on the theme: %s.
         
         FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
-        TITLE: [Your creative, specific title that reflects the content of the tour]
+        TITLE: [Your creative, specific title that reflects the content of the tour, without any quotation marks or special formatting]
         
         [Your tour description here]
         
@@ -81,21 +81,23 @@ public abstract class BaseDescriptionService implements DescriptionGenerationSer
 
         // Basic information
         prompt.append(String.format("""
-        Create an engaging description for stop #%d in a museum tour featuring "%s" by %s.
+        Create an informational description about "%s" by %s for a museum tour.
         
         IMPORTANT FORMATTING INSTRUCTIONS:
-        - Write in plain text only. DO NOT use markdown formatting, bold, or italic markers.
-        - Use simple paragraph breaks for structure.
-        - Keep sentences clear and conversational.
+        - Write in plain text only - DO NOT use markdown formatting, bold, or italic markers
+        - Use simple paragraph breaks for structure
+        - Keep sentences clear and concise
+        - DO NOT use bullet points or numbered lists
         
-        TONE AND STYLE GUIDANCE:
-        - Write as an engaging museum guide would speak to visitors.
-        - Use a conversational, accessible tone that avoids academic jargon.
-        - Aim for the warm, informative style of a knowledgeable friend sharing insights.
-        - Focus on storytelling rather than technical analysis.
+        IMPORTANT STYLE GUIDELINES:
+        - Use third-person perspective throughout
+        - AVOID phrases like "we see," "as you can see," "thank you for joining," etc.
+        - AVOID addressing the viewer directly with "you" or "your"
+        - Write as an informational document, not as a tour guide speaking
+        - Focus on art historical information and context
+        - Maintain an engaging, educational tone without directly addressing the reader
         
         """,
-                stop.getSequenceNumber(),
                 stop.getArtwork().getTitle(),
                 stop.getArtwork().getFullAttribution()));
 
