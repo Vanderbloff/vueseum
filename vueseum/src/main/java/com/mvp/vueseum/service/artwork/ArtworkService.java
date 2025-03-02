@@ -15,6 +15,7 @@ import com.mvp.vueseum.repository.ArtworkRepository;
 import com.mvp.vueseum.service.artist.ArtistService;
 import com.mvp.vueseum.service.museum.MuseumService;
 import com.mvp.vueseum.specification.ArtworkSpecifications;
+import jakarta.persistence.criteria.Join;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -171,87 +172,70 @@ public class ArtworkService {
     }
 
     /**
-     * Finds potential artwork candidates for a tour based on basic criteria.
-     * This method serves as the first step in tour generation, providing a filtered
-     * pool of artworks that meet basic requirements before scoring and selection.
-     *
-     * @param preferences User's tour preferences including required artworks and filters
-     * @return List of artwork candidates that meet basic criteria
+     * Finds artwork candidates for a tour, ensuring enough results to meet minimum stops requirement.
+     * Uses a progressive constraint relaxation approach if needed.
      */
-    public List<Artwork> findArtworkCandidates(TourPreferences preferences) {
-        Specification<Artwork> spec = Objects.requireNonNull(
-                ArtworkSpecifications.getThemeSpecificPreFilter(
-                        preferences.getTheme(),
-                        preferences.getMuseumId()
-                )
-        );
+    public List<Artwork> findArtworkCandidates(TourPreferences prefs) {
+        // Start with the theme-specific filter (strongest constraints)
+        Specification<Artwork> themeSpec = ArtworkSpecifications.getThemeSpecificPreFilter(prefs.getTheme(), prefs.getMuseumId());
 
-        if (!preferences.getPreferredArtists().isEmpty() ||
-                !preferences.getPreferredPeriods().isEmpty() ||
-                !preferences.getPreferredMediums().isEmpty() ||
-                !preferences.getPreferredCultures().isEmpty()) {
-            spec = spec.and(
-                    ArtworkSpecifications.forTourPreferences(preferences));
+        // Add any user preferences to create the ideal specification
+        Specification<Artwork> idealSpec = themeSpec;
+        if (!prefs.getPreferredArtists().isEmpty() || !prefs.getPreferredMediums().isEmpty() ||
+                !prefs.getPreferredCultures().isEmpty() || !prefs.getPreferredPeriods().isEmpty()) {
+            idealSpec = idealSpec.and(ArtworkSpecifications.forTourPreferences(prefs));
         }
 
-        List<Artwork> candidates = new ArrayList<>();
-        if (!preferences.getRequiredArtworkIds().isEmpty()) {
-            candidates.addAll(
-                    artworkRepository.findAllById(
-                            preferences.getRequiredArtworkIds()
-                    )
+        // Try to find candidates with the ideal constraints
+        List<Artwork> candidates = artworkRepository.findAll(idealSpec);
+
+        // If we have enough candidates, return them
+        if (candidates.size() >= prefs.getMaxStops()) {
+            log.info("Found {} candidates with ideal constraints (needed {})",
+                    candidates.size(), prefs.getMaxStops());
+            return candidates;
+        }
+
+        // If not enough candidates, try with theme-specific filter only
+        if (candidates.size() < prefs.getMinStops()) {
+            log.info("Not enough candidates with preferences ({} found, need {}). Relaxing to theme constraints.",
+                    candidates.size(), prefs.getMinStops());
+
+            List<Artwork> themeBasedCandidates = artworkRepository.findAll(themeSpec);
+
+            Set<Long> existingIds = candidates.stream().map(Artwork::getId).collect(Collectors.toSet());
+            themeBasedCandidates.stream()
+                    .filter(a -> !existingIds.contains(a.getId()))
+                    .forEach(candidates::add);
+
+            // If we have enough now, return them
+            if (candidates.size() >= prefs.getMinStops()) {
+                log.info("Now have {} candidates after theme-based relaxation", candidates.size());
+                return candidates;
+            }
+        }
+
+        // If still not enough, use minimum constraints (museum ID and has image)
+        log.info("Still not enough candidates ({}). Using minimum constraints.", candidates.size());
+
+        Specification<Artwork> minimalSpec = (root, query, cb) -> {
+            Join<Artwork, Museum> museumJoin = root.join("museum");
+            return cb.and(
+                    cb.equal(museumJoin.get("id"), prefs.getMuseumId()),
+                    ArtworkSpecifications.createHasImagePredicate(root, cb)
             );
+        };
 
-            if (candidates.size() !=
-                    preferences.getRequiredArtworkIds().size()) {
-                throw new InvalidRequestException("Not all required artworks could be found");
-            }
-        }
+        List<Artwork> minimalCandidates = artworkRepository.findAll(minimalSpec);
 
-        // Try with initial strict criteria
-        int remainingNeeded = preferences.getMinStops() - candidates.size();
-        if (remainingNeeded > 0) {
-            Page<Artwork> initialCandidates = artworkRepository.findAll(
-                    spec,
-                    PageRequest.of(0, remainingNeeded * 2)
-            );
-            List<Artwork> initialContent = new ArrayList<>(initialCandidates.getContent());
-            Collections.shuffle(initialContent, new Random(System.currentTimeMillis()));
-            candidates.addAll(initialContent.subList(0, Math.min(initialContent.size(), remainingNeeded)));
-        }
+        // Add new unique candidates
+        Set<Long> existingIds = candidates.stream().map(Artwork::getId).collect(Collectors.toSet());
+        minimalCandidates.stream()
+                .filter(a -> !existingIds.contains(a.getId()))
+                .forEach(candidates::add);
 
-        // If we don't have enough candidates, try relaxed constraints
-        if (candidates.size() < preferences.getMinStops()) {
-            // Get progressively relaxed specifications
-            List<Specification<Artwork>> relaxationLevels =
-                    ArtworkSpecifications.relaxConstraints(spec, preferences);
-
-            // Try each relaxation level until we have enough candidates
-            for (Specification<Artwork> relaxedSpec : relaxationLevels) {
-                remainingNeeded = preferences.getMinStops() - candidates.size();
-                Page<Artwork> additionalCandidates = artworkRepository.findAll(
-                        relaxedSpec,
-                        PageRequest.of(0, remainingNeeded * 2)
-                );
-                List<Artwork> additionalContent = new ArrayList<>(additionalCandidates.getContent());
-                Collections.shuffle(additionalContent, new Random(System.currentTimeMillis()));
-
-                candidates.addAll(additionalContent.subList(0, Math.min(additionalContent.size(), remainingNeeded)));
-                if (candidates.size() >= preferences.getMinStops()) {
-                    break;
-                }
-            }
-
-            // If we still don't have enough, throw exception
-            if (candidates.size() < preferences.getMinStops()) {
-                throw new InvalidRequestException(
-                        "Could not find enough artworks matching the given preferences"
-                );
-            }
-        }
-
-        // Remove duplicates while preserving order
-        return new ArrayList<>(new LinkedHashSet<>(candidates));
+        log.info("Final candidate count: {}", candidates.size());
+        return candidates;
     }
 
     @SuppressWarnings("unchecked")
