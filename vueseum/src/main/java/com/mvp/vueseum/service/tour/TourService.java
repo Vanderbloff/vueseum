@@ -208,8 +208,10 @@ public class TourService {
         }
 
         tour.generateDescriptionsForAllStops(descriptionService);
+
+        Tour savedTour = tourRepository.save(tour);
         progressListener.updateProgress(requestId, 1.0, "Personalized tour completed!");
-        return tour;
+        return savedTour;
     }
 
     @Transactional(readOnly = true)
