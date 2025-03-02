@@ -1,44 +1,39 @@
 package com.mvp.vueseum.controller;
 
+import com.mvp.vueseum.service.ImageProxyService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestClient;
+
+import jakarta.servlet.http.HttpServletResponse;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.TimeUnit;
 
 @RestController
 @Slf4j
 @RequestMapping("/api/v1/images")
 public class ImageProxyController {
 
+    private final ImageProxyService imageProxyService;
+
+    public ImageProxyController(ImageProxyService imageProxyService) {
+        this.imageProxyService = imageProxyService;
+    }
+
+    /**
+     * Proxies an image from the specified URL to the client.
+     * Uses streaming to avoid excessive memory usage.
+     */
     @GetMapping("/proxy")
-    @Cacheable(value = "imageCache", key = "#url", unless = "#result.statusCodeValue == 404")
-    public ResponseEntity<byte[]> proxyImage(@RequestParam String url) {
+    public void proxyImage(@RequestParam String url, HttpServletResponse response) {
         try {
-            RestClient restClient = RestClient.create();
-            ResponseEntity<byte[]> response = restClient.get()
-                    .uri(url)
-                    .header("Accept", "image/*")  // Request images only
-                    .retrieve()
-                    .toEntity(byte[].class);
+            // Decode URL to handle encoded characters
+            String decodedUrl = URLDecoder.decode(url, StandardCharsets.UTF_8);
 
-            // Check content type - if HTML received, treat as error
-            MediaType contentType = response.getHeaders().getContentType();
-            if (contentType != null && contentType.includes(MediaType.TEXT_HTML)) {
-                log.warn("Received HTML response instead of image for URL: {}", url);
-                return ResponseEntity.notFound().build();
-            }
-
-            assert contentType != null;
-            return ResponseEntity.ok()
-                    .contentType(contentType)
-                    .body(response.getBody());
+            // Stream the image directly to client
+            imageProxyService.streamImage(decodedUrl, response);
         } catch (Exception e) {
-            log.error("Failed to proxy image from URL: {}", url, e);
-            return ResponseEntity.notFound().build();
+            log.error("Error processing proxy request for URL: {}", url, e);
+            response.setStatus(HttpServletResponse.SC_BAD_GATEWAY);
         }
     }
 }
