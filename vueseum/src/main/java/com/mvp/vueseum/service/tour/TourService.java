@@ -131,17 +131,19 @@ public class TourService {
 
         // Then select remaining artworks based on scores with diversity factors
         while (selectedArtworks.size() < prefs.getMaxStops() && !candidates.isEmpty()) {
-            // Re-sort candidates by score (including recency penalty and random factor)
-            candidates.sort((a1, a2) -> Double.compare(
-                    scoringService.scoreArtworkWithDiversity(a2, prefs, selectedArtworks, recentlyUsedArtworks, random),
-                    scoringService.scoreArtworkWithDiversity(a1, prefs, selectedArtworks, recentlyUsedArtworks, random)
-            ));
+            // Pre-calculate scores for all candidates (with randomness included once per artwork)
+            List<Map.Entry<Artwork, Double>> scoredCandidates = candidates.stream()
+                    .map(artwork -> Map.entry(
+                            artwork,
+                            scoringService.scoreArtworkWithDiversity(artwork, prefs, selectedArtworks, recentlyUsedArtworks, random)
+                    )).sorted(Map.Entry.<Artwork, Double>comparingByValue().reversed()).toList();
 
             // Increase selection pool to 40% for more diversity
-            int topCandidateCount = Math.max(5, (int)(candidates.size() * 0.4));
-            int randomIndex = random.nextInt(Math.min(topCandidateCount, candidates.size()));
+            int topCandidateCount = Math.max(5, (int)(scoredCandidates.size() * 0.4));
+            int randomIndex = random.nextInt(Math.min(topCandidateCount, scoredCandidates.size()));
 
-            Artwork selectedArtwork = candidates.get(randomIndex);
+            // Select artwork from the top candidates
+            Artwork selectedArtwork = scoredCandidates.get(randomIndex).getKey();
             selectedArtworks.add(selectedArtwork);
             candidates.remove(selectedArtwork);
         }
@@ -151,7 +153,6 @@ public class TourService {
         Set<Long> finalUpdatedRecentlyUsed = updatedRecentlyUsed;
         selectedArtworks.forEach(artwork -> finalUpdatedRecentlyUsed.add(artwork.getId()));
 
-        // Limit cache size (keep most recent 30 artworks)
         if (updatedRecentlyUsed.size() > 30) {
             updatedRecentlyUsed = updatedRecentlyUsed.stream()
                     .sorted((id1, id2) -> Long.compare(id2, id1))
@@ -159,7 +160,6 @@ public class TourService {
                     .collect(Collectors.toSet());
         }
 
-        // Update the cache
         recentlyUsedArtworkCache.put(visitorId, updatedRecentlyUsed);
 
         return selectedArtworks;
