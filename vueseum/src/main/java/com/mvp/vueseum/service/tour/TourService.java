@@ -48,7 +48,11 @@ public class TourService {
     private final TourRepository tourRepository;
     private final ArtworkRepository artworkRepository;
     private final Cache<String, String> descriptionCache;
+    private final Cache<String, Set<Long>> recentlyUsedArtworkCache;
 
+    /**
+     * Generates a tour, identifying the visitor via device fingerprint.
+     */
     public Tour generateTour(TourGenerationRequest request, HttpServletRequest httpRequest) {
         String requestId = UUID.randomUUID().toString();
         String clientProvidedId = request.getVisitorId();
@@ -78,7 +82,8 @@ public class TourService {
 
         progressListener.updateProgress(requestId, 0.2, "Selecting artworks...");
         List<Artwork> selectedArtworks = selectArtworks(
-                request.getPreferences()
+                request.getPreferences(),
+                visitorId
         );
 
         progressListener.updateProgress(requestId, 0.6, "Filling in descriptions...");
@@ -86,22 +91,32 @@ public class TourService {
         return createTour(selectedArtworks, description, request.getPreferences(), requestId, visitorId);
     }
 
+    /**
+     * Gets a page of tours belonging to a specific device fingerprint
+     */
     @Transactional(readOnly = true)
-    public Page<Tour> getTourPage(Pageable pageable) {
-        Pageable allContent = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "createdAt"));
-        return tourRepository.findByDeletedFalse(allContent);
+    public Page<Tour> getTourPageForDevice(String deviceFingerprint, Pageable pageable) {
+        Pageable allContent = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+        return tourRepository.findByDeviceFingerprintAndDeletedFalse(deviceFingerprint, allContent);
     }
 
     /**
-     * Selects artworks for the tour using a scoring-based approach.
-     * This method handles both required artworks and scored selection.
+     * Selects artworks for the tour using a scoring-based approach with enhanced randomization.
      */
-    private List<Artwork> selectArtworks(TourPreferences prefs) {
+    private List<Artwork> selectArtworks(TourPreferences prefs, String visitorId) {
         // Get initial candidate pool
         List<Artwork> candidates = new ArrayList<>(artworkService.findArtworkCandidates(prefs));
         List<Artwork> selectedArtworks = new ArrayList<>();
 
-        Random random = new Random(System.currentTimeMillis());
+        // Create a more diverse random seed including visitor ID and theme
+        long seed = System.currentTimeMillis() ^
+                visitorId.hashCode() ^
+                prefs.getTheme().hashCode();
+        Random random = new Random(seed);
+
+        Set<Long> recentlyUsedArtworks = recentlyUsedArtworkCache.get(visitorId,
+                _ -> new HashSet<>());
 
         // First, handle required artworks
         candidates.stream()
@@ -114,21 +129,38 @@ public class TourService {
         // Shuffle candidates to introduce initial randomness
         Collections.shuffle(candidates, random);
 
-        // Then select remaining artworks based on scores with random factor
+        // Then select remaining artworks based on scores with diversity factors
         while (selectedArtworks.size() < prefs.getMaxStops() && !candidates.isEmpty()) {
+            // Re-sort candidates by score (including recency penalty and random factor)
             candidates.sort((a1, a2) -> Double.compare(
-                    scoringService.scoreArtwork(a2, prefs, selectedArtworks),
-                    scoringService.scoreArtwork(a1, prefs, selectedArtworks)
+                    scoringService.scoreArtworkWithDiversity(a2, prefs, selectedArtworks, recentlyUsedArtworks, random),
+                    scoringService.scoreArtworkWithDiversity(a1, prefs, selectedArtworks, recentlyUsedArtworks, random)
             ));
 
-            // Select from top 30% candidates (or at least 3 candidates)
-            int topCandidateCount = Math.max(3, (int)(candidates.size() * 0.3));
+            // Increase selection pool to 40% for more diversity
+            int topCandidateCount = Math.max(5, (int)(candidates.size() * 0.4));
             int randomIndex = random.nextInt(Math.min(topCandidateCount, candidates.size()));
 
             Artwork selectedArtwork = candidates.get(randomIndex);
             selectedArtworks.add(selectedArtwork);
             candidates.remove(selectedArtwork);
         }
+
+        // Update recently used artwork cache with newly selected artworks
+        Set<Long> updatedRecentlyUsed = new HashSet<>(recentlyUsedArtworks);
+        Set<Long> finalUpdatedRecentlyUsed = updatedRecentlyUsed;
+        selectedArtworks.forEach(artwork -> finalUpdatedRecentlyUsed.add(artwork.getId()));
+
+        // Limit cache size (keep most recent 30 artworks)
+        if (updatedRecentlyUsed.size() > 30) {
+            updatedRecentlyUsed = updatedRecentlyUsed.stream()
+                    .sorted((id1, id2) -> Long.compare(id2, id1))
+                    .limit(30)
+                    .collect(Collectors.toSet());
+        }
+
+        // Update the cache
+        recentlyUsedArtworkCache.put(visitorId, updatedRecentlyUsed);
 
         return selectedArtworks;
     }
@@ -173,21 +205,21 @@ public class TourService {
         );
     }
 
-     /**
+    /**
      * Creates a cache key based on request parameters and selected artworks
      */
-     private String generateCacheKey(TourGenerationRequest request, List<Artwork> artworks) {
-         return String.format("%s-%s-%s-%s",
-                 request.getVisitorId(),
-                 request.getPreferences().getTheme(),
-                 request.getPreferences().hashCode(),
-                 artworks.stream()
-                         .map(Artwork::getId)
-                         .sorted()
-                         .map(Object::toString)
-                         .collect(Collectors.joining("-"))
-         );
-     }
+    private String generateCacheKey(TourGenerationRequest request, List<Artwork> artworks) {
+        return String.format("%s-%s-%s-%s",
+                request.getVisitorId(),
+                request.getPreferences().getTheme(),
+                request.getPreferences().hashCode(),
+                artworks.stream()
+                        .map(Artwork::getId)
+                        .sorted()
+                        .map(Object::toString)
+                        .collect(Collectors.joining("-"))
+        );
+    }
 
     /**
      * Creates a tour entity from the selected artworks and description
@@ -247,15 +279,20 @@ public class TourService {
                 LocalDateTime.now().toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy")));
     }
 
+    /**
+     * Finds a tour by ID, but only if it belongs to the specified device
+     */
     @Transactional(readOnly = true)
-    public Optional<Tour> findTourById(Long id) {
-        // Simple lookup with null-safety
-        return tourRepository.findByIdAndDeletedFalse(id);
+    public Optional<Tour> findTourByIdForDevice(Long id, String deviceFingerprint) {
+        return tourRepository.findByIdAndDeviceFingerprintAndDeletedFalse(id, deviceFingerprint);
     }
 
+    /**
+     * Updates a tour's details, but only if it belongs to the specified device
+     */
     @Transactional
-    public Optional<Tour> updateTourDetails(Long id, TourUpdateRequest request) {
-        return tourRepository.findByIdAndDeletedFalse(id)
+    public Optional<Tour> updateTourDetailsForDevice(Long id, TourUpdateRequest request, String deviceFingerprint) {
+        return tourRepository.findByIdAndDeviceFingerprintAndDeletedFalse(id, deviceFingerprint)
                 .map(tour -> {
                     if (StringUtils.hasText(request.name())) {
                         tour.setName(request.name());
@@ -267,39 +304,47 @@ public class TourService {
                 });
     }
 
+    /**
+     * Deletes a tour, but only if it belongs to the specified device
+     * Returns true if found and deleted, false if not found
+     */
     @Transactional
-    public void deleteTour(Long id) {
-        tourRepository.findByIdAndDeletedFalse(id)
-                .ifPresent(tour -> {
-                    tour.markAsDeleted(); // Uses baseEntity soft delete
+    public boolean deleteTourForDevice(Long id, String deviceFingerprint) {
+        return tourRepository.findByIdAndDeviceFingerprintAndDeletedFalse(id, deviceFingerprint)
+                .map(tour -> {
+                    tour.markAsDeleted();
                     tourRepository.save(tour);
-                });
+                    return true;
+                })
+                .orElse(false);
     }
 
+    /**
+     * Validates a tour, but only if it belongs to the specified device
+     */
     @Transactional(readOnly = true)
-    public Map<String, Object> validateTour(Long tourId) {
-        return tourRepository.findById(tourId)
-                .map(tour -> {
-                    List<Map<String, Object>> unavailableStops = tour.getStops().stream()
-                            .filter(stop -> !artworkRepository.existsById(stop.getArtwork().getId()))
-                            .map(stop -> {
-                                Map<String, Object> stopInfo = new HashMap<>();
-                                stopInfo.put("stopNumber", stop.getSequenceNumber());
-                                stopInfo.put("artworkTitle", stop.getArtwork().getTitle());
-                                stopInfo.put("galleryNumber", stop.getArtwork().getGalleryNumber());
-                                return stopInfo;
-                            })
-                            .collect(Collectors.toList());
+    public Map<String, Object> validateTourForDevice(Long id, String deviceFingerprint) {
+        Tour tour = tourRepository.findByIdAndDeviceFingerprintAndDeletedFalse(id, deviceFingerprint)
+                .orElseThrow(() -> new ResourceNotFoundException("Tour not found: " + id));
 
-                    tour.setLastValidated(LocalDateTime.now());
-                    tourRepository.save(tour);
-
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("tourId", tourId);
-                    result.put("validatedAt", tour.getLastValidated());
-                    result.put("unavailableStops", unavailableStops);
-                    return result;
+        List<Map<String, Object>> unavailableStops = tour.getStops().stream()
+                .filter(stop -> !artworkRepository.existsById(stop.getArtwork().getId()))
+                .map(stop -> {
+                    Map<String, Object> stopInfo = new HashMap<>();
+                    stopInfo.put("stopNumber", stop.getSequenceNumber());
+                    stopInfo.put("artworkTitle", stop.getArtwork().getTitle());
+                    stopInfo.put("galleryNumber", stop.getArtwork().getGalleryNumber());
+                    return stopInfo;
                 })
-                .orElseThrow(() -> new ResourceNotFoundException("Tour not found: " + tourId));
+                .collect(Collectors.toList());
+
+        tour.setLastValidated(LocalDateTime.now());
+        tourRepository.save(tour);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("tourId", id);
+        result.put("validatedAt", tour.getLastValidated());
+        result.put("unavailableStops", unavailableStops);
+        return result;
     }
 }
