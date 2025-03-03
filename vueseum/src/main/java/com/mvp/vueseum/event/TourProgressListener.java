@@ -33,7 +33,13 @@ public class TourProgressListener {
         }
     }
 
-    public Optional<TourGenerationProgress> getProgress(String requestId) {
-        return Optional.ofNullable(activeGenerations.get(requestId));
+    public Optional<TourGenerationProgress> getProgressForDevice(String requestId, String deviceFingerprint) {
+        TourGenerationProgress progress = activeGenerations.get(requestId);
+
+        if (progress != null && progress.getVisitorId().equals(deviceFingerprint)) {
+            return Optional.of(progress);
+        }
+
+        return Optional.empty();
     }
 }
