@@ -138,13 +138,13 @@ public class Artwork extends BaseEntity {
             return "Unknown Artist";
         }
 
-        // Build the full attribution string regardless of confidence
         StringBuilder attribution = new StringBuilder();
         if (artistPrefix != null) {
             attribution.append(artistPrefix).append(" ");
         }
         attribution.append(artist.getArtistName());
-        if (artistRole != null) {
+
+        if (artistRole != null && !artistRole.isEmpty()) {
             attribution.append(" (").append(artistRole).append(")");
         }
         return attribution.toString();
