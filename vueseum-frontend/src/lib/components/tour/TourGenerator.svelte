@@ -126,7 +126,6 @@
 		state.generationStage = 'selecting';
 
 		try {
-			const visitorId = await getOrCreateFingerprint();
 			const preferences = {
 				museumId: parseInt(state.selectedMuseum),
 				theme: state.tourPreferences.theme,
@@ -141,7 +140,7 @@
 
 			state.generationStage = 'describing';
 
-			const newTour = await tourApi.generateTour(visitorId, preferences);
+			const newTour = await tourApi.generateTour(preferences);
 
 			state.generationStage = 'finalizing';
 
