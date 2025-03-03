@@ -17,49 +17,67 @@ export class BaseApiClient {
 		this.basePath = endpoint;
 	}
 
-	protected async fetchWithError<T>(
-		path: string,
-		options: RequestInit = {}
-	): Promise<T> {
-		const fullUrl = `${API_BASE_URL}/api/v1${this.basePath}${path}`;
-		console.log('Attempting to fetch:', fullUrl);
+	/**
+	 * Gets the CSRF token from cookies
+	 * @returns The CSRF token or empty string if not found
+	 */
+	protected getCsrfToken(): string {
+		try {
+			const cookies = document.cookie.split(';');
 
-		const headerEntries: Record<string, string> = {
+			for (const cookie of cookies) {
+				const [name, value] = cookie.trim().split('=');
+				if (name === 'XSRF-TOKEN') {
+					return decodeURIComponent(value);
+				}
+			}
+		} catch (error) {
+			console.error('Error extracting CSRF token:', error);
+		}
+		return '';
+	}
+
+	/**
+	 * Returns headers with CSRF token included when needed
+	 * @param options Original request options
+	 * @returns Headers object with CSRF token if applicable
+	 */
+	protected getHeadersWithCsrf(options: RequestInit = {}): Record<string, string> {
+		const headers: Record<string, string> = {
 			'Content-Type': 'application/json',
 			...(options.headers as Record<string, string> || {})
 		};
 
-		// Add CSRF token for non-GET requests
-		if (options.method && options.method !== 'GET') {
+		// Add CSRF token for non-GET/HEAD requests
+		if (options.method && !['GET', 'HEAD'].includes(options.method)) {
 			const token = this.getCsrfToken();
 			if (token) {
-				console.log('Adding CSRF token to request');
-				headerEntries['X-XSRF-TOKEN'] = token;
+				headers['X-XSRF-TOKEN'] = token;
 			} else {
 				console.warn('No CSRF token found for non-GET request');
 			}
 		}
 
+		return headers;
+	}
+
+	protected async fetchWithError<T>(
+		path: string,
+		options: RequestInit = {}
+	): Promise<T> {
+		const fullUrl = `${API_BASE_URL}/api/v1${this.basePath}${path}`;
+
 		const requestOptions: RequestInit = {
 			...options,
 			credentials: 'include',
-			headers: headerEntries
+			headers: this.getHeadersWithCsrf(options)
 		};
 
 		try {
 			const response = await fetch(fullUrl, requestOptions);
-
-			// Store text content immediately to avoid multiple body reads
 			const responseText = await response.text();
 
 			if (!response.ok) {
-				console.log('Response not OK:', {
-					status: response.status,
-					statusText: response.statusText,
-					url: response.url
-				});
-
-				// Try to parse the response as JSON
 				let errorMessage: string;
 				try {
 					const errorData = JSON.parse(responseText);
@@ -72,7 +90,6 @@ export class BaseApiClient {
 				throw new ApiError(response.status, errorMessage);
 			}
 
-			// Parse the already-read response text
 			try {
 				return JSON.parse(responseText) as T;
 			} catch {
@@ -87,28 +104,6 @@ export class BaseApiClient {
 			throw error;
 		}
 	}
-
-	private getCsrfToken(): string {
-		try {
-			const cookies = document.cookie.split(';');
-			console.log('All cookies:', cookies);
-
-			for (const cookie of cookies) {
-				const [name, value] = cookie.trim().split('=');
-				console.log(`Cookie: '${name}' = '${value}'`);
-				if (name === 'XSRF-TOKEN') {
-					const decodedValue = decodeURIComponent(value);
-					console.log('Found XSRF-TOKEN:', value);
-					console.log('Decoded XSRF-TOKEN:', decodedValue);
-					return decodedValue;
-				}
-			}
-		} catch (error) {
-			console.error('Error extracting CSRF token:', error);
-		}
-		return '';
-	}
-
 	protected getEmptyPaginatedResponse<T>(size: number, page: number) {
 		return {
 			content: [] as T[],
