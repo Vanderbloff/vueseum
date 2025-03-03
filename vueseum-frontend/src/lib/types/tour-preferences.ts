@@ -1,4 +1,4 @@
-export type TourTheme = "CHRONOLOGICAL" | "ARTIST_FOCUSED" | "CULTURAL";
+export type TourTheme = "CHRONOLOGICAL" | "ARTIST FOCUSED" | "CULTURAL";
 
 export type StandardPeriod =
 	| "2000-1000 B.C."
