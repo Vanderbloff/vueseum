@@ -51,7 +51,10 @@ public class CacheConfig {
 
     @Bean
     public Cache<String, String> deviceFingerprintCache() {
-        return createCache(Duration.ofDays(30), 100_000);
+        return Caffeine.newBuilder()
+                .expireAfterAccess(Duration.ofDays(7))
+                .maximumSize(10_000)
+                .build();
     }
 
     private <K, V> Cache<K, V> createCache(Duration expiration, int maxSize) {
