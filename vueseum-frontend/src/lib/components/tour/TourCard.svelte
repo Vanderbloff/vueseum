@@ -19,7 +19,7 @@
 		id: number;
 		name: string;
 		description: string;
-		theme: 'CHRONOLOGICAL' | 'ARTIST_FOCUSED' | 'CULTURAL';
+		theme: 'CHRONOLOGICAL' | 'ARTIST FOCUSED' | 'CULTURAL';
 		museum: {
 			name: string;
 			location: string;
