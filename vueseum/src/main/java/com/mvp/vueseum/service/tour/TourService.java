@@ -109,16 +109,64 @@ public class TourService {
         List<Artwork> candidates = new ArrayList<>(artworkService.findArtworkCandidates(prefs));
         List<Artwork> selectedArtworks = new ArrayList<>();
 
-        // Create a more diverse random seed including visitor ID and theme
+        // Create random with consistent seed for reproducibility
+        Random random = createRandomSeed(visitorId, prefs);
+
+        // Get recently used artworks for diversity
+        Set<Long> recentlyUsedArtworks = getRecentlyUsedArtworks(visitorId);
+
+        // Handle required artworks first
+        handleRequiredArtworks(candidates, selectedArtworks, prefs);
+
+        // Select preference-based artworks
+        selectPreferenceBasedArtworks(
+                candidates,
+                selectedArtworks,
+                prefs,
+                recentlyUsedArtworks,
+                random
+        );
+
+        // Fill remaining slots if needed
+        fillRemainingSlots(
+                candidates,
+                selectedArtworks,
+                prefs,
+                recentlyUsedArtworks,
+                random
+        );
+
+        // Update cache of recently used artworks
+        updateRecentlyUsedArtworksCache(selectedArtworks, recentlyUsedArtworks, visitorId);
+
+        return selectedArtworks;
+    }
+
+    /**
+     * Creates a random number generator with a consistent seed.
+     */
+    private Random createRandomSeed(String visitorId, TourPreferences prefs) {
         long seed = System.currentTimeMillis() ^
                 visitorId.hashCode() ^
                 prefs.getTheme().hashCode();
-        Random random = new Random(seed);
+        return new Random(seed);
+    }
 
-        Set<Long> recentlyUsedArtworks = recentlyUsedArtworkCache.get(visitorId,
-                _ -> new HashSet<>());
+    /**
+     * Retrieves recently used artworks for the given visitor.
+     */
+    private Set<Long> getRecentlyUsedArtworks(String visitorId) {
+        return recentlyUsedArtworkCache.get(visitorId, _ -> new HashSet<>());
+    }
 
-        // First, handle required artworks
+    /**
+     * Adds required artworks to the selection.
+     */
+    private void handleRequiredArtworks(
+            List<Artwork> candidates,
+            List<Artwork> selectedArtworks,
+            TourPreferences prefs) {
+
         candidates.stream()
                 .filter(a -> prefs.getRequiredArtworkIds().contains(a.getId()))
                 .forEach(selectedArtworks::add);
@@ -126,33 +174,145 @@ public class TourService {
         // Remove selected artworks from candidates
         candidates.removeAll(selectedArtworks);
 
-        // Shuffle candidates to introduce initial randomness
-        Collections.shuffle(candidates, random);
+        // Add initial shuffle for diversity
+        Collections.shuffle(candidates);
+    }
 
-        // Then select remaining artworks based on scores with diversity factors
-        while (selectedArtworks.size() < prefs.getMaxStops() && !candidates.isEmpty()) {
-            // Pre-calculate scores for all candidates (with randomness included once per artwork)
-            List<Map.Entry<Artwork, Double>> scoredCandidates = candidates.stream()
-                    .map(artwork -> Map.entry(
-                            artwork,
-                            scoringService.scoreArtworkWithDiversity(artwork, prefs, selectedArtworks, recentlyUsedArtworks, random)
-                    )).sorted(Map.Entry.<Artwork, Double>comparingByValue().reversed()).toList();
+    /**
+     * Selects artworks based on user preferences with priority.
+     */
+    private void selectPreferenceBasedArtworks(
+            List<Artwork> candidates,
+            List<Artwork> selectedArtworks,
+            TourPreferences prefs,
+            Set<Long> recentlyUsedArtworks,
+            Random random) {
 
-            // Increase selection pool to 40% for more diversity
-            int topCandidateCount = Math.max(5, (int)(scoredCandidates.size() * 0.4));
-            int randomIndex = random.nextInt(Math.min(topCandidateCount, scoredCandidates.size()));
+        // Extract preference-based candidates
+        List<Artwork> preferredCandidates = extractPreferredArtworks(candidates, prefs);
 
-            // Select artwork from the top candidates
-            Artwork selectedArtwork = scoredCandidates.get(randomIndex).getKey();
-            selectedArtworks.add(selectedArtwork);
-            candidates.remove(selectedArtwork);
+        // If we have preferred candidates, prioritize them
+        while (selectedArtworks.size() < prefs.getMaxStops() && !preferredCandidates.isEmpty()) {
+            Artwork selected = selectBestCandidate(
+                    preferredCandidates,
+                    selectedArtworks,
+                    prefs,
+                    recentlyUsedArtworks,
+                    random
+            );
+
+            selectedArtworks.add(selected);
+            preferredCandidates.remove(selected);
+            candidates.remove(selected);
+        }
+    }
+
+    /**
+     * Extracts artworks that match user preferences.
+     */
+    private List<Artwork> extractPreferredArtworks(List<Artwork> candidates, TourPreferences prefs) {
+        List<Artwork> preferredCandidates = new ArrayList<>();
+
+        // Filter by preferred artists
+        if (!prefs.getPreferredArtists().isEmpty()) {
+            preferredCandidates.addAll(candidates.stream()
+                    .filter(a -> a.hasKnownArtist() &&
+                            prefs.getPreferredArtists().contains(a.getArtistName()))
+                    .toList());
         }
 
-        // Update recently used artwork cache with newly selected artworks
+        // Filter by preferred mediums
+        if (!prefs.getPreferredMediums().isEmpty()) {
+            preferredCandidates.addAll(candidates.stream()
+                    .filter(a -> a.getMedium() != null &&
+                            prefs.getPreferredMediums().contains(a.getMedium()))
+                    .toList());
+        }
+
+        // Filter by preferred cultures
+        if (!prefs.getPreferredCultures().isEmpty()) {
+            preferredCandidates.addAll(candidates.stream()
+                    .filter(a -> a.getCulture() != null &&
+                            prefs.getPreferredCultures().contains(a.getCulture()))
+                    .toList());
+        }
+
+        // Remove duplicates while preserving order
+        return preferredCandidates.stream()
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Selects the best candidate artwork based on scoring.
+     */
+    private Artwork selectBestCandidate(
+            List<Artwork> candidates,
+            List<Artwork> selectedArtworks,
+            TourPreferences prefs,
+            Set<Long> recentlyUsedArtworks,
+            Random random) {
+
+        // Pre-calculate scores for stable sorting
+        List<Map.Entry<Artwork, Double>> scoredCandidates = candidates.stream()
+                .map(artwork -> Map.entry(
+                        artwork,
+                        scoringService.scoreArtworkWithDiversity(
+                                artwork,
+                                prefs,
+                                selectedArtworks,
+                                recentlyUsedArtworks,
+                                random
+                        )
+                ))
+                .sorted(Map.Entry.<Artwork, Double>comparingByValue().reversed())
+                .toList();
+
+        // Select from top candidates with some randomness
+        int topCount = Math.min(3, scoredCandidates.size());
+        int randomIndex = random.nextInt(topCount);
+
+        return scoredCandidates.get(randomIndex).getKey();
+    }
+
+    /**
+     * Fills remaining tour slots after preference-based selection.
+     */
+    private void fillRemainingSlots(
+            List<Artwork> candidates,
+            List<Artwork> selectedArtworks,
+            TourPreferences prefs,
+            Set<Long> recentlyUsedArtworks,
+            Random random) {
+
+        while (selectedArtworks.size() < prefs.getMaxStops() && !candidates.isEmpty()) {
+            Artwork selected = selectBestCandidate(
+                    candidates,
+                    selectedArtworks,
+                    prefs,
+                    recentlyUsedArtworks,
+                    random
+            );
+
+            selectedArtworks.add(selected);
+            candidates.remove(selected);
+        }
+    }
+
+    /**
+     * Updates the cache of recently used artworks.
+     */
+    private void updateRecentlyUsedArtworksCache(
+            List<Artwork> selectedArtworks,
+            Set<Long> recentlyUsedArtworks,
+            String visitorId) {
+
+        // Update with newly selected artworks
         Set<Long> updatedRecentlyUsed = new HashSet<>(recentlyUsedArtworks);
         Set<Long> finalUpdatedRecentlyUsed = updatedRecentlyUsed;
         selectedArtworks.forEach(artwork -> finalUpdatedRecentlyUsed.add(artwork.getId()));
 
+        // Limit cache size (keep most recent 30 artworks)
         if (updatedRecentlyUsed.size() > 30) {
             updatedRecentlyUsed = updatedRecentlyUsed.stream()
                     .sorted((id1, id2) -> Long.compare(id2, id1))
@@ -160,9 +320,8 @@ public class TourService {
                     .collect(Collectors.toSet());
         }
 
+        // Update the cache
         recentlyUsedArtworkCache.put(visitorId, updatedRecentlyUsed);
-
-        return selectedArtworks;
     }
 
     /**
