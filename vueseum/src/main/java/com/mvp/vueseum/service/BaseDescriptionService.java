@@ -34,29 +34,34 @@ public abstract class BaseDescriptionService implements DescriptionGenerationSer
 
     protected String buildTourPrompt(List<Artwork> artworks, Tour.TourTheme theme) {
         return String.format("""
-        Create an engaging museum tour description with a creative title focused on the theme: %s.
-        
-        FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
-        TITLE: [Your creative, specific title that reflects the content of the tour, without any quotation marks or special formatting]
-        
-        [Your tour description here]
-        
-        The tour includes the following artworks:
-        %s
-        
-        For the TITLE:
-        - Create a specific, engaging title that captures the essence of these artworks
-        - Highlight key artists, periods, or cultures represented when appropriate
-        - Reflect the %s theme in your title
-        
-        For the DESCRIPTION:
-        1. Introduces the theme and its significance
-        2. Explains how each artwork contributes to the theme
-        3. Highlights connections between the pieces
-        4. Concludes with the theme's broader cultural impact
-        
-        Keep the tone engaging and accessible to general audiences while maintaining art historical accuracy.
-        """,
+    Create a concise, engaging museum tour description with a creative title focused on the theme: %s.
+    
+    FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+    TITLE: [Your creative, specific title that reflects the content of the tour, without any quotation marks or special formatting]
+    
+    [Your tour description here]
+    
+    The tour includes the following artworks:
+    %s
+    
+    For the TITLE:
+    - Create a specific, engaging title that captures the essence of these artworks
+    - Highlight key artists, periods, or cultures represented when appropriate
+    - Reflect the %s theme in your title
+    
+    For the DESCRIPTION:
+    1. Provide a BRIEF introduction to the theme (1-2 sentences)
+    2. Describe the overall narrative of the tour (NOT each artwork individually)
+    3. Highlight key connections or patterns visitors will discover
+    4. Conclude with a brief insight to prepare visitors for the tour
+    
+    IMPORTANT:
+    - Keep the description under 150 words
+    - Focus on the theme and experience, not details of each artwork
+    - Be engaging but concise - visitors will learn details at each stop
+    
+    Keep the tone engaging and accessible to general audiences while maintaining art historical accuracy.
+    """,
                 theme.name(),
                 artworks.stream()
                         .map(art -> String.format("- %s by %s (%s)",
