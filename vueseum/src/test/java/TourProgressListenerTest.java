@@ -25,7 +25,7 @@ class TourProgressListenerTest {
     void whenInitializingProgress_thenCreatesNewTracking() {
         progressListener.initializeProgress(TEST_REQUEST_ID, TEST_VISITOR_ID);
 
-        Optional<TourGenerationProgress> progress = progressListener.getProgress(TEST_REQUEST_ID);
+        Optional<TourGenerationProgress> progress = progressListener.getProgressForDevice(TEST_REQUEST_ID, TEST_VISITOR_ID);
         assertThat(progress)
                 .isPresent()
                 .hasValueSatisfying(p -> {
@@ -42,7 +42,7 @@ class TourProgressListenerTest {
 
         progressListener.updateProgress(TEST_REQUEST_ID, 0.5, "Selecting artworks");
 
-        Optional<TourGenerationProgress> progress = progressListener.getProgress(TEST_REQUEST_ID);
+        Optional<TourGenerationProgress> progress = progressListener.getProgressForDevice(TEST_REQUEST_ID, TEST_VISITOR_ID);
         assertThat(progress)
                 .isPresent()
                 .hasValueSatisfying(p -> {
@@ -57,18 +57,18 @@ class TourProgressListenerTest {
 
         progressListener.updateProgress(TEST_REQUEST_ID, 1.0, "Tour generation complete");
 
-        assertThat(progressListener.getProgress(TEST_REQUEST_ID)).isEmpty();
+        assertThat(progressListener.getProgressForDevice(TEST_REQUEST_ID, TEST_VISITOR_ID)).isEmpty();
     }
 
     @Test
     void whenErrorOccurs_thenTracksErrorAndRemovesOnCompletion() {
         progressListener.initializeProgress(TEST_REQUEST_ID, TEST_VISITOR_ID);
-        TourGenerationProgress progress = progressListener.getProgress(TEST_REQUEST_ID).get();
+        TourGenerationProgress progress = progressListener.getProgressForDevice(TEST_REQUEST_ID, TEST_VISITOR_ID).get();
 
         progress.setError("Failed to generate tour");
         progressListener.updateProgress(TEST_REQUEST_ID, 1.0, "Error occurred");
 
-        assertThat(progressListener.getProgress(TEST_REQUEST_ID)).isEmpty();
+        assertThat(progressListener.getProgressForDevice(TEST_REQUEST_ID, TEST_VISITOR_ID)).isEmpty();
     }
 
     @Test

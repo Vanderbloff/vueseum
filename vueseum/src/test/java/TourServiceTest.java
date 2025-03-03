@@ -30,6 +30,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -73,6 +74,11 @@ class TourServiceTest {
                 .maximumSize(100)
                 .build();
 
+        Cache<String, Set<Long>> recentlyUsedArtworkCache = Caffeine.newBuilder()
+                .expireAfterWrite(7, TimeUnit.DAYS)
+                .maximumSize(1000)
+                .build();
+
         // Initialize service
         tourService = new TourService(
                 descriptionService,
@@ -84,7 +90,8 @@ class TourServiceTest {
                 progressListener,
                 tourRepository,
                 artworkRepository,
-                descriptionCache
+                descriptionCache,
+                recentlyUsedArtworkCache
         );
 
         // Setup test data
@@ -116,17 +123,19 @@ class TourServiceTest {
                 .thenReturn(description);
         when(artworkService.findArtworkCandidates(any()))
                 .thenReturn(testArtworks.subList(0, 3));
-        when(scoringService.scoreArtwork(any(), any(), any()))
+        when(scoringService.scoreArtworkWithDiversity(any(), any(), any(), any(), any()))
                 .thenReturn(1.0);
         when(visitorTrackingService.recordTourGeneration(anyString()))
                 .thenReturn(true);
         when(tourRepository.countByDeviceFingerprintAndDeletedFalse(anyString()))
                 .thenReturn(0L);
 
-        // Mock the save method to return a Tour with an ID
+        when(deviceFingerprintService.getStoredFingerprint(httpRequest))
+                .thenReturn(TEST_DEVICE_FINGERPRINT);
+
         when(tourRepository.save(any(Tour.class))).thenAnswer(invocation -> {
             Tour savedTour = invocation.getArgument(0);
-            savedTour.setId(1L); // Set ID to simulate database persistence
+            savedTour.setId(1L);
             return savedTour;
         });
 
@@ -140,7 +149,6 @@ class TourServiceTest {
         assertThat(secondTour.getDescription())
                 .isEqualTo(firstTour.getDescription());
 
-        // Verify save is called twice (once for each tour)
         verify(tourRepository, times(2)).save(any(Tour.class));
     }
 
@@ -149,7 +157,7 @@ class TourServiceTest {
     void whenGeneratingTour_thenSuccessful() {
         when(artworkService.findArtworkCandidates(any()))
                 .thenReturn(testArtworks.subList(0, 3));
-        when(scoringService.scoreArtwork(any(), any(), any()))
+        when(scoringService.scoreArtworkWithDiversity(any(), any(), any(), any(), any()))
                 .thenReturn(1.0);
         when(visitorTrackingService.recordTourGeneration(anyString()))
                 .thenReturn(true);
@@ -158,10 +166,12 @@ class TourServiceTest {
         when(descriptionService.generateTourDescription(any(), any()))
                 .thenReturn("Test description");
 
-        // Mock the save method to return a Tour with an ID
+        when(deviceFingerprintService.getStoredFingerprint(httpRequest))
+                .thenReturn(TEST_DEVICE_FINGERPRINT);
+
         when(tourRepository.save(any(Tour.class))).thenAnswer(invocation -> {
             Tour savedTour = invocation.getArgument(0);
-            savedTour.setId(1L); // Set ID to simulate database persistence
+            savedTour.setId(1L);
             return savedTour;
         });
 
@@ -172,7 +182,7 @@ class TourServiceTest {
         assertThat(result)
                 .isNotNull()
                 .satisfies(tour -> {
-                    assertThat(tour.getId()).isEqualTo(1L); // Verify ID is set
+                    assertThat(tour.getId()).isEqualTo(1L);
                     assertThat(tour.getStops()).hasSize(3);
                     assertThat(tour.getDeviceFingerprint())
                             .isEqualTo(TEST_DEVICE_FINGERPRINT);
@@ -180,10 +190,10 @@ class TourServiceTest {
                             .isEqualTo(Tour.TourTheme.CHRONOLOGICAL);
                 });
 
-        verify(progressListener).initializeProgress(anyString(), eq("test-visitor"));
+        verify(progressListener).initializeProgress(anyString(), eq(TEST_DEVICE_FINGERPRINT));
         verify(progressListener, atLeastOnce())
                 .updateProgress(anyString(), anyDouble(), anyString());
-        verify(tourRepository).save(any(Tour.class)); // Verify save is called
+        verify(tourRepository).save(any(Tour.class));
     }
 
     @Test
@@ -196,7 +206,7 @@ class TourServiceTest {
 
         when(artworkService.findArtworkCandidates(any()))
                 .thenReturn(testArtworks);
-        when(scoringService.scoreArtwork(any(), any(), any()))
+        when(scoringService.scoreArtworkWithDiversity(any(), any(), any(), any(), any()))
                 .thenReturn(1.0);
         when(visitorTrackingService.recordTourGeneration(anyString()))
                 .thenReturn(true);
@@ -205,10 +215,13 @@ class TourServiceTest {
         when(descriptionService.generateTourDescription(any(), any()))
                 .thenReturn("Test description");
 
-        // Mock the save method to return a Tour with an ID
+        // Mock device fingerprint retrieval
+        when(deviceFingerprintService.getStoredFingerprint(httpRequest))
+                .thenReturn(TEST_DEVICE_FINGERPRINT);
+
         when(tourRepository.save(any(Tour.class))).thenAnswer(invocation -> {
             Tour savedTour = invocation.getArgument(0);
-            savedTour.setId(1L); // Set ID to simulate database persistence
+            savedTour.setId(1L);
             return savedTour;
         });
 
@@ -218,7 +231,7 @@ class TourServiceTest {
                 .extracting(stop -> stop.getArtwork().getId())
                 .contains(testArtworks.getFirst().getId());
 
-        verify(tourRepository).save(any(Tour.class)); // Verify save is called
+        verify(tourRepository).save(any(Tour.class));
     }
 
     @Test
@@ -255,8 +268,9 @@ class TourServiceTest {
         existingTour.setDescription("Original Description");
         existingTour.setTheme(Tour.TourTheme.CHRONOLOGICAL);
         existingTour.setMuseum(testMuseum);
+        existingTour.setDeviceFingerprint(TEST_DEVICE_FINGERPRINT);
 
-        when(tourRepository.findByIdAndDeletedFalse(1L))
+        when(tourRepository.findByIdAndDeviceFingerprintAndDeletedFalse(1L, TEST_DEVICE_FINGERPRINT))
                 .thenReturn(Optional.of(existingTour));
         when(tourRepository.save(any(Tour.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -264,7 +278,7 @@ class TourServiceTest {
         TourUpdateRequest updateRequest =
                 new TourUpdateRequest("New Name", "New Description");
 
-                Optional<Tour> result = tourService.updateTourDetails(1L, updateRequest);
+        Optional<Tour> result = tourService.updateTourDetailsForDevice(1L, updateRequest, TEST_DEVICE_FINGERPRINT);
 
         assertThat(result)
                 .isPresent()

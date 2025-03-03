@@ -8,10 +8,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 @ExtendWith(MockitoExtension.class)
 class ScoringServiceTest {
@@ -203,5 +206,126 @@ class ScoringServiceTest {
         );
 
         assertThat(score).isBetween(0.37, 0.39);
+    }
+
+    @Test
+    void whenScoringWithDiversity_thenBaseScoreIsCorrect() {
+        Random fixedRandom = new Random() {
+            @Override
+            public double nextDouble() {
+                return 0.5;
+            }
+        };
+
+        // Empty set of recently used artworks
+        Set<Long> recentlyUsed = new HashSet<>();
+
+        // Get base score with original method
+        double baseScore = scoringService.scoreArtwork(
+                currentArtwork,
+                preferences,
+                List.of(previousArtwork)
+        );
+
+        // Get diversity score with fixed random factor (0.5 means exactly 1.0 multiplier)
+        double diversityScore = scoringService.scoreArtworkWithDiversity(
+                currentArtwork,
+                preferences,
+                List.of(previousArtwork),
+                recentlyUsed,
+                fixedRandom
+        );
+
+        // With a random factor of 0.5, we get 0.9 + (0.5 * 0.2) = 1.0 multiplier
+        // So scores should be identical
+        assertThat(diversityScore).isEqualTo(baseScore);
+    }
+
+    @Test
+    void whenArtworkRecentlyUsed_thenScoreHasPenalty() {
+        Random fixedRandom = new Random() {
+            @Override
+            public double nextDouble() {
+                return 0.5;
+            }
+        };
+
+        // Set current artwork as recently used
+        currentArtwork.setId(123L);
+        Set<Long> recentlyUsed = new HashSet<>();
+        recentlyUsed.add(123L);
+
+        // Get base score first
+        double baseScore = scoringService.scoreArtwork(
+                currentArtwork,
+                preferences,
+                List.of(previousArtwork)
+        );
+
+        // Get diversity score with recently used penalty
+        double diversityScore = scoringService.scoreArtworkWithDiversity(
+                currentArtwork,
+                preferences,
+                List.of(previousArtwork),
+                recentlyUsed,
+                fixedRandom
+        );
+
+        // Should be 50% of the base score (with fixed random factor of 1.0)
+        assertThat(diversityScore).isEqualTo(baseScore * 0.5);
+    }
+
+    @Test
+    void whenRandomFactorApplied_thenScoreVariesAppropriately() {
+        // Use two different fixed random values to test range
+        Random lowRandom = new Random() {
+            @Override
+            public double nextDouble() {
+                return 0.0; // Gives 0.9 factor
+            }
+        };
+
+        Random highRandom = new Random() {
+            @Override
+            public double nextDouble() {
+                return 1.0; // Gives 1.1 factor
+            }
+        };
+
+        // Empty set of recently used artworks
+        Set<Long> recentlyUsed = new HashSet<>();
+
+        // Get base score
+        double baseScore = scoringService.scoreArtwork(
+                currentArtwork,
+                preferences,
+                List.of(previousArtwork)
+        );
+
+        // Get scores with low and high random factors
+        double lowScore = scoringService.scoreArtworkWithDiversity(
+                currentArtwork,
+                preferences,
+                List.of(previousArtwork),
+                recentlyUsed,
+                lowRandom
+        );
+
+        double highScore = scoringService.scoreArtworkWithDiversity(
+                currentArtwork,
+                preferences,
+                List.of(previousArtwork),
+                recentlyUsed,
+                highRandom
+        );
+
+        // Low score should be approximately 90% of base score
+        assertThat(lowScore).isCloseTo(baseScore * 0.9, within(0.0001));
+
+        // High score should be approximately 110% of base score
+        assertThat(highScore).isCloseTo(baseScore * 1.1, within(0.0001));
+
+        // Verify range is approximately ±10% of base score
+        assertThat(highScore - lowScore).isCloseTo(baseScore * 0.2, within(0.0001));
     }
 }
