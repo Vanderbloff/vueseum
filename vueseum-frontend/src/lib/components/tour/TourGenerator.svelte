@@ -27,7 +27,6 @@
 	import type { TourInputState, StandardPeriod } from '$lib/types/tour-preferences';
 	import PreferenceInput from '$lib/components/shared/PreferenceInput.svelte';
 	import { tourApi } from '$lib/api/tour';
-	import { getOrCreateFingerprint } from '$lib/api/device';
 	import { goto } from '$app/navigation';
 
 	interface PreferenceInputComponent {
@@ -115,7 +114,7 @@
 	}
 
 	function handleThemeChange(value: string) {
-		if (value === "CHRONOLOGICAL" || value === "ARTIST_FOCUSED" || value === "CULTURAL") {
+		if (value === "CHRONOLOGICAL" || value === "ARTIST FOCUSED" || value === "CULTURAL") {
 			state.tourPreferences.theme = value;
 		}
 	}
@@ -260,7 +259,7 @@
 											<Label for="chronological">Chronological Journey</Label>
 										</div>
 										<div class="flex items-center space-x-2">
-											<RadioGroupItem value="ARTIST_FOCUSED" id="artist" />
+											<RadioGroupItem value="ARTIST FOCUSED" id="artist" />
 											<Label for="artist">Artist Focus</Label>
 										</div>
 										<div class="flex items-center space-x-2">
