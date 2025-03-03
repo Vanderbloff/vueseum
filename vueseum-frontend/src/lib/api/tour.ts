@@ -6,7 +6,7 @@ import type { Tour, TourValidationResult } from '$lib/types/tour';
 
 interface TourPreferences {
 	museumId: number;
-	theme: 'CHRONOLOGICAL' | 'ARTIST_FOCUSED' | 'CULTURAL';
+	theme: 'CHRONOLOGICAL' | 'ARTIST FOCUSED' | 'CULTURAL';
 	maxStops: number;
 	minStops: number;
 	preferredArtworks: string[];
@@ -66,21 +66,6 @@ export class TourApiClient extends BaseApiClient {
 		return tour;
 	}
 
-	async deleteTour(id: number): Promise<void> {
-		if (import.meta.env.DEV) {
-			if (typeof window !== 'undefined') {
-				const storedTours = JSON.parse(localStorage.getItem('devTours') || '[]');
-				const updatedTours = storedTours.filter((t: Tour) => t.id !== id);
-				localStorage.setItem('devTours', JSON.stringify(updatedTours));
-				return;
-			}
-			throw new Error('Tour not found');
-		}
-
-		await getOrCreateFingerprint();
-		await this.fetchWithError(`/${id}`, { method: 'DELETE' });
-	}
-
 	async updateTour(
 		id: number,
 		updates: { name?: string; description?: string }
@@ -114,6 +99,24 @@ export class TourApiClient extends BaseApiClient {
 				method: 'PATCH',
 				body: JSON.stringify(updates)
 			}
+		);
+	}
+
+	async deleteTour(id: number): Promise<void> {
+		if (import.meta.env.DEV) {
+			if (typeof window !== 'undefined') {
+				const storedTours = JSON.parse(localStorage.getItem('devTours') || '[]');
+				const updatedTours = storedTours.filter((t: Tour) => t.id !== id);
+				localStorage.setItem('devTours', JSON.stringify(updatedTours));
+				return;
+			}
+			throw new Error('Tour not found');
+		}
+
+		await getOrCreateFingerprint();
+		await this.fetchWithError(
+			`/${id}`,
+			{ method: 'DELETE' }
 		);
 	}
 
