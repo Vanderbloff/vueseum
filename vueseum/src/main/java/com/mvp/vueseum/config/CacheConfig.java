@@ -10,6 +10,8 @@ import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Configuration
 public class CacheConfig {
@@ -38,19 +40,24 @@ public class CacheConfig {
         return createCache(Duration.ofHours(24), 1000);
     }
 
+
+    @Bean
+    public Cache<String, Set<Long>> recentlyUsedArtworkCache() {
+        return Caffeine.newBuilder()
+                .expireAfterWrite(7, TimeUnit.DAYS)
+                .maximumSize(1000)
+                .build();
+    }
+
+    @Bean
+    public Cache<String, String> deviceFingerprintCache() {
+        return createCache(Duration.ofDays(30), 100_000);
+    }
+
     private <K, V> Cache<K, V> createCache(Duration expiration, int maxSize) {
         return Caffeine.newBuilder()
                 .expireAfterWrite(expiration)
                 .maximumSize(maxSize)
                 .build();
-    }
-
-    /**
-     * Cache for storing device fingerprints by token
-     * Longer expiration to maintain device identity
-     */
-    @Bean
-    public Cache<String, String> deviceFingerprintCache() {
-        return createCache(Duration.ofDays(30), 100_000);
     }
 }
