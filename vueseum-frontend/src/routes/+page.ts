@@ -4,10 +4,19 @@ import type { Load } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import { ArtworkUtils } from '$lib/utils/artwork/artworkUtils';
 import { tourApi } from '$lib/api/tour';
+import { getOrCreateFingerprint } from '$lib/api/device';
 import type { StandardPeriod } from '$lib/types/artwork';
 import type { PageData } from './types';
 
 export const load = (async ({ url }): Promise<PageData> => {
+	try {
+		// Initialize fingerprint early to ensure it's available for all API calls
+		await getOrCreateFingerprint();
+	} catch (fingerprintError) {
+		console.error('Failed to initialize device fingerprint:', fingerprintError);
+		// Continue with page load even if fingerprint fails
+	}
+
 	const searchParams = url.searchParams;
 	const initialFilters = {
 		searchTerm: [searchParams.get('q') ?? ''],

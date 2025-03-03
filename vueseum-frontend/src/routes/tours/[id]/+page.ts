@@ -1,9 +1,12 @@
 // src/routes/tours/[id]/+page.ts
 import { error, type Load } from '@sveltejs/kit';
 import { tourApi } from '$lib/api/tour';
+import { getOrCreateFingerprint } from '$lib/api/device';
 
 export const load: Load = async ({ params }) => {
 	try {
+		await getOrCreateFingerprint();
+
 		const tourIdParam = params.id;
 		const tourId = parseInt(<string>params.id);
 
