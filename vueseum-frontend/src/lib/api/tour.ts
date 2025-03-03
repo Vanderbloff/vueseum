@@ -1,6 +1,6 @@
-// src/lib/api/tour.ts
 import { API_BASE_URL } from '../config';
 import { ApiError, BaseApiClient } from '$lib/api/base';
+import { getOrCreateFingerprint } from './device';
 import type { Artwork, PaginatedResponse } from '$lib/types/artwork';
 import type { Tour, TourValidationResult } from '$lib/types/tour';
 
@@ -40,6 +40,8 @@ export class TourApiClient extends BaseApiClient {
 			return this.getEmptyPaginatedResponse(size, page);
 		}
 
+		// Ensure fingerprint is initialized before making the API call
+		await getOrCreateFingerprint();
 		return this.fetchWithError<PaginatedResponse<Tour>>(`?page=${page}&size=${size}`);
 	}
 
@@ -56,6 +58,7 @@ export class TourApiClient extends BaseApiClient {
 			throw new Error('Tour not found');
 		}
 
+		await getOrCreateFingerprint();
 		const tour = await this.fetchWithError<Tour>(`/${id}`);
 		if (!tour) {
 			throw new Error('Tour not found');
@@ -74,6 +77,7 @@ export class TourApiClient extends BaseApiClient {
 			throw new Error('Tour not found');
 		}
 
+		await getOrCreateFingerprint();
 		await this.fetchWithError(`/${id}`, { method: 'DELETE' });
 	}
 
@@ -103,6 +107,7 @@ export class TourApiClient extends BaseApiClient {
 			throw new Error('Tour not found');
 		}
 
+		await getOrCreateFingerprint();
 		return this.fetchWithError<Tour>(
 			`/${id}`,
 			{
@@ -112,12 +117,15 @@ export class TourApiClient extends BaseApiClient {
 		);
 	}
 
-	async generateTour(visitorId: string, preferences: TourPreferences): Promise<Tour> {
+	async generateTour(preferences: TourPreferences): Promise<Tour> {
 		if (import.meta.env.DEV) {
 			return this.generateDevTour(preferences);
 		}
 
 		try {
+			// Get or initialize the fingerprint for this device
+			const visitorId = await getOrCreateFingerprint();
+
 			console.log("Tour generation request:", {
 				visitorId,
 				preferences
@@ -224,6 +232,7 @@ export class TourApiClient extends BaseApiClient {
 			throw new Error('Tour not found');
 		}
 
+		await getOrCreateFingerprint();
 		return this.fetchWithError<TourValidationResult>(`/${id}/validate`);
 	}
 
