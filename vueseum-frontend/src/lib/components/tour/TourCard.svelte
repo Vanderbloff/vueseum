@@ -118,21 +118,40 @@
 		</div>
 	</Button>
 
-	{#if (tour.unavailableArtworks?.length ?? 0) > 0}
-		<div class="mt-2 px-4 py-2 bg-destructive/10 rounded-md">
-			<p class="text-sm text-destructive">
-				{tour.unavailableArtworks.length} artwork{tour.unavailableArtworks.length === 1 ? '' : 's'}
-				{tour.unavailableArtworks.length === 1 ? 'is' : 'are'} no longer on display
-			</p>
-			<div class="mt-1 text-xs text-muted-foreground">
-				{#each tour.unavailableArtworks as artwork}
-					<p>{artwork.title} (Gallery {artwork.galleryNumber})</p>
-				{/each}
-			</div>
-			<div class="mt-2 text-xs text-muted-foreground">
-				Last checked: {new Date(tour.lastValidated ?? '').toLocaleString()}
+	<!-- Validation Results Section -->
+	{#if isValidating}
+		<div class="mt-2 px-4 py-2 bg-muted/50 rounded-md">
+			<div class="flex items-center space-x-2">
+				<Loader2 class="h-4 w-4 animate-spin text-muted-foreground" />
+				<p class="text-sm text-muted-foreground">Checking artwork availability...</p>
 			</div>
 		</div>
+	{:else if tour.lastValidated}
+		{#if (tour.unavailableArtworks?.length ?? 0) > 0}
+			<div class="mt-2 px-4 py-2 bg-destructive/10 rounded-md">
+				<p class="text-sm text-destructive">
+					{tour.unavailableArtworks.length} artwork{tour.unavailableArtworks.length === 1 ? '' : 's'}
+					{tour.unavailableArtworks.length === 1 ? 'is' : 'are'} no longer on display
+				</p>
+				<div class="mt-1 text-xs text-muted-foreground">
+					{#each tour.unavailableArtworks as artwork}
+						<p>{artwork.title} (Gallery {artwork.galleryNumber})</p>
+					{/each}
+				</div>
+				<div class="mt-2 text-xs text-muted-foreground">
+					Last checked: {new Date(tour.lastValidated ?? '').toLocaleString()}
+				</div>
+			</div>
+		{:else}
+			<div class="mt-2 px-4 py-2 bg-green-100 rounded-md">
+				<p class="text-sm text-green-800">
+					All artworks in this tour are currently on display.
+				</p>
+				<div class="mt-2 text-xs text-muted-foreground">
+					Last checked: {new Date(tour.lastValidated ?? '').toLocaleString()}
+				</div>
+			</div>
+		{/if}
 	{/if}
 
 	<!-- Action buttons -->
@@ -145,9 +164,7 @@
 			onclick={() => onValidate?.(tour.id)}
 		>
 			{#if isValidating}
-				<span class="animate-spin">
-            <Loader2 class="h-4 w-4" />
-        </span>
+				<Loader2 class="h-4 w-4" />
 			{:else}
 				<CheckCircle class="h-4 w-4" />
 			{/if}
