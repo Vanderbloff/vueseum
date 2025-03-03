@@ -73,7 +73,7 @@
 								<img
 									src={stop.artwork.imageUrl}
 									alt={stop.artwork.title}
-									class="object-cover w-full h-full"
+									class="object-contain w-full h-full"
 									loading="eager"
 									decoding="sync"
 								/>
@@ -84,8 +84,12 @@
 										{stop.artwork.title}
 									</h2>
 									<div class="space-y-1">
-										<p class="text-lg text-foreground">
-											{stop.artwork.fullAttribution}
+										<p class="text-lg text-muted-foreground">
+											{#if stop.artwork.fullAttribution}
+												{stop.artwork.fullAttribution}
+											{:else}
+												Unknown Artist
+											{/if}
 										</p>
 										<div class="text-muted-foreground space-y-1">
 											{#if stop.artwork.creationDate}
