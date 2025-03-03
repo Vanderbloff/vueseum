@@ -8,10 +8,7 @@ import com.mvp.vueseum.service.cultural.CulturalMapping;
 import com.mvp.vueseum.util.DateParsingUtil;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 @Service
 public class ScoringService {
@@ -263,4 +260,35 @@ public class ScoringService {
         );
     }
 
+    /**
+     * Scores an artwork with additional diversity factors:
+     * - Applies a penalty for recently used artworks
+     * - Adds a small random factor for additional diversity
+     *
+     * @param artwork The artwork to score
+     * @param preferences The tour preferences
+     * @param currentTourArtworks The artworks already selected for this tour
+     * @param recentlyUsedArtworks Set of recently used artwork IDs
+     * @param random Random generator for consistent randomization
+     * @return The final score including recency penalty and random factor
+     */
+    public double scoreArtworkWithDiversity(
+            Artwork artwork,
+            TourPreferences preferences,
+            List<Artwork> currentTourArtworks,
+            Set<Long> recentlyUsedArtworks,
+            Random random) {
+
+        // Get the base score from existing scoring logic
+        double baseScore = scoreArtwork(artwork, preferences, currentTourArtworks);
+
+        // Apply penalty for recently used artworks (50% reduction)
+        if (recentlyUsedArtworks.contains(artwork.getId())) {
+            baseScore *= 0.5;
+        }
+
+        // Add small random factor (±10%) for additional diversity
+        double randomFactor = 0.9 + (random.nextDouble() * 0.2);
+        return baseScore * randomFactor;
+    }
 }
