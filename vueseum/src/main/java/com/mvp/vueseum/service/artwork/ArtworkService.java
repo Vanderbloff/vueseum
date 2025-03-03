@@ -218,7 +218,7 @@ public class ArtworkService {
         // If still not enough, use minimum constraints (museum ID and has image)
         log.info("Still not enough candidates ({}). Using minimum constraints.", candidates.size());
 
-        Specification<Artwork> minimalSpec = (root, query, cb) -> {
+        Specification<Artwork> minimalSpec = (root, _, cb) -> {
             Join<Artwork, Museum> museumJoin = root.join("museum");
             return cb.and(
                     cb.equal(museumJoin.get("id"), prefs.getMuseumId()),
