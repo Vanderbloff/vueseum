@@ -29,6 +29,9 @@ export interface TourPreferences {
 	preferredCultures: string[];
 	preferredPeriods: string[];
 	preferCloseGalleries: boolean;
+
+	museumId?: number;
+	requestId?: string;
 }
 
 export interface TourInputState {
