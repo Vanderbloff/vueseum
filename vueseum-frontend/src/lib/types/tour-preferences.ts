@@ -28,6 +28,7 @@ export interface TourPreferences {
 	preferredMediums: string[];
 	preferredCultures: string[];
 	preferredPeriods: string[];
+	preferCloseGalleries: boolean;
 }
 
 export interface TourInputState {
@@ -39,4 +40,7 @@ export interface TourInputState {
 	error: { type: 'DAILY_LIMIT' | 'TOTAL_LIMIT' | null; message: string; } | null;
 	isGenerating: boolean;
 	generationStage: 'selecting' | 'describing' | 'finalizing' | 'complete' | null;
+	descriptionProgress: number,
+	currentStopIndex: number | undefined,
+	totalStops: number | undefined
 }
