@@ -125,6 +125,17 @@
 		state.generationStage = 'selecting';
 
 		try {
+			// Get artist selections from the input component
+			const rawArtistSelections = artistInputRef?.getSelections() ?? [];
+
+			// Process artist names to strip dates in parentheses
+			const processedArtistSelections = rawArtistSelections.map(artist => {
+				// Extract just the name part before any parentheses
+				return artist.replace(/\s+\(\d{4}-\d{4}\)$/, '');
+			});
+
+			console.log('Original artist selections:', rawArtistSelections);
+			console.log('Processed artist selections:', processedArtistSelections);
 			const preferences = {
 				museumId: parseInt(state.selectedMuseum),
 				theme: state.tourPreferences.theme,
