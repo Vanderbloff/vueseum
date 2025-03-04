@@ -12,6 +12,8 @@
 	import { AspectRatio } from "$lib/components/ui/aspect-ratio";
 	import type { Tour } from '$lib/types/tour';
 	import type { CarouselAPI } from '$lib/components/ui/carousel/context';
+	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
+	import { MapPin } from 'lucide-svelte';
 
 	let { tour } = $props<{
 		tour: Tour,
@@ -55,17 +57,17 @@
 	<!-- Single-item carousel -->
 	<Carousel
 		opts={{
-        align: "center",
-        loop: false,
-        watchDrag: false,  // Disable drag watching
-        dragFree: false,   // Disable free-form dragging
-        containScroll: "trimSnaps",  // Ensure proper snap containment
-    }}
+    align: "center",
+    loop: false,
+    watchDrag: false,
+    dragFree: false,
+    containScroll: "trimSnaps",
+  }}
 		class="w-full"
 		setApi={handleApiChange}
 	>
 		<CarouselContent>
-			{#each tour.stops as stop (stop.id)}
+			{#each tour.stops as stop, index (stop.id)}
 				<CarouselItem class="basis-full will-change-transform transition-transform">
 					<div class="px-4 sm:px-6 md:px-8 h-full">
 						<Card class="mx-auto max-w-3xl">
@@ -135,18 +137,45 @@
 										{stop.tourContextDescription.replace(/^Stop \d+:\s*/, '')}
 									</p>
 								</div>
+
+								<!-- Navigation Guidance -->
+								{#if index < tour.stops.length - 1 && stop.artwork.galleryNumber && tour.stops[index + 1].artwork.galleryNumber && stop.artwork.galleryNumber !== tour.stops[index + 1].artwork.galleryNumber}
+									<div class="mt-4">
+										<Alert>
+											<MapPin class="h-4 w-4 mr-2" />
+											<AlertTitle>Next Stop: Gallery {tour.stops[index + 1].artwork.galleryNumber}</AlertTitle>
+											<AlertDescription>
+												{#if stop.artwork.department !== tour.stops[index + 1].artwork.department && tour.stops[index + 1].artwork.department}
+													Head to the {tour.stops[index + 1].artwork.department} section
+													{#if parseInt(stop.artwork.galleryNumber) < parseInt(tour.stops[index + 1].artwork.galleryNumber)}
+														(higher-numbered galleries)
+													{:else}
+														(lower-numbered galleries)
+													{/if}
+												{:else}
+													{#if parseInt(stop.artwork.galleryNumber) < parseInt(tour.stops[index + 1].artwork.galleryNumber)}
+														Follow gallery numbers upward to {tour.stops[index + 1].artwork.galleryNumber}
+													{:else}
+														Follow gallery numbers downward to {tour.stops[index + 1].artwork.galleryNumber}
+													{/if}
+												{/if}
+											</AlertDescription>
+										</Alert>
+									</div>
+								{/if}
 							</CardContent>
 						</Card>
 					</div>
 				</CarouselItem>
 			{/each}
 		</CarouselContent>
-		<div class="absolute inset-y-0 left-0 right-0 flex items-center justify-between z-10">
-			<div class="pointer-events-auto text-foreground">
-				<CarouselPrevious />
+
+		<div class="fixed inset-y-0 left-0 right-0 pointer-events-none flex items-center justify-between z-10 px-2">
+			<div class="pointer-events-auto">
+				<CarouselPrevious class="relative bg-background/80 backdrop-blur-sm" />
 			</div>
-			<div class="pointer-events-auto text-foreground">
-				<CarouselNext />
+			<div class="pointer-events-auto">
+				<CarouselNext class="relative bg-background/80 backdrop-blur-sm" />
 			</div>
 		</div>
 	</Carousel>
