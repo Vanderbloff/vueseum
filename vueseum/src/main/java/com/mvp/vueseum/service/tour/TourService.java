@@ -136,10 +136,10 @@ public class TourService {
                 random
         );
 
-        // Update cache of recently used artworks
-        updateRecentlyUsedArtworksCache(selectedArtworks, recentlyUsedArtworks, visitorId);
+        List<Artwork> optimizedArtworks = optimizeGalleryDistribution(selectedArtworks, prefs);
+        updateRecentlyUsedArtworksCache(optimizedArtworks, recentlyUsedArtworks, visitorId);
 
-        return selectedArtworks;
+        return optimizedArtworks;
     }
 
     /**
@@ -322,6 +322,84 @@ public class TourService {
 
         // Update the cache
         recentlyUsedArtworkCache.put(visitorId, updatedRecentlyUsed);
+    }
+
+    /**
+     * Optimizes artwork selection for gallery distribution.
+     * Ensures artworks are reasonably distributed across different galleries.
+     */
+    private List<Artwork> optimizeGalleryDistribution(List<Artwork> candidates, TourPreferences prefs) {
+        List<Artwork> optimizedSelection = new ArrayList<>();
+        Map<String, Integer> galleryCount = new HashMap<>();
+
+        int maxPerGallery = Math.max(2, (int)Math.ceil(prefs.getMaxStops() * 0.6));
+        log.info("Setting maximum of {} artworks per gallery", maxPerGallery);
+
+        // Get valid candidates with gallery numbers
+        List<Artwork> validCandidates = candidates.stream()
+                .filter(a -> a.getGalleryNumber() != null && !a.getGalleryNumber().isEmpty())
+                .collect(Collectors.toList());
+
+        // If proximity is preferred, sort by gallery number
+        if (prefs.isPreferCloseGalleries()) {
+            log.info("Proximity preferred: sorting candidates by gallery number");
+            validCandidates.sort(Comparator.comparing(a -> {
+                try {
+                    return Integer.parseInt(a.getGalleryNumber().replaceAll("[^0-9]", ""));
+                } catch (NumberFormatException e) {
+                    return Integer.MAX_VALUE;
+                }
+            }));
+        } else {
+            log.info("Narrative flow preferred: keeping thematic ordering");
+        }
+
+        // First pass: Select artworks while respecting gallery limits
+        for (Artwork artwork : validCandidates) {
+            String gallery = artwork.getGalleryNumber();
+            int currentCount = galleryCount.getOrDefault(gallery, 0);
+
+            if (currentCount < maxPerGallery) {
+                optimizedSelection.add(artwork);
+                galleryCount.put(gallery, currentCount + 1);
+
+                if (optimizedSelection.size() >= prefs.getMaxStops()) {
+                    break;
+                }
+            }
+        }
+
+        // If we still don't have enough artworks, try again with the remaining candidates
+        if (optimizedSelection.size() < prefs.getMaxStops()) {
+            for (Artwork artwork : validCandidates) {
+                if (!optimizedSelection.contains(artwork)) {
+                    optimizedSelection.add(artwork);
+
+                    if (optimizedSelection.size() >= prefs.getMaxStops()) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Finally, add artworks without gallery numbers if still needed
+        if (optimizedSelection.size() < prefs.getMaxStops()) {
+            List<Artwork> noGalleryArtworks = candidates.stream()
+                    .filter(a -> a.getGalleryNumber() == null || a.getGalleryNumber().isEmpty())
+                    .filter(a -> !optimizedSelection.contains(a))
+                    .toList();
+
+            for (Artwork artwork : noGalleryArtworks) {
+                optimizedSelection.add(artwork);
+
+                if (optimizedSelection.size() >= prefs.getMaxStops()) {
+                    break;
+                }
+            }
+        }
+
+        log.info("Gallery distribution: {}", galleryCount);
+        return optimizedSelection;
     }
 
     /**
