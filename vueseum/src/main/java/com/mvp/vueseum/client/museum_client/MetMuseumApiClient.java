@@ -201,7 +201,10 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
         JsonNode rootNode;
         try {
             rootNode = objectMapper.readTree(response);
-            if (rootNode.path("department").asInt() == 7) {
+            if (rootNode.path("department").asInt() == 7 ||
+                "The Cloisters".equals(rootNode.path("department").asText()) ||
+                    (rootNode.has("location") &&
+                            rootNode.path("location").asText().contains("Cloisters"))) {
                 log.debug("Skipping Cloisters artwork: {}",
                         rootNode.path("objectID").asText());
                 return null;
