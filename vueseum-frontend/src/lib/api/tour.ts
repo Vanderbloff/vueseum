@@ -146,7 +146,7 @@ export class TourApiClient extends BaseApiClient {
 							maxStops: preferences.maxStops,
 							minStops: preferences.minStops,
 							requiredArtworkIds: preferences.preferredArtworks,
-							preferredArtistIds: preferences.preferredArtists,
+							preferredArtists: preferences.preferredArtists,
 							preferredMediums: preferences.preferredMediums,
 							preferredCultures: preferences.preferredCultures,
 							preferredPeriods: preferences.preferredPeriods
