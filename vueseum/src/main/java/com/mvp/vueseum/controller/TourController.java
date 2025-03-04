@@ -165,4 +165,16 @@ public class TourController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    @GetMapping("/progress/{requestId}")
+    public ResponseEntity<Map<String, Object>> getProgress(
+            @PathVariable String requestId,
+            HttpServletRequest request) {
+
+        String deviceFingerprint = tourService.getDeviceFingerprintFromRequest(request);
+
+        return tourService.getProgressWithStage(requestId, deviceFingerprint)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
