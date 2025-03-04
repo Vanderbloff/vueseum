@@ -11,15 +11,6 @@ export type StandardPeriod =
 	| "A.D. 1800-1900"
 	| "A.D. 1900-present";
 
-export type SuggestionType = 'ARTIST' | 'MEDIUM' | 'CULTURE' | 'PERIOD';
-
-export interface Suggestion {
-	value: string;
-	display: string;
-	count: number;
-	type: SuggestionType;
-}
-
 export interface TourPreferences {
 	theme: TourTheme;
 	numStops: number;
