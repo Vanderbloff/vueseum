@@ -82,7 +82,7 @@
 			preferredMediums: [],
 			preferredCultures: [],
 			preferredPeriods: [],
-			preferCloseGalleries: true
+			preferCloseGalleries: false
 		},
 		showAdditionalOptions: false,
 		generatedToursToday: 0,
@@ -373,14 +373,15 @@
 										onCheckedChange={(checked) => state.tourPreferences.preferCloseGalleries = checked}
 									/>
 									<Label for="gallery-proximity-dialog" class="text-sm">
-										Prefer galleries closer together
+										Prioritize walking convenience
 									</Label>
 								</div>
 								{#if !state.tourPreferences.preferCloseGalleries}
 									<Alert variant="default" class="mt-2">
 										<AlertCircle class="h-4 w-4" />
 										<AlertDescription>
-											Tour stops may be spread across a large range of different galleries and floors in the museum.
+											When selected, tour stops will be organized in sequential gallery order for easier navigation.
+											When unselected, the narrative flow will be prioritized, which may scatter stops across the museum.
 										</AlertDescription>
 									</Alert>
 								{/if}
