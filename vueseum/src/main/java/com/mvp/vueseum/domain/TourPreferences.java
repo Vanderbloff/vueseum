@@ -32,7 +32,7 @@ public class TourPreferences {
     private Set<String> preferredCultures = new HashSet<>();
 
     @Builder.Default
-    private boolean preferCloseGalleries = true;
+    private boolean preferCloseGalleries = false;
 
     @Builder.Default
     private int maxStops = 10;
