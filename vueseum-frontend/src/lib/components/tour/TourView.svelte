@@ -147,11 +147,6 @@
 											<AlertDescription>
 												{#if stop.artwork.department !== tour.stops[index + 1].artwork.department && tour.stops[index + 1].artwork.department}
 													Head to the {tour.stops[index + 1].artwork.department} section
-													{#if parseInt(stop.artwork.galleryNumber) < parseInt(tour.stops[index + 1].artwork.galleryNumber)}
-														(higher-numbered galleries)
-													{:else}
-														(lower-numbered galleries)
-													{/if}
 												{:else}
 													{#if parseInt(stop.artwork.galleryNumber) < parseInt(tour.stops[index + 1].artwork.galleryNumber)}
 														Follow gallery numbers upward to {tour.stops[index + 1].artwork.galleryNumber}
@@ -170,12 +165,12 @@
 			{/each}
 		</CarouselContent>
 
-		<div class="fixed inset-y-0 left-0 right-0 pointer-events-none flex items-center justify-between z-10 px-2">
-			<div class="pointer-events-auto">
-				<CarouselPrevious class="relative bg-background/80 backdrop-blur-sm" />
+		<div class="absolute inset-y-0 left-0 right-0 flex items-center justify-between z-10 px-4">
+			<div class="pointer-events-auto text-foreground">
+				<CarouselPrevious class="h-8 w-8 sm:h-10 sm:w-10 bg-background/80 backdrop-blur-sm shadow-sm" />
 			</div>
-			<div class="pointer-events-auto">
-				<CarouselNext class="relative bg-background/80 backdrop-blur-sm" />
+			<div class="pointer-events-auto text-foreground">
+				<CarouselNext class="h-8 w-8 sm:h-10 sm:w-10 bg-background/80 backdrop-blur-sm shadow-sm" />
 			</div>
 		</div>
 	</Carousel>
