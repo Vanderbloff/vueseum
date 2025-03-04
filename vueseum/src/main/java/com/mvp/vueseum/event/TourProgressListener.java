@@ -6,7 +6,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Listens for and manages tour generation progress events.
@@ -27,8 +29,11 @@ public class TourProgressListener {
         if (tracking != null) {
             tracking.update(progress, currentTask);
 
-            if (progress >= 1.0) {
-                activeGenerations.remove(requestId);
+            if (progress >= 1.0 &&
+                    (currentTask.contains("completed") || tracking.isHasError())) {
+                // Keep progress data available for at least 5 seconds
+                CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS)
+                        .execute(() -> activeGenerations.remove(requestId));
             }
         }
     }
