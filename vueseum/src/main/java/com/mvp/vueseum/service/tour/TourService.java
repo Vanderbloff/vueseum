@@ -1,6 +1,7 @@
 package com.mvp.vueseum.service.tour;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import com.mvp.vueseum.domain.TourGenerationProgress;
 import com.mvp.vueseum.domain.TourGenerationRequest;
 import com.mvp.vueseum.domain.TourPreferences;
 import com.mvp.vueseum.domain.TourUpdateRequest;
@@ -31,6 +32,8 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -583,5 +586,72 @@ public class TourService {
         result.put("validatedAt", tour.getLastValidated());
         result.put("unavailableStops", unavailableStops);
         return result;
+    }
+
+    /**
+     * Gets the progress data for a tour generation request, including derived stage information.
+     */
+    public Optional<Map<String, Object>> getProgressWithStage(String requestId, String deviceFingerprint) {
+        return progressListener.getProgressForDevice(requestId, deviceFingerprint)
+                .map(this::mapProgressToResponse);
+    }
+
+    /**
+     * Maps internal progress data to a frontend-friendly response.
+     * This encapsulates the business logic of what each progress threshold means.
+     */
+    private Map<String, Object> mapProgressToResponse(TourGenerationProgress progress) {
+        Map<String, Object> response = new HashMap<>();
+
+        double progressPercentage = progress.getProgress() * 100;
+        response.put("progress", progressPercentage);
+        response.put("currentTask", progress.getCurrentTask());
+
+        String stage = deriveStageFromProgress(progress.getProgress());
+        response.put("stage", stage);
+
+        if (progress.getCurrentTask().contains("stop")) {
+            try {
+                // Try to extract current stop information from the task description
+                String task = progress.getCurrentTask();
+                Pattern pattern = Pattern.compile("stop (\\d+) of (\\d+)");
+                Matcher matcher = pattern.matcher(task);
+
+                if (matcher.find()) {
+                    int currentStop = Integer.parseInt(matcher.group(1)) - 1; // 0-based index
+                    int totalStops = Integer.parseInt(matcher.group(2));
+
+                    response.put("currentStopIndex", currentStop);
+                    response.put("totalStops", totalStops);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to parse stop information from task: {}", progress.getCurrentTask());
+            }
+        }
+
+        return response;
+    }
+
+    /**
+     * Derives the generation stage based on the progress value.
+     * This contains business logic about the tour generation workflow.
+     */
+    private String deriveStageFromProgress(double progress) {
+        if (progress < 0.2) {
+            return "selecting";
+        } else if (progress < 0.9) {
+            return "describing";
+        } else if (progress < 1.0) {
+            return "finalizing";
+        } else {
+            return "complete";
+        }
+    }
+
+    /**
+     * Gets the device fingerprint from an HTTP request.
+     */
+    public String getDeviceFingerprintFromRequest(HttpServletRequest request) {
+        return deviceFingerprintService.getStoredFingerprint(request);
     }
 }
