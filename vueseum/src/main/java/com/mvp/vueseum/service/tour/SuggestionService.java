@@ -3,7 +3,9 @@ package com.mvp.vueseum.service.tour;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.mvp.vueseum.domain.TourPreferences;
 import com.mvp.vueseum.entity.Artist;
+import com.mvp.vueseum.entity.Artwork;
 import com.mvp.vueseum.repository.ArtistRepository;
+import com.mvp.vueseum.repository.ArtworkRepository;
 import com.mvp.vueseum.service.cultural.CulturalMapping;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,7 @@ import java.util.regex.Pattern;
 @Service
 @RequiredArgsConstructor
 public class SuggestionService {
+    private final ArtworkRepository artworkRepository;
     private final ArtistRepository artistRepository;
     private final FilterOptionsService filterOptionsService;
     private final Cache<String, List<Suggestion>> suggestionCache;
@@ -28,6 +31,7 @@ public class SuggestionService {
      * This helps us organize our suggestion logic in one place.
      */
     public enum SuggestionType {
+        ARTWORK,
         ARTIST,
         MEDIUM,
         CULTURE,
@@ -70,12 +74,36 @@ public class SuggestionService {
                                                 Long museumId,
                                                 TourPreferences currentPreferences) {
         return switch (type) {
+            case ARTWORK -> getArtworkSuggestions(prefix, museumId, currentPreferences);
             case ARTIST -> getArtistSuggestions(prefix, museumId);
             case MEDIUM -> getMediumSuggestions(prefix, museumId, currentPreferences);
             case CULTURE -> getCultureSuggestions(prefix, museumId, currentPreferences);
             case PERIOD -> getPeriodSuggestions(prefix, museumId, currentPreferences);
         };
     }
+
+    private List<Suggestion> getArtworkSuggestions(String prefix, Long museumId, TourPreferences currentPreferences) {
+        return artworkRepository.findByTitleContainingAndMuseumId(prefix, museumId)
+                .stream()
+                .map(artwork -> new Suggestion(
+                        artwork.getId().toString(),
+                        formatArtworkDisplay(artwork),
+                        1,
+                        SuggestionType.ARTWORK
+                ))
+                .limit(10)
+                .toList();
+    }
+
+    private String formatArtworkDisplay(Artwork artwork) {
+        if (artwork.getArtist() != null) {
+            return String.format("%s (%s)",
+                    artwork.getTitle(),
+                    artwork.getArtist().getArtistName());
+        }
+        return artwork.getTitle();
+    }
+
 
     private List<Suggestion> getArtistSuggestions(String prefix, Long museumId) {
         return artistRepository.findSuggestedArtists(prefix, museumId)
