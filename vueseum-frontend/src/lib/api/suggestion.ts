@@ -39,7 +39,7 @@ class SuggestionApiClient extends BaseApiClient {
 	): Promise<Suggestion[]> {
 		const params = new URLSearchParams({
 			prefix,
-			type,
+			type: type.toString(),
 			museumId
 		});
 
