@@ -20,11 +20,13 @@ public class TourGenerationProgress {
     private final LocalDateTime startedAt;
 
     // Basic progress tracking
-    private double progress;  // 0.0 to 1.0
-    private String currentTask;  // E.g., "Selecting artworks", "Generating descriptions"
+    private double progress;
+    private String currentTask;
 
     private boolean hasError;
     private String errorMessage;
+
+    private String stage;
 
     public TourGenerationProgress(String requestId, String visitorId) {
         this.requestId = requestId;
