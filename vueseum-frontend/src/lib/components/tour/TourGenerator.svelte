@@ -28,6 +28,10 @@
 	import PreferenceInput from '$lib/components/shared/PreferenceInput.svelte';
 	import { tourApi } from '$lib/api/tour';
 	import { goto } from '$app/navigation';
+	import { Checkbox } from '$lib/components/ui/checkbox';
+	import { Progress } from '$lib/components/ui/progress';
+	import { Alert, AlertDescription } from '$lib/components/ui/alert';
+	import { AlertCircle } from 'lucide-svelte';
 
 	interface PreferenceInputComponent {
 		getSelections: () => string[];
@@ -77,13 +81,17 @@
 			preferredArtists: [],
 			preferredMediums: [],
 			preferredCultures: [],
-			preferredPeriods: []
+			preferredPeriods: [],
+			preferCloseGalleries: true
 		},
 		showAdditionalOptions: false,
 		generatedToursToday: 0,
 		error: null,
 		isGenerating: false,
 		generationStage: null as null | 'selecting' | 'describing' | 'finalizing' | 'complete',
+		descriptionProgress: 35,
+		currentStopIndex: undefined as number | undefined,
+		totalStops: undefined as number | undefined
 	});
 
 	const canGenerateTour = $derived(state.generatedToursToday < 3);
@@ -100,7 +108,8 @@
 				preferredArtists: [],
 				preferredMediums: [],
 				preferredCultures: [],
-				preferredPeriods: []
+				preferredPeriods: [],
+				preferCloseGalleries: true
 			};
 
 			// Clear all PreferenceInput components
@@ -146,6 +155,7 @@
 				preferredMediums: mediumInputRef?.getSelections() ?? [],
 				preferredCultures: cultureInputRef?.getSelections() ?? [],
 				preferredPeriods: state.tourPreferences.preferredPeriods,
+				preferCloseGalleries: state.tourPreferences.preferCloseGalleries
 			};
 
 			state.generationStage = 'describing';
@@ -356,20 +366,61 @@
 									</Select>
 								</div>
 
+								<div class="flex items-center space-x-2 mt-4">
+									<Checkbox
+										id="gallery-proximity-dialog"
+										checked={state.tourPreferences.preferCloseGalleries}
+										onCheckedChange={(checked) => state.tourPreferences.preferCloseGalleries = checked}
+									/>
+									<Label for="gallery-proximity-dialog" class="text-sm">
+										Prefer galleries closer together
+									</Label>
+								</div>
+								{#if !state.tourPreferences.preferCloseGalleries}
+									<Alert variant="default" class="mt-2">
+										<AlertCircle class="h-4 w-4" />
+										<AlertDescription>
+											Tour stops may be spread across a large range of different galleries and floors in the museum.
+										</AlertDescription>
+									</Alert>
+								{/if}
+
+								<!-- Progress Visualization -->
 								{#if state.isGenerating && state.generationStage}
-									<div class="mb-4 text-center">
-										<div class="flex justify-between mb-1 text-xs text-muted-foreground">
-											<span>Selecting artworks</span>
-											<span>Creating descriptions</span>
-											<span>Finalizing tour</span>
-										</div>
-										<div class="w-full bg-muted rounded-full h-2.5">
-											<div class="bg-primary h-2.5 rounded-full transition-all duration-300"
-													 style="width: {state.generationStage === 'selecting' ? '33%' :
-                              state.generationStage === 'describing' ? '66%' :
-                              state.generationStage === 'finalizing' ? '90%' :
-                              state.generationStage === 'complete' ? '100%' : '0%'}">
+									<div class="mt-4 p-4 bg-background border rounded-md">
+										<div class="space-y-3">
+											<div class="flex justify-between mb-1 text-xs text-muted-foreground">
+            <span class={state.generationStage !== null ? 'font-medium text-primary' : ''}>
+              Selecting artworks
+            </span>
+												<span class={state.generationStage === 'describing' || state.generationStage === 'finalizing' ? 'font-medium text-primary' : ''}>
+              Creating descriptions
+            </span>
+												<span class={state.generationStage === 'finalizing' ? 'font-medium text-primary' : ''}>
+              Finalizing tour
+            </span>
 											</div>
+
+											<Progress value={state.generationStage === 'selecting' ? 25 :
+             state.generationStage === 'describing' ?
+             (state.descriptionProgress || 35) :
+             state.generationStage === 'finalizing' ? 90 :
+             state.generationStage === 'complete' ? 100 : 0}
+											/>
+
+											<p class="text-center text-sm text-muted-foreground">
+												{#if state.generationStage === 'selecting'}
+													Finding the perfect artworks based on your preferences...
+												{:else if state.generationStage === 'describing'}
+													{#if state.currentStopIndex !== undefined && state.totalStops !== undefined}
+														Creating description for stop {state.currentStopIndex + 1} of {state.totalStops}...
+													{:else}
+														Creating engaging descriptions for your tour stops...
+													{/if}
+												{:else if state.generationStage === 'finalizing'}
+													Putting the finishing touches on your personalized tour...
+												{/if}
+											</p>
 										</div>
 									</div>
 								{:else}
