@@ -17,77 +17,50 @@ export class BaseApiClient {
 		this.basePath = endpoint;
 	}
 
-	/**
-	 * Gets the CSRF token from cookies
-	 * @returns The CSRF token or empty string if not found
-	 */
-	protected getCsrfToken(): string {
-		try {
-			const cookies = document.cookie.split(';');
-
-			for (const cookie of cookies) {
-				const [name, value] = cookie.trim().split('=');
-				if (name === 'XSRF-TOKEN') {
-					return decodeURIComponent(value);
-				}
-			}
-		} catch (error) {
-			console.error('Error extracting CSRF token:', error);
-		}
-		return '';
-	}
-
-	/**
-	 * Returns headers with CSRF token included when needed
-	 * @param options Original request options
-	 * @returns Headers object with CSRF token if applicable
-	 */
-	protected getHeadersWithCsrf(options: RequestInit = {}): Record<string, string> {
-		const headers: Record<string, string> = {
-			'Content-Type': 'application/json',
-			...(options.headers as Record<string, string> || {})
-		};
-
-		// Add CSRF token for non-GET/HEAD requests
-		if (options.method && !['GET', 'HEAD'].includes(options.method)) {
-			const token = this.getCsrfToken();
-			if (token) {
-				headers['X-XSRF-TOKEN'] = token;
-			} else {
-				console.warn('No CSRF token found for non-GET request');
-			}
-		}
-
-		return headers;
-	}
-
 	protected async fetchWithError<T>(
 		path: string,
 		options: RequestInit = {}
 	): Promise<T> {
 		const fullUrl = `${API_BASE_URL}/api/v1${this.basePath}${path}`;
+		console.log(`Fetching: ${fullUrl}`);
+
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json',
+			...(options.headers as Record<string, string> || {})
+		};
 
 		const requestOptions: RequestInit = {
 			...options,
 			credentials: 'include',
-			headers: this.getHeadersWithCsrf(options)
+			headers
 		};
 
 		try {
 			const response = await fetch(fullUrl, requestOptions);
+
 			const responseText = await response.text();
 
 			if (!response.ok) {
+				console.log('Response not OK:', {
+					status: response.status,
+					statusText: response.statusText,
+					url: response.url
+				});
+
 				let errorMessage: string;
 				try {
 					const errorData = JSON.parse(responseText);
 					errorMessage = errorData.message || errorData.error || response.statusText;
 				} catch {
 					// If parsing fails, use the raw text
-					errorMessage = responseText;
+					errorMessage = responseText || response.statusText;
 				}
 
 				throw new ApiError(response.status, errorMessage);
+			}
+
+			if (!responseText) {
+				return {} as T;
 			}
 
 			try {
@@ -104,6 +77,7 @@ export class BaseApiClient {
 			throw error;
 		}
 	}
+
 	protected getEmptyPaginatedResponse<T>(size: number, page: number) {
 		return {
 			content: [] as T[],
