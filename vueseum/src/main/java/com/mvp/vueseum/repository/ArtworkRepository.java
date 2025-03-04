@@ -94,6 +94,7 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
             "LIMIT :limit")
     List<Object[]> findCulturesWithCountsLimited(@Param("limit") int limit);
 
-    // Additional query helpers
+    List<Artwork> findByTitleContainingAndMuseumId(String titleFragment, Long museumId);
+
     @NotNull Page<Artwork> findAll(Specification<Artwork> specification, @NotNull Pageable pageable);
 }
