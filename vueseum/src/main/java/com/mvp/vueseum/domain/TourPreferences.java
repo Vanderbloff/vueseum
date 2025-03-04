@@ -31,7 +31,9 @@ public class TourPreferences {
     @Builder.Default
     private Set<String> preferredCultures = new HashSet<>();
 
-    // Tour constraints
+    @Builder.Default
+    private boolean preferCloseGalleries = true;
+
     @Builder.Default
     private int maxStops = 10;
 
