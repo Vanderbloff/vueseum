@@ -1,19 +1,26 @@
-import { API_BASE_URL } from '../config';
+/*import { API_BASE_URL } from '../config';*/
 import { ApiError, BaseApiClient } from '$lib/api/base';
 import { getOrCreateFingerprint } from './device';
 import type { Artwork, PaginatedResponse } from '$lib/types/artwork';
 import type { Tour, TourValidationResult } from '$lib/types/tour';
+import type { TourPreferences, TourTheme } from '$lib/types/tour-preferences';
 
-interface TourPreferences {
-	museumId: number;
-	theme: 'CHRONOLOGICAL' | 'ARTIST FOCUSED' | 'CULTURAL';
-	maxStops: number;
-	minStops: number;
-	preferredArtworks: string[];
-	preferredArtists: string[];
-	preferredMediums: string[];
-	preferredCultures: string[];
-	preferredPeriods: string[];
+// Backend API request format
+interface TourApiRequest {
+	visitorId: string;
+	requestId: string;
+	preferences: {
+		museumId: number;
+		theme: TourTheme;
+		maxStops: number;
+		minStops: number;
+		requiredArtworkIds: string[];
+		preferredArtists: string[];
+		preferredMediums: string[];
+		preferredCultures: string[];
+		preferredPeriods: string[];
+		preferCloseGalleries: boolean;
+	};
 }
 
 export class TourApiClient extends BaseApiClient {
@@ -121,37 +128,38 @@ export class TourApiClient extends BaseApiClient {
 	}
 
 	async generateTour(preferences: TourPreferences): Promise<Tour> {
-		if (import.meta.env.DEV) {
+		/*if (import.meta.env.DEV) {
 			return this.generateDevTour(preferences);
-		}
+		}*/
 
 		try {
-			// Get or initialize the fingerprint for this device
 			const visitorId = await getOrCreateFingerprint();
+			const requestId = preferences.requestId || crypto.randomUUID();
+			const museumId = Number(preferences.museumId);
 
-			console.log("Tour generation request:", {
+			// Create properly formatted API request
+			const apiRequest: TourApiRequest = {
 				visitorId,
-				preferences
-			});
+				requestId,
+				preferences: {
+					museumId,
+					theme: preferences.theme,
+					maxStops: preferences.numStops, // Map numStops to maxStops
+					minStops: Math.max(3, preferences.numStops - 2),
+					requiredArtworkIds: preferences.preferredArtworks,
+					preferredArtists: preferences.preferredArtists,
+					preferredMediums: preferences.preferredMediums,
+					preferredCultures: preferences.preferredCultures,
+					preferredPeriods: preferences.preferredPeriods,
+					preferCloseGalleries: preferences.preferCloseGalleries
+				}
+			};
 
 			const response = await this.fetchWithError<Tour>(
 				'/generate',
 				{
 					method: 'POST',
-					body: JSON.stringify({
-						visitorId,
-						preferences: {
-							museumId: preferences.museumId,
-							theme: preferences.theme,
-							maxStops: preferences.maxStops,
-							minStops: preferences.minStops,
-							requiredArtworkIds: preferences.preferredArtworks,
-							preferredArtists: preferences.preferredArtists,
-							preferredMediums: preferences.preferredMediums,
-							preferredCultures: preferences.preferredCultures,
-							preferredPeriods: preferences.preferredPeriods
-						}
-					})
+					body: JSON.stringify(apiRequest)
 				}
 			);
 
@@ -249,7 +257,7 @@ export class TourApiClient extends BaseApiClient {
 		};
 	}
 
-	private async generateDevTour(preferences: TourPreferences): Promise<Tour> {
+	/*private async generateDevTour(preferences: TourPreferences): Promise<Tour> {
 		// Simulate network delay
 		await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -309,7 +317,7 @@ export class TourApiClient extends BaseApiClient {
 					creationDate: artwork.creationDate,
 				},
 				tourContextDescription: `${artwork.description}`,
-				isRequired: index < preferences.minStops
+				isRequired: index < Math.max(3, preferences.numStops - 2)
 			})),
 			museum: {
 				id: preferences.museumId,
@@ -325,7 +333,7 @@ export class TourApiClient extends BaseApiClient {
 		}
 
 		return newTour;
-	}
+	}*/
 
 	private selectArtworksForDevTour(artworks: Artwork[], preferences: TourPreferences) {
 		const selected: Artwork[] = [];
@@ -339,7 +347,7 @@ export class TourApiClient extends BaseApiClient {
 		}
 
 		// Then fill remaining slots randomly
-		while (selected.length < preferences.maxStops) {
+		while (selected.length < preferences.numStops) {
 			const remaining = artworks.filter(a => !selected.includes(a));
 			if (remaining.length === 0) break;
 
