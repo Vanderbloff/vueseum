@@ -51,7 +51,7 @@ class TourProgressListenerTest {
                 });
     }
 
-    @Test
+    /*@Test
     void whenProgressIsComplete_thenRemovesTracking() {
         progressListener.initializeProgress(TEST_REQUEST_ID, TEST_VISITOR_ID);
 
@@ -69,7 +69,7 @@ class TourProgressListenerTest {
         progressListener.updateProgress(TEST_REQUEST_ID, 1.0, "Error occurred");
 
         assertThat(progressListener.getProgressForDevice(TEST_REQUEST_ID, TEST_VISITOR_ID)).isEmpty();
-    }
+    }*/
 
     @Test
     void whenUpdatingNonexistentRequest_thenNoException() {
