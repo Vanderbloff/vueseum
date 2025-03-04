@@ -17,10 +17,25 @@ public class SuggestionController {
     @GetMapping
     public ResponseEntity<List<SuggestionService.Suggestion>> getSuggestions(
             @RequestParam String prefix,
-            @RequestParam SuggestionService.SuggestionType type,
-            @RequestParam Long museumId,
+            @RequestParam String type,
+            @RequestParam String museumId,
             @ModelAttribute TourPreferences preferences) {
+
+        SuggestionService.SuggestionType suggestionType;
+        try {
+            suggestionType = SuggestionService.SuggestionType.valueOf(type);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        long museumIdLong;
+        try {
+            museumIdLong = Long.parseLong(museumId);
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest().build();
+        }
+
         TourPreferences prefs = preferences != null ? preferences : new TourPreferences();
-        return ResponseEntity.ok(suggestionService.getSuggestions(prefix, type, museumId, prefs));
+        return ResponseEntity.ok(suggestionService.getSuggestions(prefix, suggestionType, museumIdLong, prefs));
     }
 }
