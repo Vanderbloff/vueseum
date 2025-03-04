@@ -157,13 +157,13 @@
 <div class="space-y-6">
 	<!-- Search Bar Section -->
 	<div class="space-y-4">
-		<div class="flex gap-2">
+		<div class="flex flex-col sm:flex-row gap-2">
 			<Select
 				type="single"
 				value={filters.searchField}
 				onValueChange={handleSearchFieldChange}
 			>
-				<SelectTrigger class="w-36">
+				<SelectTrigger class="w-full sm:w-36">
 					{#if filters.searchField === 'all'}
 						All Fields
 					{:else if filters.searchField === 'title'}
