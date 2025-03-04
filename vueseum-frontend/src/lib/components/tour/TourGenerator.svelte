@@ -29,9 +29,9 @@
 	import { tourApi } from '$lib/api/tour';
 	import { goto } from '$app/navigation';
 	import { Checkbox } from '$lib/components/ui/checkbox';
-	import { Progress } from '$lib/components/ui/progress';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { AlertCircle } from 'lucide-svelte';
+	import TourGenerationSplash from '$lib/components/tour/TourGenerationSplash.svelte';
 
 	interface PreferenceInputComponent {
 		getSelections: () => string[];
@@ -109,7 +109,7 @@
 				preferredMediums: [],
 				preferredCultures: [],
 				preferredPeriods: [],
-				preferCloseGalleries: true
+				preferCloseGalleries: false
 			};
 
 			// Clear all PreferenceInput components
@@ -132,6 +132,8 @@
 		state.isGenerating = true;
 		state.error = null;
 		state.generationStage = 'selecting';
+
+		state.isOpen = false;
 
 		try {
 			// Get artist selections from the input component
@@ -386,63 +388,23 @@
 									</Alert>
 								{/if}
 
-								<!-- Progress Visualization -->
-								{#if state.isGenerating && state.generationStage}
-									<div class="mt-4 p-4 bg-background border rounded-md">
-										<div class="space-y-3">
-											<div class="flex justify-between mb-1 text-xs text-muted-foreground">
-            <span class={state.generationStage !== null ? 'font-medium text-primary' : ''}>
-              Selecting artworks
-            </span>
-												<span class={state.generationStage === 'describing' || state.generationStage === 'finalizing' ? 'font-medium text-primary' : ''}>
-              Creating descriptions
-            </span>
-												<span class={state.generationStage === 'finalizing' ? 'font-medium text-primary' : ''}>
-              Finalizing tour
-            </span>
-											</div>
-
-											<Progress value={state.generationStage === 'selecting' ? 25 :
-             state.generationStage === 'describing' ?
-             (state.descriptionProgress || 35) :
-             state.generationStage === 'finalizing' ? 90 :
-             state.generationStage === 'complete' ? 100 : 0}
-											/>
-
-											<p class="text-center text-sm text-muted-foreground">
-												{#if state.generationStage === 'selecting'}
-													Finding the perfect artworks based on your preferences...
-												{:else if state.generationStage === 'describing'}
-													{#if state.currentStopIndex !== undefined && state.totalStops !== undefined}
-														Creating description for stop {state.currentStopIndex + 1} of {state.totalStops}...
-													{:else}
-														Creating engaging descriptions for your tour stops...
-													{/if}
-												{:else if state.generationStage === 'finalizing'}
-													Putting the finishing touches on your personalized tour...
-												{/if}
-											</p>
+								<Button
+									class="w-full"
+									onclick={generateTour}
+									disabled={state.isGenerating}
+								>
+									{#if state.isGenerating}
+										<div class="flex items-center justify-center">
+											<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+												<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+												<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+											</svg>
+											Creating your personalized tour...
 										</div>
-									</div>
-								{:else}
-									<Button
-										class="w-full"
-										onclick={generateTour}
-										disabled={state.isGenerating}
-									>
-										{#if state.isGenerating}
-											<div class="flex items-center justify-center">
-												<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-													<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-													<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-												</svg>
-												Creating your personalized tour...
-											</div>
-										{:else}
-											Generate Tour
-										{/if}
-									</Button>
-								{/if}
+									{:else}
+										Generate Tour
+									{/if}
+								</Button>
 							</div>
 						</ScrollArea>
 					{/if}
@@ -480,3 +442,16 @@
 		{/if}
 	</div>
 </div>
+
+{#if state.isGenerating && state.generationStage}
+	<TourGenerationSplash
+		stage={state.generationStage}
+		progress={state.generationStage === 'selecting' ? 25 :
+                 state.generationStage === 'describing' ?
+                 (state.descriptionProgress || 35) :
+                 state.generationStage === 'finalizing' ? 90 :
+                 state.generationStage === 'complete' ? 100 : 0}
+		currentStop={state.currentStopIndex}
+		totalStops={state.totalStops}
+	/>
+{/if}
