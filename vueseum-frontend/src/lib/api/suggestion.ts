@@ -48,22 +48,42 @@ class SuggestionApiClient extends BaseApiClient {
 		}
 
 		if (preferences?.preferredArtworks?.length) {
-			params.append('preferredArtworks', preferences.preferredArtworks.join(','));
-		}
-		if (preferences?.preferredArtists?.length) {
-			params.append('preferredArtists', preferences.preferredArtists.join(','));
-		}
-		if (preferences?.preferredMediums?.length) {
-			params.append('preferredMediums', preferences.preferredMediums.join(','));
-		}
-		if (preferences?.preferredCultures?.length) {
-			params.append('preferredCultures', preferences.preferredCultures.join(','));
-		}
-		if (preferences?.preferredPeriods?.length) {
-			params.append('preferredPeriods', preferences.preferredPeriods.join(','));
+			preferences.preferredArtworks.forEach(artwork => {
+				params.append('preferredArtworks', artwork);
+			});
 		}
 
-		return this.fetchWithError(`?${params}`);
+		if (preferences?.preferredArtists?.length) {
+			preferences.preferredArtists.forEach(artist => {
+				params.append('preferredArtists', artist);
+			});
+		}
+
+		if (preferences?.preferredMediums?.length) {
+			preferences.preferredMediums.forEach(medium => {
+				params.append('preferredMediums', medium);
+			});
+		}
+
+		if (preferences?.preferredCultures?.length) {
+			preferences.preferredCultures.forEach(culture => {
+				params.append('preferredCultures', culture);
+			});
+		}
+
+		if (preferences?.preferredPeriods?.length) {
+			preferences.preferredPeriods.forEach(period => {
+				params.append('preferredPeriods', period);
+			});
+		}
+
+		try {
+			return this.fetchWithError(`?${params}`);
+		} catch (error) {
+			console.error('Error fetching suggestions:', error);
+			console.debug('Request parameters:', { prefix, type, museumId, preferences });
+			throw error;
+		}
 	}
 
 	private async getDevSuggestions(
