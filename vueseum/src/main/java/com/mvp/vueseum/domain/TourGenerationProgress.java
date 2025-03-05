@@ -30,18 +30,17 @@ public class TourGenerationProgress {
         this.stage = "selecting";
     }
 
-    public void update(double progress, String stage, Integer currentStopIndex, Integer totalStops) {
+    public void update(double progress, String stage) {
         if (progress < 0.0 || progress > 1.0) {
             throw new IllegalArgumentException("Progress must be between 0.0 and 1.0");
         }
         this.progress = progress;
         this.stage = stage;
-        this.currentStopIndex = currentStopIndex;
-        this.totalStops = totalStops;
     }
 
-    public void update(double progress, String stage) {
-        update(progress, stage, null, null);
+    public void updateStopInfo(Integer currentStopIndex, Integer totalStops) {
+        this.currentStopIndex = currentStopIndex;
+        this.totalStops = totalStops;
     }
 
     public void setError(String message) {
