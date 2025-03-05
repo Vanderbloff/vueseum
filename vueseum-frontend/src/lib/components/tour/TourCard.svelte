@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { MapPin, Edit, Trash2, CheckCircle, Loader2 } from 'lucide-svelte';
+	import { MapPin, Edit, Trash2, CheckCircle, Loader2, MoreVertical, Calendar } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import {
 		AlertDialog,
@@ -14,23 +14,8 @@
 	} from "$lib/components/ui/alert-dialog";
 	import { Button } from "$lib/components/ui/button";
 	import { Textarea } from "$lib/components/ui/textarea";
-
-	interface Tour {
-		id: number;
-		name: string;
-		description: string;
-		theme: 'CHRONOLOGICAL' | 'ARTIST FOCUSED' | 'CULTURAL';
-		museum: {
-			name: string;
-			location: string;
-		};
-		lastValidated?: Date;
-		unavailableArtworks?: Array<{
-			id: number;
-			title: string;
-			galleryNumber: string;
-		}>;
-	}
+	import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '$lib/components/ui/dropdown-menu';
+	import type { Tour } from '$lib/types/tour';
 
 	let {
 		tour,
@@ -89,6 +74,21 @@
 			.map(word => word.charAt(0) + word.slice(1).toLowerCase())
 			.join(' ');
 	}
+
+	function formatCreationDate(dateString?: string): string {
+		if (!dateString) return 'Unknown date';
+
+		const date = new Date(dateString);
+		const now = new Date();
+		const diffTime = Math.abs(now.getTime() - date.getTime());
+		const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+		if (diffDays < 1) return 'Today';
+		if (diffDays === 1) return 'Yesterday';
+		if (diffDays < 7) return `${diffDays} days ago`;
+
+		return date.toLocaleDateString();
+	}
 </script>
 
 <div class="relative group">
@@ -115,6 +115,12 @@
 			<div class="text-sm text-muted-foreground mt-1">
 				{tour.museum.name}
 			</div>
+			{#if tour.createdAt}
+				<div class="flex items-center gap-1">
+					<Calendar class="w-3 h-3" />
+					<span>Created {formatCreationDate(tour.createdAt)}</span>
+				</div>
+			{/if}
 		</div>
 	</Button>
 
@@ -154,124 +160,132 @@
 		{/if}
 	{/if}
 
-	<!-- Action buttons -->
-	<div class="absolute top-2 right-2 space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-		<Button
-			variant="secondary"
-			size="icon"
-			class="h-8 w-8"
-			disabled={isValidating}
-			onclick={() => onValidate?.(tour.id)}
-		>
-			{#if isValidating}
-				<Loader2 class="h-4 w-4" />
-			{:else}
-				<CheckCircle class="h-4 w-4" />
-			{/if}
-		</Button>
+	<!-- Action dropdown menu -->
+	<div class="absolute top-2 right-2">
+		<DropdownMenu>
+			<DropdownMenuTrigger>
+				<Button variant="ghost" size="icon" class="h-8 w-8">
+					<MoreVertical class="h-4 w-4" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end">
+				<DropdownMenuItem
+					disabled={isValidating}
+					onclick={() => onValidate?.(tour.id)}
+				>
+					<div class="flex items-center">
+						{#if isValidating}
+							<Loader2 class="h-4 w-4 mr-2 animate-spin" />
+						{:else}
+							<CheckCircle class="h-4 w-4 mr-2" />
+						{/if}
+						Validate Tour
+					</div>
+				</DropdownMenuItem>
 
-		<!-- Edit button -->
-		<AlertDialog bind:open={state.isDialogOpen}>
-			<AlertDialogTrigger disabled={isUpdating}>
-				<Button
-					variant="secondary"
-					size="icon"
-					class="h-8 w-8"
+				<DropdownMenuItem
+					disabled={isUpdating}
+					onclick={() => state.isDialogOpen = true}
+				>
+					<Edit class="h-4 w-4 mr-2" />
+					Edit Tour
+				</DropdownMenuItem>
+
+				<DropdownMenuItem
+					onclick={() => document.getElementById(`delete-dialog-${tour.id}`)?.click()}
+				>
+					<Trash2 class="h-4 w-4 mr-2" />
+					Delete Tour
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	</div>
+
+	<!-- Edit dialog -->
+	<AlertDialog bind:open={state.isDialogOpen}>
+		<AlertDialogContent>
+			<AlertDialogHeader>
+				<AlertDialogTitle>Edit Tour</AlertDialogTitle>
+				<AlertDialogDescription>
+					Update the tour details below.
+				</AlertDialogDescription>
+			</AlertDialogHeader>
+			<div class="space-y-4 py-4">
+				<div class="space-y-2">
+					<label for="name" class="text-sm font-medium">Name</label>
+					<input
+						type="text"
+						id="name"
+						bind:value={state.editName}
+						class="w-full p-2 border rounded-md {state.errors.name ? 'border-red-500' : ''}"
+					/>
+					{#if state.errors.name}
+						<p class="text-sm text-red-500">{state.errors.name}</p>
+					{/if}
+				</div>
+				<div class="space-y-2">
+					<label for="description" class="text-sm font-medium">Description</label>
+					<Textarea
+						id="description"
+						bind:value={state.editDescription}
+						class={state.errors.description ? 'border-red-500' : ''}
+						rows={3}
+					/>
+					{#if state.errors.description}
+						<p class="text-sm text-red-500">{state.errors.description}</p>
+					{/if}
+				</div>
+			</div>
+			<AlertDialogFooter>
+				<AlertDialogCancel onclick={() => {
+					state.editName = tour.name;
+					state.editDescription = tour.description;
+					state.errors.name = '';
+					state.errors.description = '';
+				}}>
+					Cancel
+				</AlertDialogCancel>
+				<AlertDialogAction
+					onclick={async () => {
+						if (!validateForm() || !onEdit) return;
+
+						try {
+							await onEdit(tour.id, {
+								name: state.editName,
+								description: state.editDescription
+							});
+							state.isDialogOpen = false;
+						// eslint-disable-next-line @typescript-eslint/no-unused-vars
+						} catch (error) {
+							// Error will be handled by parent component
+						}
+					}}
 					disabled={isUpdating}
 				>
-					<Edit class="h-4 w-4" />
-				</Button>
-			</AlertDialogTrigger>
-			<AlertDialogContent>
-				<AlertDialogHeader>
-					<AlertDialogTitle>Edit Tour</AlertDialogTitle>
-					<AlertDialogDescription>
-						Update the tour details below.
-					</AlertDialogDescription>
-				</AlertDialogHeader>
-				<div class="space-y-4 py-4">
-					<div class="space-y-2">
-						<label for="name" class="text-sm font-medium">Name</label>
-						<input
-							type="text"
-							id="name"
-							bind:value={state.editName}
-							class="w-full p-2 border rounded-md {state.errors.name ? 'border-red-500' : ''}"
-						/>
-						{#if state.errors.name}
-							<p class="text-sm text-red-500">{state.errors.name}</p>
-						{/if}
-					</div>
-					<div class="space-y-2">
-						<label for="description" class="text-sm font-medium">Description</label>
-						<Textarea
-							id="description"
-							bind:value={state.editDescription}
-							class={state.errors.description ? 'border-red-500' : ''}
-							rows={3}
-						/>
-						{#if state.errors.description}
-							<p class="text-sm text-red-500">{state.errors.description}</p>
-						{/if}
-					</div>
-				</div>
-				<AlertDialogFooter>
-					<AlertDialogCancel onclick={() => {
-							state.editName = tour.name;
-							state.editDescription = tour.description;
-							state.errors.name = '';
-							state.errors.description = '';
-					}}>
-						Cancel
-					</AlertDialogCancel>
-					<AlertDialogAction
-						onclick={async () => {
-							if (!validateForm() || !onEdit) return;
+					{isUpdating ? 'Saving...' : 'Save Changes'}
+				</AlertDialogAction>
+			</AlertDialogFooter>
+		</AlertDialogContent>
+	</AlertDialog>
 
-							try {
-									await onEdit(tour.id, {
-											name: state.editName,
-											description: state.editDescription
-									});
-									state.isDialogOpen = false;
-							// eslint-disable-next-line @typescript-eslint/no-unused-vars
-							} catch (error) {
-									// Error will be handled by parent component
-							}
-					}}
-						disabled={isUpdating}
-					>
-						{isUpdating ? 'Saving...' : 'Save Changes'}
-					</AlertDialogAction>
-				</AlertDialogFooter>
-			</AlertDialogContent>
-		</AlertDialog>
-
-		<!-- Delete button -->
-		<AlertDialog>
-			<AlertDialogTrigger>
-				<Button
-					variant="secondary"
-					size="icon"
-					class="h-8 w-8"
-				>
-					<Trash2 class="h-4 w-4" />
-				</Button>
-			</AlertDialogTrigger>
-			<AlertDialogContent>
-				<AlertDialogHeader>
-					<AlertDialogTitle>Delete Tour</AlertDialogTitle>
-					<AlertDialogDescription>
-						Are you sure you want to delete "{tour.name}"? This action cannot be undone.
-					</AlertDialogDescription>
-				</AlertDialogHeader>
-				<AlertDialogFooter>
-					<AlertDialogCancel>Cancel</AlertDialogCancel>
-					<AlertDialogAction onclick={handleDelete}>
-						Delete
-					</AlertDialogAction>
-				</AlertDialogFooter>
-			</AlertDialogContent>
-		</AlertDialog>
-	</div>
+	<!-- Delete dialog with hidden trigger -->
+	<AlertDialog>
+		<AlertDialogTrigger class="hidden" id={`delete-dialog-${tour.id}`}>
+			Delete
+		</AlertDialogTrigger>
+		<AlertDialogContent>
+			<AlertDialogHeader>
+				<AlertDialogTitle>Delete Tour</AlertDialogTitle>
+				<AlertDialogDescription>
+					Are you sure you want to delete "{tour.name}"? This action cannot be undone.
+				</AlertDialogDescription>
+			</AlertDialogHeader>
+			<AlertDialogFooter>
+				<AlertDialogCancel>Cancel</AlertDialogCancel>
+				<AlertDialogAction onclick={handleDelete}>
+					Delete
+				</AlertDialogAction>
+			</AlertDialogFooter>
+		</AlertDialogContent>
+	</AlertDialog>
 </div>
