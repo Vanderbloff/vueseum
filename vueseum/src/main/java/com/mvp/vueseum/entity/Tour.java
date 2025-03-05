@@ -143,4 +143,11 @@ public class Tour extends BaseEntity {
             }
         }
     }
+
+    /**
+     * Original method for backward compatibility with existing code and tests
+     */
+    public void generateDescriptionsForAllStops(DescriptionGenerationService descriptionGenerationService) {
+        generateDescriptionsForAllStops(descriptionGenerationService, null);
+    }
 }
