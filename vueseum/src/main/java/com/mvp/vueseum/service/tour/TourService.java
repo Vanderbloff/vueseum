@@ -55,7 +55,12 @@ public class TourService {
      * Generates a tour, identifying the visitor via device fingerprint.
      */
     public Tour generateTour(TourGenerationRequest request, HttpServletRequest httpRequest) {
-        String requestId = UUID.randomUUID().toString();
+        String requestId = request.getRequestId();
+
+        if (requestId == null) {
+            requestId = UUID.randomUUID().toString();
+        }
+
         String clientProvidedId = request.getVisitorId();
         log.debug("Tour generation requested with client-provided visitorId: {}", clientProvidedId);
 
