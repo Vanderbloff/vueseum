@@ -25,14 +25,9 @@ public class TourProgressListener {
     }
 
     public void updateProgress(String requestId, double progress, String stage) {
-        updateProgress(requestId, progress, stage, null, null);
-    }
-
-    public void updateProgress(String requestId, double progress, String stage,
-                               Integer currentStopIndex, Integer totalStops) {
         TourGenerationProgress tracking = activeGenerations.get(requestId);
         if (tracking != null) {
-            tracking.update(progress, stage, currentStopIndex, totalStops);
+            tracking.update(progress, stage);
 
             // Only schedule removal if complete
             if ("complete".equals(stage) || tracking.isHasError()) {
@@ -40,6 +35,13 @@ public class TourProgressListener {
                 CompletableFuture.delayedExecutor(30, TimeUnit.SECONDS)
                         .execute(() -> activeGenerations.remove(requestId));
             }
+        }
+    }
+
+    public void updateStopInfo(String requestId, Integer currentStopIndex, Integer totalStops) {
+        TourGenerationProgress tracking = activeGenerations.get(requestId);
+        if (tracking != null) {
+            tracking.updateStopInfo(currentStopIndex, totalStops);
         }
     }
 

@@ -471,7 +471,7 @@ public class TourService {
      * Creates a tour entity from the selected artworks and description
      */
     private Tour createTour(List<Artwork> artworks, String description, TourPreferences prefs, String requestId, String visitorId) {
-        progressListener.updateProgress(requestId, 0.9, "Creating tour...");
+        progressListener.updateProgress(requestId, 0.9, "finalizing");
         Tour tour = new Tour();
         tour.setDeviceFingerprint(visitorId);
         tour.setTheme(prefs.getTheme());
@@ -507,26 +507,28 @@ public class TourService {
         tour.setName(title);
         tour.setDescription(description);
 
-        // Add stops in sequence
-        for (int i = 0; i < artworks.size(); i++) {
-            Artwork artwork = artworks.get(i);
+        // Set stop information once for the entire describing phase
+        progressListener.updateProgress(requestId, 0.6, "describing");
+        progressListener.updateStopInfo(requestId, 0, artworks.size());
 
-            // Update progress with the current stop information
+        // Add stops in sequence with progress updates for each stop
+        for (int i = 0; i < artworks.size(); i++) {
+            // Update progress only - stop info is already set
             progressListener.updateProgress(
                     requestId,
                     0.6 + (0.3 * i / artworks.size()),
-                    "describing",
-                    i,
-                    artworks.size()
+                    "describing"
             );
 
-            tour.addStop(artwork, i + 1);
+            // Update current stop index for each artwork
+            progressListener.updateStopInfo(requestId, i, artworks.size());
+            tour.addStop(artworks.get(i), i + 1);
         }
 
         tour.generateDescriptionsForAllStops(descriptionService);
 
         Tour savedTour = tourRepository.save(tour);
-        progressListener.updateProgress(requestId, 1.0, "Personalized tour completed!");
+        progressListener.updateProgress(requestId, 1.0, "complete");
         return savedTour;
     }
 
