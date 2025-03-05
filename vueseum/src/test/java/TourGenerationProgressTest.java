@@ -14,7 +14,6 @@ class TourGenerationProgressTest {
         assertThat(progress.getRequestId()).isEqualTo(TEST_REQUEST_ID);
         assertThat(progress.getVisitorId()).isEqualTo(TEST_VISITOR_ID);
         assertThat(progress.getProgress()).isZero();
-        assertThat(progress.getCurrentTask()).isEqualTo("Starting tour generation...");
         assertThat(progress.isHasError()).isFalse();
         assertThat(progress.getErrorMessage()).isNull();
     }

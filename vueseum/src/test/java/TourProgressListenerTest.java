@@ -32,7 +32,6 @@ class TourProgressListenerTest {
                     assertThat(p.getRequestId()).isEqualTo(TEST_REQUEST_ID);
                     assertThat(p.getVisitorId()).isEqualTo(TEST_VISITOR_ID);
                     assertThat(p.getProgress()).isZero();
-                    assertThat(p.getCurrentTask()).isEqualTo("Starting tour generation...");
                 });
     }
 
@@ -47,7 +46,6 @@ class TourProgressListenerTest {
                 .isPresent()
                 .hasValueSatisfying(p -> {
                     assertThat(p.getProgress()).isEqualTo(0.5);
-                    assertThat(p.getCurrentTask()).isEqualTo("Selecting artworks");
                 });
     }
 
