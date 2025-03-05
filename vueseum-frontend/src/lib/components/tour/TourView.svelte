@@ -3,9 +3,7 @@
 	import {
 		Carousel,
 		CarouselContent,
-		CarouselItem,
-		CarouselNext,
-		CarouselPrevious
+		CarouselItem
 	} from "$lib/components/ui/carousel";
 	import { Progress } from "$lib/components/ui/progress";
 	import { Card, CardContent } from "$lib/components/ui/card";
@@ -29,11 +27,19 @@
 		state.api = newApi;
 	}
 
+	function scrollToTop() {
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
+
 	$effect(() => {
 		if (state.api) {
 			state.api.on('select', () => {
 				if (state.api) {
-					state.currentStop = state.api.selectedScrollSnap();
+					const newStop = state.api.selectedScrollSnap();
+					if (newStop !== state.currentStop) {
+						scrollToTop();
+					}
+					state.currentStop = newStop;
 				}
 			});
 		}
@@ -170,7 +176,10 @@
 		<button
 			class="p-2 rounded-full bg-background/80 backdrop-blur-sm shadow-sm disabled:opacity-50"
 			disabled={state.currentStop === 0}
-			onclick={() => state.api?.scrollPrev()}
+			onclick={() => {
+      state.api?.scrollPrev();
+      scrollToTop();
+    }}
 			aria-label="Previous slide"
 		>
 			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -179,7 +188,10 @@
 		<button
 			class="p-2 rounded-full bg-background/80 backdrop-blur-sm shadow-sm disabled:opacity-50"
 			disabled={state.currentStop === tour.stops.length - 1}
-			onclick={() => state.api?.scrollNext()}
+			onclick={() => {
+      state.api?.scrollNext();
+      scrollToTop();
+    }}
 			aria-label="Next slide"
 		>
 			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
