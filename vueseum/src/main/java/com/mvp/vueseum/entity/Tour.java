@@ -14,6 +14,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.BiConsumer;
 
 @Entity
 @Getter
@@ -98,26 +99,47 @@ public class Tour extends BaseEntity {
         return new ArrayList<>(stops);
     }
 
-    public void generateDescriptionsForAllStops(DescriptionGenerationService descriptionGenerationService) {
+    /**
+     * Generates descriptions for all stops in the tour.
+     *
+     * @param descriptionGenerationService The service used to generate descriptions
+     * @param progressCallback             Optional callback to report progress (current index, total stops)
+     */
+    public void generateDescriptionsForAllStops(
+            DescriptionGenerationService descriptionGenerationService,
+            BiConsumer<Integer, Integer> progressCallback
+    ) {
+        int index = 0;
         for (TourStop stop : stops) {
             try {
                 stop.setTourContextDescription(
                         descriptionGenerationService.generateStopDescription(stop)
                 );
+
                 if (stop.getStandardDescription() == null || stop.getStandardDescription().isBlank()) {
                     Artwork artwork = stop.getArtwork();
 
                     if (artwork.getDescription() != null && !artwork.getDescription().isBlank()) {
                         stop.setStandardDescription(artwork.getDescription());
                     } else {
-                        stop.setStandardDescription(descriptionGenerationService.generateArtworkDescription(artwork)
-                        );
+                        stop.setStandardDescription(descriptionGenerationService.generateArtworkDescription(artwork));
                     }
                 }
-            }
-            catch (AiProviderException e) {
+
+                // Report progress after each stop is processed
+                if (progressCallback != null) {
+                    progressCallback.accept(index, stops.size());
+                }
+                index++;
+            } catch (AiProviderException e) {
                 log.error("Failed to generate descriptions for stop {}", stop.getSequenceNumber(), e);
                 stop.setTourContextDescription("Description temporarily unavailable");
+
+                // Still report progress even on error
+                if (progressCallback != null) {
+                    progressCallback.accept(index, stops.size());
+                }
+                index++;
             }
         }
     }
