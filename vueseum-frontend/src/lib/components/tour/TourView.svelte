@@ -165,12 +165,14 @@
 			{/each}
 		</CarouselContent>
 
-		<div class="absolute inset-y-0 left-0 right-0 flex items-center justify-between z-10 px-4">
-			<div class="pointer-events-auto text-foreground">
-				<CarouselPrevious class="h-8 w-8 sm:h-10 sm:w-10 bg-background/80 backdrop-blur-sm shadow-sm" />
-			</div>
-			<div class="pointer-events-auto text-foreground">
-				<CarouselNext class="h-8 w-8 sm:h-10 sm:w-10 bg-background/80 backdrop-blur-sm shadow-sm" />
+		<div class="absolute top-0 bottom-0 left-0 right-0 z-10 pointer-events-none">
+			<div class="flex items-center justify-between w-full h-full px-4 sm:px-8">
+				<div class="pointer-events-auto">
+					<CarouselPrevious class="h-8 w-8 sm:h-10 sm:w-10 bg-background/80 backdrop-blur-sm shadow-sm" />
+				</div>
+				<div class="pointer-events-auto">
+					<CarouselNext class="h-8 w-8 sm:h-10 sm:w-10 bg-background/80 backdrop-blur-sm shadow-sm" />
+				</div>
 			</div>
 		</div>
 	</Carousel>
