@@ -4,6 +4,7 @@ import com.mvp.vueseum.entity.Tour;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -17,6 +18,7 @@ public class TourDTO {
     private List<TourStopDTO> stops;
     private MuseumDTO museum;
     private Tour.TourTheme theme;
+    private LocalDateTime createdAt;
 
     public static TourDTO fromEntity(Tour tour) {
         TourDTO dto = new TourDTO();
@@ -29,6 +31,7 @@ public class TourDTO {
         dto.stops = tour.getStops().stream()
                 .map(TourStopDTO::fromEntity)
                 .collect(Collectors.toList());
+        dto.createdAt = tour.getCreatedAt();
         return dto;
     }
 }
