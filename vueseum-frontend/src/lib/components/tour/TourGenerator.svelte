@@ -91,7 +91,7 @@
 		isGenerating: false,
 		generationStage: null as null | 'selecting' | 'describing' | 'finalizing' | 'complete',
 		descriptionProgress: 35,
-		currentStopIndex: undefined as number | undefined,
+		currentStop: undefined as number | undefined,
 		totalStops: undefined as number | undefined
 	});
 
@@ -151,8 +151,8 @@
 						state.generationStage = data.stage;
 						state.descriptionProgress = data.progress;
 
-						if (data.stage === 'describing' && data.currentStopIndex !== undefined) {
-							state.currentStopIndex = data.currentStopIndex;
+						if (data.stage === 'describing' && data.currentStop !== undefined) {
+							state.currentStop = data.currentStop;
 							state.totalStops = data.totalStops;
 						}
 
@@ -459,7 +459,7 @@
                  (state.descriptionProgress || 35) :
                  state.generationStage === 'finalizing' ? 90 :
                  state.generationStage === 'complete' ? 100 : 0}
-		currentStop={state.currentStopIndex}
+		currentStop={state.currentStop}
 		totalStops={state.totalStops}
 	/>
 {/if}

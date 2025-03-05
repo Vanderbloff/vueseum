@@ -35,6 +35,6 @@ export interface TourInputState {
 	isGenerating: boolean;
 	generationStage: 'selecting' | 'describing' | 'finalizing' | 'complete' | null;
 	descriptionProgress: number,
-	currentStopIndex: number | undefined,
+	currentStop: number | undefined,
 	totalStops: number | undefined
 }
