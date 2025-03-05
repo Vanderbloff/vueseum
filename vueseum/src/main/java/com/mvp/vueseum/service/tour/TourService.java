@@ -32,8 +32,6 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -83,14 +81,17 @@ public class TourService {
         validateRequest(request);
         handleVisitorTracking(visitorId);
 
-        progressListener.updateProgress(requestId, 0.2, "Selecting artworks...");
+        progressListener.updateProgress(requestId, 0.2, "selecting");
+
         List<Artwork> selectedArtworks = selectArtworks(
                 request.getPreferences(),
                 visitorId
         );
 
-        progressListener.updateProgress(requestId, 0.6, "Filling in descriptions...");
+        progressListener.updateProgress(requestId, 0.6, "describing");
+
         String description = getOrGenerateDescription(request, selectedArtworks);
+
         return createTour(selectedArtworks, description, request.getPreferences(), requestId, visitorId);
     }
 
@@ -503,7 +504,18 @@ public class TourService {
 
         // Add stops in sequence
         for (int i = 0; i < artworks.size(); i++) {
-            tour.addStop(artworks.get(i), i + 1);
+            Artwork artwork = artworks.get(i);
+
+            // Update progress with the current stop information
+            progressListener.updateProgress(
+                    requestId,
+                    0.6 + (0.3 * i / artworks.size()),
+                    "describing",
+                    i,
+                    artworks.size()
+            );
+
+            tour.addStop(artwork, i + 1);
         }
 
         tour.generateDescriptionsForAllStops(descriptionService);
@@ -598,54 +610,26 @@ public class TourService {
 
     /**
      * Maps internal progress data to a frontend-friendly response.
-     * This encapsulates the business logic of what each progress threshold means.
      */
     private Map<String, Object> mapProgressToResponse(TourGenerationProgress progress) {
         Map<String, Object> response = new HashMap<>();
 
+        // Convert progress to percentage
         double progressPercentage = progress.getProgress() * 100;
         response.put("progress", progressPercentage);
-        response.put("currentTask", progress.getCurrentTask());
+        response.put("stage", progress.getStage());
 
-        String stage = deriveStageFromProgress(progress.getProgress());
-        response.put("stage", stage);
+        // Add stop information if available - use "currentStop" to match frontend expectations
+        if (progress.getCurrentStopIndex() != null && progress.getTotalStops() != null) {
+            response.put("currentStop", progress.getCurrentStopIndex());
+            response.put("totalStops", progress.getTotalStops());
+        }
 
-        if (progress.getCurrentTask().contains("stop")) {
-            try {
-                // Try to extract current stop information from the task description
-                String task = progress.getCurrentTask();
-                Pattern pattern = Pattern.compile("stop (\\d+) of (\\d+)");
-                Matcher matcher = pattern.matcher(task);
-
-                if (matcher.find()) {
-                    int currentStop = Integer.parseInt(matcher.group(1)) - 1; // 0-based index
-                    int totalStops = Integer.parseInt(matcher.group(2));
-
-                    response.put("currentStopIndex", currentStop);
-                    response.put("totalStops", totalStops);
-                }
-            } catch (Exception e) {
-                log.warn("Failed to parse stop information from task: {}", progress.getCurrentTask());
-            }
+        if (progress.isHasError()) {
+            response.put("error", progress.getErrorMessage());
         }
 
         return response;
-    }
-
-    /**
-     * Derives the generation stage based on the progress value.
-     * This contains business logic about the tour generation workflow.
-     */
-    private String deriveStageFromProgress(double progress) {
-        if (progress < 0.2) {
-            return "selecting";
-        } else if (progress < 0.9) {
-            return "describing";
-        } else if (progress < 1.0) {
-            return "finalizing";
-        } else {
-            return "complete";
-        }
     }
 
     /**
