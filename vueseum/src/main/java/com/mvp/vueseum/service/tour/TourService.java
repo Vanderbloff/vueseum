@@ -339,6 +339,7 @@ public class TourService {
      */
     private List<Artwork> optimizeGalleryDistribution(List<Artwork> candidates, TourPreferences prefs) {
         List<Artwork> optimizedSelection = new ArrayList<>();
+        Set<Long> selectedIds = new HashSet<>();
         Map<String, Integer> galleryCount = new HashMap<>();
 
         int maxPerGallery = Math.max(2, (int)Math.ceil(prefs.getMaxStops() * 0.6));
@@ -365,11 +366,16 @@ public class TourService {
 
         // First pass: Select artworks while respecting gallery limits
         for (Artwork artwork : validCandidates) {
+            if (selectedIds.contains(artwork.getId())) {
+                continue;
+            }
+
             String gallery = artwork.getGalleryNumber();
             int currentCount = galleryCount.getOrDefault(gallery, 0);
 
             if (currentCount < maxPerGallery) {
                 optimizedSelection.add(artwork);
+                selectedIds.add(artwork.getId());
                 galleryCount.put(gallery, currentCount + 1);
 
                 if (optimizedSelection.size() >= prefs.getMaxStops()) {
@@ -381,12 +387,15 @@ public class TourService {
         // If we still don't have enough artworks, try again with the remaining candidates
         if (optimizedSelection.size() < prefs.getMaxStops()) {
             for (Artwork artwork : validCandidates) {
-                if (!optimizedSelection.contains(artwork)) {
-                    optimizedSelection.add(artwork);
+                if (selectedIds.contains(artwork.getId())) {
+                    continue;
+                }
 
-                    if (optimizedSelection.size() >= prefs.getMaxStops()) {
-                        break;
-                    }
+                optimizedSelection.add(artwork);
+                selectedIds.add(artwork.getId());
+
+                if (optimizedSelection.size() >= prefs.getMaxStops()) {
+                    break;
                 }
             }
         }
@@ -395,11 +404,12 @@ public class TourService {
         if (optimizedSelection.size() < prefs.getMaxStops()) {
             List<Artwork> noGalleryArtworks = candidates.stream()
                     .filter(a -> a.getGalleryNumber() == null || a.getGalleryNumber().isEmpty())
-                    .filter(a -> !optimizedSelection.contains(a))
+                    .filter(a -> !selectedIds.contains(a.getId()))
                     .toList();
 
             for (Artwork artwork : noGalleryArtworks) {
                 optimizedSelection.add(artwork);
+                selectedIds.add(artwork.getId()); // Track the ID
 
                 if (optimizedSelection.size() >= prefs.getMaxStops()) {
                     break;
