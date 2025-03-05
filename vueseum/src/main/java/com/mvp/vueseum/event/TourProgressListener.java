@@ -24,15 +24,20 @@ public class TourProgressListener {
         activeGenerations.put(requestId, new TourGenerationProgress(requestId, visitorId));
     }
 
-    public void updateProgress(String requestId, double progress, String currentTask) {
+    public void updateProgress(String requestId, double progress, String stage) {
+        updateProgress(requestId, progress, stage, null, null);
+    }
+
+    public void updateProgress(String requestId, double progress, String stage,
+                               Integer currentStopIndex, Integer totalStops) {
         TourGenerationProgress tracking = activeGenerations.get(requestId);
         if (tracking != null) {
-            tracking.update(progress, currentTask);
+            tracking.update(progress, stage, currentStopIndex, totalStops);
 
-            if (progress >= 1.0 &&
-                    (currentTask.contains("completed") || tracking.isHasError())) {
-                // Keep progress data available for at least 5 seconds
-                CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS)
+            // Only schedule removal if complete
+            if ("complete".equals(stage) || tracking.isHasError()) {
+                // Keep progress data available for 30 seconds
+                CompletableFuture.delayedExecutor(30, TimeUnit.SECONDS)
                         .execute(() -> activeGenerations.remove(requestId));
             }
         }
