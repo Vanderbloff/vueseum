@@ -57,13 +57,13 @@
 	<!-- Single-item carousel -->
 	<Carousel
 		opts={{
-    align: "center",
-    loop: false,
-    watchDrag: false,
-    dragFree: false,
-    containScroll: "trimSnaps",
-  }}
-		class="w-full"
+      align: "center",
+      loop: false,
+      watchDrag: false,
+      dragFree: false,
+      containScroll: "trimSnaps",
+    }}
+		class="w-full relative"
 		setApi={handleApiChange}
 	>
 		<CarouselContent>
@@ -165,13 +165,11 @@
 			{/each}
 		</CarouselContent>
 
-		<div class="absolute inset-0 flex items-center justify-between z-10 pointer-events-none">
-			<div class="pointer-events-auto text-foreground ml-1">
-				<CarouselPrevious class="h-8 w-8 sm:h-10 sm:w-10 bg-background/80 backdrop-blur-sm shadow-sm" />
-			</div>
-			<div class="pointer-events-auto text-foreground mr-1">
-				<CarouselNext class="h-8 w-8 sm:h-10 sm:w-10 bg-background/80 backdrop-blur-sm shadow-sm" />
-			</div>
+		<div class="absolute left-1 top-1/2 -translate-y-1/2 z-20">
+			<CarouselPrevious class="h-8 w-8 sm:h-10 sm:w-10 bg-background/80 backdrop-blur-sm shadow-sm" />
+		</div>
+		<div class="absolute right-1 top-1/2 -translate-y-1/2 z-20">
+			<CarouselNext class="h-8 w-8 sm:h-10 sm:w-10 bg-background/80 backdrop-blur-sm shadow-sm" />
 		</div>
 	</Carousel>
 </div>
