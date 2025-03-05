@@ -15,6 +15,7 @@
 
 	import DisclaimerAlert from '$lib/components/shared/DisclaimerAlert.svelte';
 	import { browser } from '$app/environment';
+	import TourIntroAlert from '$lib/components/shared/TourIntroAlert.svelte';
 
 	let { children } = $props();
 	const state = $state({
@@ -45,6 +46,7 @@
 
 <ThemeProvider>
 	<DisclaimerAlert />
+	<TourIntroAlert />
 	<div class="min-h-screen bg-background">
 		<header class="w-full border-b bg-background/50 backdrop-blur-sm fixed top-0 z-10">
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
