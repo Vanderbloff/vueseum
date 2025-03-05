@@ -10,5 +10,6 @@ import lombok.*;
 @Builder
 public class TourGenerationRequest {
     private String visitorId;
+    private String requestId;
     private TourPreferences preferences;
 }
