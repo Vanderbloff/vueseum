@@ -164,12 +164,25 @@
 				</CarouselItem>
 			{/each}
 		</CarouselContent>
-
-		<div class="absolute left-1 top-1/2 -translate-y-1/2 z-20">
-			<CarouselPrevious class="h-8 w-8 sm:h-10 sm:w-10 bg-background/80 backdrop-blur-sm shadow-sm" />
-		</div>
-		<div class="absolute right-1 top-1/2 -translate-y-1/2 z-20">
-			<CarouselNext class="h-8 w-8 sm:h-10 sm:w-10 bg-background/80 backdrop-blur-sm shadow-sm" />
-		</div>
 	</Carousel>
+
+	<div class="flex justify-center gap-4 mt-4">
+		<button
+			class="p-2 rounded-full bg-background/80 backdrop-blur-sm shadow-sm disabled:opacity-50"
+			disabled={state.currentStop === 0}
+			onclick={() => state.api?.scrollPrev()}
+			aria-label="Previous slide"
+		>
+			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+		</button>
+
+		<button
+			class="p-2 rounded-full bg-background/80 backdrop-blur-sm shadow-sm disabled:opacity-50"
+			disabled={state.currentStop === tour.stops.length - 1}
+			onclick={() => state.api?.scrollNext()}
+			aria-label="Next slide"
+		>
+			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+		</button>
+	</div>
 </div>
