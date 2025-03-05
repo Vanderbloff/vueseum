@@ -35,6 +35,7 @@ export interface Tour {
 	};
 	lastValidated?: string;
 	unavailableArtworks?: UnavailableArtworkInfo[];
+	createdAt?: string;
 }
 
 export interface TourValidationResult {
