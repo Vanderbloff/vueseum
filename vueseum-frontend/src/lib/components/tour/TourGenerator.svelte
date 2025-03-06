@@ -154,40 +154,24 @@
 	}
 
 	function handleDialogOpen() {
-		// First synchronize counts
 		synchronizeTourCounts().then(() => {
-			console.log('Current tour counts:', {
-				totalToursGenerated: state.totalToursGenerated,
-				generatedToursToday: state.generatedToursToday
-			});
-
-			// If they can't generate a tour, show error and return
-			if (state.totalToursGenerated >= 10) {
-				toast.error("You've reached the maximum of 10 saved tours.");
-				return;
-			} else if (state.generatedToursToday >= 3) {
-				toast.error("You've reached your daily tour generation limit. Please try again tomorrow.");
+			if (!canGenerateTour) {
+				// User hit a limit but tried to open dialog anyway
+				if (remainingDailyTours <= 0) {
+					toast.error("You've reached your daily tour generation limit. Please try again tomorrow.");
+				} else {
+					toast.error("You've reached the maximum of 10 saved tours.");
+				}
 				return;
 			}
 
-			// Display warning toasts BEFORE opening the dialog
-			if (state.totalToursGenerated === 9) {
-				toast.warning("This is your last tour! You can only save up to 10 tours total.");
-
-				setTimeout(() => {
-					state.isOpen = true;
-				}, 300);
-			}
-			else if (state.generatedToursToday === 2) {
+			if (remainingDailyTours === 1 && remainingTotalTours > 1) {
 				toast.warning("This is your last tour for today! You can generate more tomorrow.");
+			} else if (remainingTotalTours === 1) {
+				toast.warning("This is your last tour! You can only save up to 10 tours total.");
+			}
 
-				setTimeout(() => {
-					state.isOpen = true;
-				}, 300);
-			}
-			else {
-				state.isOpen = true;
-			}
+			state.isOpen = true;
 		});
 	}
 
