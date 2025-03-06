@@ -144,6 +144,9 @@
 			onblur={handleBlur}
 			onfocus={handleFocus}
 		/>
+		<small class="text-xs text-muted-foreground mt-1 block">
+			Only showing options with available artwork images
+		</small>
 
 		{#if state.isLoading}
 			<div class="absolute right-2 top-2">

@@ -98,15 +98,20 @@
 											</DialogHeader>
 											<div class="space-y-4 py-4 max-h-[70vh] overflow-y-auto">
 												<p class="text-muted-foreground">
-													<span class="font-medium text-foreground">Searching for Artworks:</span> Use the search bar to explore artworks by title, artist, or medium. Refine your results using filters for time periods, cultures, and departments. Each artwork card shows key information, and clicking on it reveals more details. <em><strong>Note: If you're typing or removing text within the search bar, you need to click on the search icon to refresh the results.</strong></em>
+													<span class="font-medium text-foreground">Searching for Artworks:</span> Use the search bar to explore artworks by title, artist, or medium. Refine your results using filters for time periods, cultures, and departments. Each artwork card shows key information, and clicking on it reveals more details. The "Has image" filter is enabled by default to ensure results include visual content. Some artists or works may not appear in results if they don't have associated images in our database, even if they exist in the museum's collection. <em><strong>Note: If you're typing or removing text within the search bar, you need to click on the search icon to refresh the results.</strong></em>
 												</p>
 
 												<p class="text-muted-foreground">
-													<span class="font-medium text-foreground">Generating Tours:</span> Click the "Generate Tour" button to start creating your personalized tour. You can customize your experience by specifying your preferences such as the number of artworks you'd like to see, specific artists or artworks you're interested in, art mediums like paintings or sculptures, and any particular cultural or geographical focus.
+													<span class="font-medium text-foreground">Generating Tours:</span> Click the "Generate Tour" button to start creating your personalized tour. You can customize your experience by specifying preferences such as the number of artworks, specific artists, mediums, cultures, or time periods. All tours include only artworks with available images, and you can create up to 3 tours per day with a maximum of 10 saved tours.
+												</p>
+
+												<p class="text-muted-foreground mt-4">
+													<span class="font-medium text-foreground">About Artwork Suggestions and Images:</span>
+													Tours and search results only include artworks with available images. This means some well-known artists or works (like certain pieces by Sargent, Whistler, or Cassatt) may not appear in suggestions or search results if image data is unavailable in our database - even if these works are on display or visible on the museum's website. This limitation is due to variations in the museum's API data rather than actual artwork availability.
 												</p>
 
 												<p class="text-muted-foreground">
-													<span class="font-medium text-foreground">Using Your Tour:</span> Once generated, your tour will show a curated list of artworks with their locations in the museum. Each stop includes artwork details and historical context, as well as gallery locations to help guide your visit.
+													<span class="font-medium text-foreground">Using Your Tour:</span> Once generated, your tour shows a curated list of artworks with their locations in the museum. Each stop includes details about the artwork, historical context, and gallery location information. Tours can be organized either by narrative flow or optimized for convenient walking routes through the museum galleries.
 												</p>
 
 												<p class="text-muted-foreground">

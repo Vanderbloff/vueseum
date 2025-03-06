@@ -76,6 +76,7 @@
 					<div class="mt-3 p-3 bg-muted rounded-md text-sm text-muted-foreground">
 						<p class="font-medium mb-1">Tips for Best Results:</p>
 						<p>Be specific with your preferences to get the most relevant tours. The more focused your interests, the more personalized your experience will be.</p>
+						<p class="mt-2">All tours include only artworks with available images. As you type, some artists or mediums might not appear in suggestions if they don't have works with available images in our database.</p>
 						<p class="mt-2">You can create up to 3 tours per day and save up to 10 tours total.</p>
 					</div>
 				</AlertDialogDescription>
