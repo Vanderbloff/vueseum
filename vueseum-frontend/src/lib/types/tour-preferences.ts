@@ -31,10 +31,11 @@ export interface TourInputState {
 	tourPreferences: TourPreferences;
 	showAdditionalOptions: boolean;
 	generatedToursToday: number;
+	totalToursGenerated: number;
 	error: { type: 'DAILY_LIMIT' | 'TOTAL_LIMIT' | null; message: string; } | null;
 	isGenerating: boolean;
 	generationStage: 'selecting' | 'describing' | 'finalizing' | 'complete' | null;
-	descriptionProgress: number,
-	currentStop: number | undefined,
-	totalStops: number | undefined
+	descriptionProgress: number;
+	currentStop?: number;
+	totalStops?: number;
 }
