@@ -123,10 +123,13 @@ public class TourService {
         // Get recently used artworks for diversity
         Set<Long> recentlyUsedArtworks = getRecentlyUsedArtworks(visitorId);
 
-        // Handle required artworks first
+        // Handle specific required artworks first (highest priority)
         handleRequiredArtworks(candidates, selectedArtworks, prefs);
 
-        // Select preference-based artworks
+        // Add works by preferred artists (second priority)
+        handlePreferredArtists(candidates, selectedArtworks, prefs);
+
+        // Select other preference-based artworks (medium/culture/period)
         selectPreferenceBasedArtworks(
                 candidates,
                 selectedArtworks,
@@ -135,7 +138,7 @@ public class TourService {
                 random
         );
 
-        // Fill remaining slots if needed
+        // Fill remaining slots with general selections
         fillRemainingSlots(
                 candidates,
                 selectedArtworks,
@@ -175,15 +178,72 @@ public class TourService {
             List<Artwork> selectedArtworks,
             TourPreferences prefs) {
 
-        candidates.stream()
-                .filter(a -> prefs.getRequiredArtworkIds().contains(a.getId()))
-                .forEach(selectedArtworks::add);
+        if (prefs.getRequiredArtworkIds().isEmpty()) {
+            return;
+        }
 
-        // Remove selected artworks from candidates
+        log.info("Processing specific required artworks: {}", prefs.getRequiredArtworkIds());
+
+        List<Artwork> requiredArtworks = candidates.stream()
+                .filter(a -> prefs.getRequiredArtworkIds().contains(a.getId()))
+                .toList();
+
+        if (requiredArtworks.size() < prefs.getRequiredArtworkIds().size()) {
+            Set<Long> foundIds = requiredArtworks.stream()
+                    .map(Artwork::getId)
+                    .collect(Collectors.toSet());
+            Set<Long> missingIds = new HashSet<>(prefs.getRequiredArtworkIds());
+            missingIds.removeAll(foundIds);
+            log.warn("Could not find these required artwork IDs: {}", missingIds);
+        }
+
+        selectedArtworks.addAll(requiredArtworks);
         candidates.removeAll(selectedArtworks);
 
         // Add initial shuffle for diversity
         Collections.shuffle(candidates);
+    }
+
+    /**
+     * Adds artworks from preferred artists to the selection with high priority.
+     */
+    private void handlePreferredArtists(
+            List<Artwork> candidates,
+            List<Artwork> selectedArtworks,
+            TourPreferences prefs) {
+
+        if (prefs.getPreferredArtists().isEmpty()) {
+            return;
+        }
+
+        log.info("Processing preferred artists: {}", prefs.getPreferredArtists());
+        for (String artistName : prefs.getPreferredArtists()) {
+            if (selectedArtworks.size() >= prefs.getMaxStops()) {
+                log.info("Tour is full, cannot add more artworks by preferred artists");
+                break;
+            }
+
+            List<Artwork> artistWorks = candidates.stream()
+                    .filter(a -> a.hasKnownArtist() &&
+                            artistName.equals(a.getArtistName()))
+                    .toList();
+
+            if (artistWorks.isEmpty()) {
+                log.warn("No artworks found for preferred artist: {}", artistName);
+                continue;
+            }
+
+            Artwork selected = artistWorks.stream()
+                    .filter(a -> a.getImageUrl() != null && !a.getImageUrl().isEmpty())
+                    .findFirst()
+                    .orElse(artistWorks.getFirst());
+
+            log.info("Selected artwork '{}' by preferred artist '{}'",
+                    selected.getTitle(), artistName);
+
+            selectedArtworks.add(selected);
+            candidates.remove(selected);
+        }
     }
 
     /**
@@ -196,8 +256,15 @@ public class TourService {
             Set<Long> recentlyUsedArtworks,
             Random random) {
 
-        // Extract preference-based candidates
+        if (selectedArtworks.size() >= prefs.getMaxStops()) {
+            log.info("Tour already at maximum capacity, skipping preference-based selection");
+            return;
+        }
+
+        // Extract preference-based candidates (medium/culture/period)
         List<Artwork> preferredCandidates = extractPreferredArtworks(candidates, prefs);
+        log.info("Found {} artworks matching medium/culture/period preferences",
+                preferredCandidates.size());
 
         // If we have preferred candidates, prioritize them
         while (selectedArtworks.size() < prefs.getMaxStops() && !preferredCandidates.isEmpty()) {
@@ -216,18 +283,11 @@ public class TourService {
     }
 
     /**
-     * Extracts artworks that match user preferences.
+     * Extracts artworks that match user preferences for medium, culture, and period.
+     * Artist preferences are handled separately with higher priority.
      */
     private List<Artwork> extractPreferredArtworks(List<Artwork> candidates, TourPreferences prefs) {
         List<Artwork> preferredCandidates = new ArrayList<>();
-
-        // Filter by preferred artists
-        if (!prefs.getPreferredArtists().isEmpty()) {
-            preferredCandidates.addAll(candidates.stream()
-                    .filter(a -> a.hasKnownArtist() &&
-                            prefs.getPreferredArtists().contains(a.getArtistName()))
-                    .toList());
-        }
 
         // Filter by preferred mediums
         if (!prefs.getPreferredMediums().isEmpty()) {
@@ -293,6 +353,14 @@ public class TourService {
             Set<Long> recentlyUsedArtworks,
             Random random) {
 
+        int remainingSlots = prefs.getMaxStops() - selectedArtworks.size();
+
+        if (remainingSlots <= 0) {
+            log.info("No remaining slots to fill");
+            return;
+        }
+
+        log.info("Filling {} remaining slots with general selections", remainingSlots);
         while (selectedArtworks.size() < prefs.getMaxStops() && !candidates.isEmpty()) {
             Artwork selected = selectBestCandidate(
                     candidates,
@@ -305,6 +373,8 @@ public class TourService {
             selectedArtworks.add(selected);
             candidates.remove(selected);
         }
+
+        log.info("Final selection contains {} artworks", selectedArtworks.size());
     }
 
     /**
