@@ -27,7 +27,7 @@ export interface Tour {
 	id: number;
 	name: string;
 	description: string;
-	theme: 'CHRONOLOGICAL' | 'ARTIST FOCUSED' | 'CULTURAL';
+	theme: 'CHRONOLOGICAL' | 'ARTIST_FOCUSED' | 'CULTURAL';
 	stops: TourStop[];
 	museum: {
 		id: number;
