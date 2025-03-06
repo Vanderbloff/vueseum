@@ -4,8 +4,7 @@
 		DialogContent,
 		DialogDescription,
 		DialogHeader,
-		DialogTitle,
-		DialogTrigger
+		DialogTitle
 	} from '$lib/components/ui/dialog';
 	import { Select, SelectContent, SelectItem, SelectTrigger } from '$lib/components/ui/select';
 	import { Button } from '$lib/components/ui/button';
@@ -13,7 +12,6 @@
 	import { RadioGroup, RadioGroupItem } from '$lib/components/ui/radio-group';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Slider } from '$lib/components/ui/slider';
-	import { Tooltip, TooltipContent, TooltipTrigger } from '$lib/components/ui/tooltip';
 	import {
 		AlertDialog,
 		AlertDialogAction,
@@ -23,6 +21,7 @@
 		AlertDialogHeader,
 		AlertDialogTitle
 	} from '$lib/components/ui/alert-dialog';
+	import { Badge } from '$lib/components/ui/badge';
 
 	import type { TourInputState, StandardPeriod, TourPreferences } from '$lib/types/tour-preferences';
 	import PreferenceInput from '$lib/components/shared/PreferenceInput.svelte';
@@ -32,7 +31,8 @@
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { AlertCircle } from 'lucide-svelte';
 	import TourGenerationSplash from '$lib/components/tour/TourGenerationSplash.svelte';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
 
 	interface PreferenceInputComponent {
 		getSelections: () => string[];
@@ -87,6 +87,7 @@
 		},
 		showAdditionalOptions: false,
 		generatedToursToday: 0,
+		totalToursGenerated: 0,
 		error: null,
 		isGenerating: false,
 		generationStage: null as null | 'selecting' | 'describing' | 'finalizing' | 'complete',
@@ -95,10 +96,84 @@
 		totalStops: undefined as number | undefined
 	});
 
-	const canGenerateTour = $derived(state.generatedToursToday < 3);
+	const remainingDailyTours = $derived(3 - state.generatedToursToday);
+	const remainingTotalTours = $derived(10 - state.totalToursGenerated);
+	const remainingTours = $derived(Math.min(remainingDailyTours, remainingTotalTours));
+	const canGenerateTour = $derived(remainingTours > 0);
+	const isLimitedByDaily = $derived(remainingDailyTours <= remainingTotalTours);
+
 	const museums = [
 		{ id: 1, name: "Metropolitan Museum of Art" }
 	];
+
+	// Load saved counts from localStorage and synchronize with backend
+	onMount(async () => {
+		if (typeof window !== 'undefined') {
+			// Check if we need to reset daily count
+			const lastTourDate = localStorage.getItem('lastTourDate');
+			const today = new Date().toDateString();
+
+			if (lastTourDate !== today) {
+				// It's a new day, reset daily count
+				state.generatedToursToday = 0;
+				localStorage.setItem('generatedToursToday', '0');
+				localStorage.setItem('lastTourDate', today);
+			} else {
+				// Load daily count from localStorage
+				const storedDailyCount = localStorage.getItem('generatedToursToday');
+				if (storedDailyCount) {
+					state.generatedToursToday = parseInt(storedDailyCount);
+				}
+			}
+
+			// Load total count from localStorage as initial value
+			const storedTotalCount = localStorage.getItem('totalToursGenerated');
+			if (storedTotalCount) {
+				state.totalToursGenerated = parseInt(storedTotalCount);
+			}
+		}
+
+		await synchronizeTourCounts();
+	});
+
+	async function synchronizeTourCounts() {
+		try {
+			// Get the first page with size 1 to get totalElements
+			const tourData = await tourApi.getTours(0, 1);
+
+			// Update total tours count to match backend
+			state.totalToursGenerated = tourData.totalElements;
+
+			// Save to localStorage
+			if (typeof window !== 'undefined') {
+				localStorage.setItem('totalToursGenerated', state.totalToursGenerated.toString());
+			}
+		} catch (error) {
+			console.error("Failed to synchronize tour counts:", error);
+		}
+	}
+
+	function handleDialogOpen() {
+		synchronizeTourCounts().then(() => {
+			if (!canGenerateTour) {
+				// User hit a limit but tried to open dialog anyway
+				if (remainingDailyTours <= 0) {
+					toast.error("You've reached your daily tour generation limit. Please try again tomorrow.");
+				} else {
+					toast.error("You've reached the maximum of 10 saved tours.");
+				}
+				return;
+			}
+
+			if (remainingDailyTours === 1 && remainingTotalTours > 1) {
+				toast.warning("This is your last tour for today! You can generate more tomorrow.");
+			} else if (remainingTotalTours === 1) {
+				toast.warning("This is your last tour! You can only save up to 10 tours total.");
+			}
+
+			state.isOpen = true;
+		});
+	}
 
 	function handleMuseumSelect(value: string) {
 		if (value !== state.selectedMuseum) {
@@ -197,6 +272,14 @@
 			if (pollInterval) window.clearInterval(pollInterval);
 
 			state.generationStage = 'complete';
+			state.generatedToursToday++;
+			state.totalToursGenerated++;
+
+			if (typeof window !== 'undefined') {
+				localStorage.setItem('generatedToursToday', state.generatedToursToday.toString());
+				localStorage.setItem('totalToursGenerated', state.totalToursGenerated.toString());
+				localStorage.setItem('lastTourDate', new Date().toDateString());
+			}
 
 			// Clean up input components
 			artistInputRef?.clearSelections();
@@ -205,14 +288,43 @@
 
 			// Navigate to the new tour
 			await goto(`/tours/${newTour.id}`);
-		} catch  {
-			// Error handling remains unchanged
+		} catch (error: unknown) {
+			console.error("Tour generation failed:", error);
+
+			// Extract error message safely
+			const errorMessage = error instanceof Error ? error.message : String(error);
+
+			if (errorMessage === 'TOTAL_LIMIT') {
+				state.error = {
+					type: 'TOTAL_LIMIT',
+					message: 'You\'ve reached the maximum of 10 saved tours.'
+				};
+
+				// Synchronize with backend to get accurate count
+				await synchronizeTourCounts();
+
+				toast.error("You can save up to 10 tours total.");
+			} else if (errorMessage === 'DAILY_LIMIT') {
+				state.error = {
+					type: 'DAILY_LIMIT',
+					message: 'You\'ve reached the daily limit of 3 tours.'
+				};
+
+				toast.error("You can create up to 3 tours per day.");
+			} else {
+				state.error = {
+					type: null,
+					message: 'An error occurred while generating your tour.'
+				};
+
+				toast.error("Failed to generate tour. Please try again later.");
+			}
 		} finally {
 			if (pollInterval) window.clearInterval(pollInterval);
 			state.isGenerating = false;
 		}
 	}
-	
+
 	onDestroy(() => {
 		if (typeof window !== 'undefined') { /* empty */ }
 	});
@@ -226,24 +338,17 @@
 		</p>
 
 		<Dialog bind:open={state.isOpen}>
-			{#if canGenerateTour}
-				<DialogTrigger>
-					<Button size="lg" class="bg-primary text-primary-foreground hover:bg-primary/90">
-						Generate My Own Tour
-					</Button>
-				</DialogTrigger>
-			{:else}
-				<Tooltip>
-					<TooltipTrigger>
-						<Button size="lg" disabled class="opacity-50">
-							Generate My Own Tour
-						</Button>
-					</TooltipTrigger>
-					<TooltipContent>
-						<p>You've reached your tour generation limit for today. Please try again tomorrow!</p>
-					</TooltipContent>
-				</Tooltip>
-			{/if}
+			<Button
+				size="lg"
+				class="bg-primary text-primary-foreground hover:bg-primary/90"
+				onclick={handleDialogOpen}
+				disabled={!canGenerateTour}
+			>
+				Generate My Own Tour
+				<Badge variant={remainingTours <= 1 ? "destructive" : "secondary"} class="ml-2 text-xs">
+					{state.generatedToursToday}/3 used today
+				</Badge>
+			</Button>
 
 			<DialogContent class="sm:max-w-[425px] max-h-[90vh] p-6">
 				<DialogHeader class="mb-4">
@@ -399,7 +504,7 @@
 								<Button
 									class="w-full"
 									onclick={generateTour}
-									disabled={state.isGenerating}
+									disabled={state.isGenerating || !canGenerateTour}
 								>
 									{#if state.isGenerating}
 										<div class="flex items-center justify-center">
@@ -409,6 +514,8 @@
 											</svg>
 											Creating your personalized tour...
 										</div>
+									{:else if !canGenerateTour}
+										{isLimitedByDaily ? "Daily limit reached" : "Tour limit reached"}
 									{:else}
 										Generate Tour
 									{/if}
@@ -437,10 +544,10 @@
 						<AlertDialogAction
 							onclick={() => {
 								if (state.error?.type === 'TOTAL_LIMIT') {
-										state.isOpen = false;
+									state.isOpen = false;
 								}
 								state.error = null;
-						}}
+							}}
 						>
 							Okay
 						</AlertDialogAction>
