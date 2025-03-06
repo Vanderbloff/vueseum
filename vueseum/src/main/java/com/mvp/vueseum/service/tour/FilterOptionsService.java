@@ -39,6 +39,19 @@ public class FilterOptionsService {
         Specification<Artwork> spec = ArtworkSpecifications.buildSpecificationFromPreferences(prefs)
                 .and((root, _, cb) -> cb.equal(root.get("museum").get("id"), museumId));
 
+        spec = spec.and((root, _, cb) ->
+                cb.or(
+                        cb.and(
+                                cb.isNotNull(root.get("imageUrl")),
+                                cb.notEqual(root.get("imageUrl"), "")
+                        ),
+                        cb.and(
+                                cb.isNotNull(root.get("thumbnailImageUrl")),
+                                cb.notEqual(root.get("thumbnailImageUrl"), "")
+                        )
+                )
+        );
+
         List<Artwork> matchingArtworks = artworkRepository.findAll(spec);
 
         return new FilterOptions(

@@ -16,17 +16,19 @@ public interface ArtistRepository extends JpaRepository<Artist, Long> {
 
     /**
      * Finds artists whose names start with the given prefix,
-     * but only if they have artworks currently on display.
+     * but only if they have artworks with images currently on display.
      * We limit results to avoid overwhelming the user.
      */
     @Query("""
-        SELECT DISTINCT a FROM Artist a
-        JOIN a.works w
-        WHERE LOWER(a.artistName) LIKE LOWER(CONCAT(:prefix, '%'))
-        AND w.museum.id = :museumId
-        ORDER BY a.artistName
-        LIMIT 10
-        """)
+    SELECT DISTINCT a FROM Artist a
+    JOIN a.works w
+    WHERE LOWER(a.artistName) LIKE LOWER(CONCAT(:prefix, '%'))
+    AND w.museum.id = :museumId
+    AND (w.imageUrl IS NOT NULL AND w.imageUrl != '' OR
+         w.thumbnailImageUrl IS NOT NULL AND w.thumbnailImageUrl != '')
+    ORDER BY a.artistName
+    LIMIT 10
+    """)
     List<Artist> findSuggestedArtists(
             @Param("prefix") String prefix,
             @Param("museumId") Long museumId
