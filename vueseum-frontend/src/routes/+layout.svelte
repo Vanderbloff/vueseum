@@ -172,5 +172,13 @@
 		<main class="pt-16">
 			{@render children()}
 		</main>
+
+		<footer class="w-full py-4 border-t bg-background/50 backdrop-blur-sm">
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<p class="text-sm text-muted-foreground text-center">
+					© 2025 J. Cupid. Data provided by various museum open access programs.
+				</p>
+			</div>
+		</footer>
 	</div>
 </ThemeProvider>
