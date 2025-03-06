@@ -69,8 +69,15 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
      */
     protected void processDisplayedBatch(List<String> objectIds) {
         List<List<String>> batches = Lists.partition(objectIds, getBatchSize());
+        List<String> failedIds = new ArrayList<>();
+        int batchCount = 0;
+        int totalBatches = batches.size();
 
         for (List<String> batch : batches) {
+            batchCount++;
+            int batchSuccessCount = 0;
+            List<String> batchFailedIds = new ArrayList<>();
+
             try {
                 for (String id : batch) {
                     try {
@@ -79,31 +86,42 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
                             log.debug("No valid details found for artwork {}, skipping", id);
                             errorCount.incrementAndGet();
                             processedCount.incrementAndGet();
+                            batchFailedIds.add(id);
                             continue;
                         }
 
                         if (details.getMedium() != null && details.getMedium().length() > 1000) {
-                            // Either truncate or log a warning
                             details.setMedium(details.getMedium().substring(0, 997) + "...");
                             log.warn("Truncated medium field for artwork {}", details.getExternalId());
                         }
 
                         artworkService.saveFromDetails(details);
                         processedCount.incrementAndGet();
+                        batchSuccessCount++;
 
                     } catch (Exception e) {
                         log.warn("Failed to process artwork ID: {}", id, e);
                         artworkService.recordProcessingError(id, getMuseumId(), e);
                         errorCount.incrementAndGet();
                         processedCount.incrementAndGet();
+                        batchFailedIds.add(id);
                     }
                 }
 
                 logProgress(processedCount.get(), objectIds.size());
+                log.info("Batch {}/{} completed: {} succeeded, {} failed",
+                        batchCount, totalBatches, batchSuccessCount, batchFailedIds.size());
 
             } catch (Exception e) {
                 errorCount.incrementAndGet();
-                log.error("Failed to process batch", e);
+                log.error("Failed to process batch {}/{}", batchCount, totalBatches, e);
+                batchFailedIds.addAll(batch.stream()
+                        .filter(id -> !batchFailedIds.contains(id))
+                        .toList());
+            }
+
+            if (!batchFailedIds.isEmpty()) {
+                failedIds.addAll(batchFailedIds);
             }
 
             getRateLimiter().acquire(batch.size());
@@ -113,6 +131,51 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
                 processedCount.get(),
                 errorCount.get(),
                 ChronoUnit.MINUTES.between(syncStartTime, LocalDateTime.now()));
+
+        if (!failedIds.isEmpty() && failedIds.size() < Math.max(100, objectIds.size() * 0.05)) {
+            // Only retry if failures are < 5% of total or < 100 artworks (whichever is larger)
+            log.info("Attempting to retry {} failed artworks", failedIds.size());
+            int retriedSuccessfully = retryFailedArtworks(failedIds);
+            if (retriedSuccessfully > 0) {
+                log.info("Successfully retried {} out of {} failed artworks",
+                        retriedSuccessfully, failedIds.size());
+            }
+        }
+    }
+
+    private int retryFailedArtworks(List<String> failedIds) {
+        int retrySuccess = 0;
+
+        for (String id : failedIds) {
+            try {
+                // Add a small delay between retries
+                Thread.sleep(100L);
+
+                log.info("Retrying artwork ID: {}", id);
+                ArtworkDetails details = fetchArtworkById(id);
+
+                if (details == null) {
+                    log.debug("Retry: No valid details for artwork {}", id);
+                    continue;
+                }
+
+                if (details.getMedium() != null && details.getMedium().length() > 1000) {
+                    details.setMedium(details.getMedium().substring(0, 997) + "...");
+                }
+
+                artworkService.saveFromDetails(details);
+                log.info("Successfully retried artwork ID: {}", id);
+                errorCount.decrementAndGet();
+                retrySuccess++;
+
+            } catch (Exception e) {
+                log.warn("Retry failed for artwork ID: {}", id, e);
+            }
+
+            getRateLimiter().acquire();
+        }
+
+        return retrySuccess;
     }
 
     protected void logProgress(int currentProcessed, int totalIds) {
