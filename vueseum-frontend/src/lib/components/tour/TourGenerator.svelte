@@ -153,41 +153,41 @@
 		}
 	}
 
-	// Handle dialog opening with explicit checks for toast notifications
 	function handleDialogOpen() {
-		// First synchronize the counts to ensure we have the latest data
+		// First synchronize counts
 		synchronizeTourCounts().then(() => {
 			console.log('Current tour counts:', {
 				totalToursGenerated: state.totalToursGenerated,
-				generatedToursToday: state.generatedToursToday,
-				remainingTotal: 10 - state.totalToursGenerated,
-				remainingDaily: 3 - state.generatedToursToday
+				generatedToursToday: state.generatedToursToday
 			});
 
-			// Check for the "last tour" warning specifically
-			if (state.totalToursGenerated === 9) {
-				console.log('Should show last tour warning');
-				toast.warning("This is your last tour! You can only save up to 10 tours total.");
-			}
-			// Also check for approaching daily limit
-			else if (state.generatedToursToday === 2) {
-				console.log('Should show last daily tour warning');
-				toast.warning("This is your last tour for today! You can generate more tomorrow.");
-			}
-
-			// Disable button behavior
+			// If they can't generate a tour, show error and return
 			if (state.totalToursGenerated >= 10) {
-				console.log('Total limit reached, showing error toast');
 				toast.error("You've reached the maximum of 10 saved tours.");
 				return;
 			} else if (state.generatedToursToday >= 3) {
-				console.log('Daily limit reached, showing error toast');
 				toast.error("You've reached your daily tour generation limit. Please try again tomorrow.");
 				return;
 			}
 
-			// Open the dialog
-			state.isOpen = true;
+			// Display warning toasts BEFORE opening the dialog
+			if (state.totalToursGenerated === 9) {
+				toast.warning("This is your last tour! You can only save up to 10 tours total.");
+
+				setTimeout(() => {
+					state.isOpen = true;
+				}, 300);
+			}
+			else if (state.generatedToursToday === 2) {
+				toast.warning("This is your last tour for today! You can generate more tomorrow.");
+
+				setTimeout(() => {
+					state.isOpen = true;
+				}, 300);
+			}
+			else {
+				state.isOpen = true;
+			}
 		});
 	}
 
