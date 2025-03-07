@@ -17,10 +17,12 @@ public class DateParsingUtil {
     private static final Pattern LATE_CENTURY = Pattern.compile("late\\s+(\\d+)(st|nd|rd|th)\\s+century");
 
     // Circa patterns
-    private static final Pattern CIRCA_PATTERN = Pattern.compile("(?:circa|ca\\.|c\\.)\\s*(\\d+)(?:\\s*(?:BCE|BC|CE|AD)?)?");
+    private static final Pattern CIRCA_RANGE_PATTERN =
+            Pattern.compile("(?:circa|ca\\.|c\\.)\\s*(\\d+)[\\-–](\\d+)\\s*(?:B\\.C\\.|BCE|BC)");
 
     // Date range pattern
-    private static final Pattern YEAR_RANGE_PATTERN = Pattern.compile("(\\d+)(?:\\s*(?:BCE|BC|CE|AD)?)?-(\\d+)(?:\\s*(?:BCE|BC|CE|AD)?)?");
+    private static final Pattern YEAR_RANGE_PATTERN =
+            Pattern.compile("(\\d+)(?:\\s*(?:BCE|BC|CE|AD)?)?[\\-–](\\d+)(?:\\s*(?:BCE|BC|CE|AD)?)?");
 
     // Special pattern for period ranges
     private static final Pattern AD_RANGE_PATTERN =
@@ -98,12 +100,12 @@ public class DateParsingUtil {
         }
 
         // Check for circa dates
-        Matcher circaMatcher = CIRCA_PATTERN.matcher(normalized);
+        Matcher circaMatcher = CIRCA_RANGE_PATTERN.matcher(normalized);
         if (circaMatcher.find()) {
             String yearStr = circaMatcher.group(1);
             int year = Integer.parseInt(yearStr);
             if (normalized.contains("bce") || normalized.contains("bc")) {
-                return -year;
+                return -Integer.parseInt(circaMatcher.group(1));
             }
             return year;
         }
