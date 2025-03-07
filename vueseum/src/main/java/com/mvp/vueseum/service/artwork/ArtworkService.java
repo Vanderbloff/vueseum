@@ -155,13 +155,26 @@ public class ArtworkService {
 
     @Transactional(readOnly = true)
     public Page<ArtworkDetails> searchArtworks(ArtworkSearchCriteria criteria, Pageable pageable) {
-        if (criteria.getSortField().equals("relevance")) {
-            pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+        // Build the basic filter specification
+        Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
+
+        // Handle date sorting with our special function
+        if ("date".equals(criteria.getSortField())) {
+            String functionExpression = "function('extract_year_from_date', creationDate)";
+            Sort functionSort = criteria.getSortDirection() == Sort.Direction.DESC
+                    ? Sort.by(Sort.Order.desc(functionExpression))
+                    : Sort.by(Sort.Order.asc(functionExpression));
+
+            pageable = PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    functionSort
+            );
+
+            log.debug("Using function-based date sorting");
         }
 
-        Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
         Page<Artwork> results = artworkRepository.findAll(spec, pageable);
-
         return new PageImpl<>(
                 results.getContent().stream()
                         .map(this::convertToArtworkDetails)
