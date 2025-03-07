@@ -177,28 +177,31 @@ public class DateParsingUtil {
      *         zero if they are chronologically equal
      */
     public static int compareYearsChronologically(int year1, int year2, boolean ascending) {
+        // For ascending (oldest first), standard comparison works
         if (ascending) {
-            // For ascending (oldest first), standard comparison works
             return Integer.compare(year1, year2);
-        } else {
-            // For descending (newest first), special handling needed
-
-            // If both dates are BCE (negative years), smaller negative is newer
-            if (year1 < 0 && year2 < 0) {
-                // Ascending order for BCE dates
-                return Integer.compare(year1, year2);
-            }
-
-            // If one date is BCE and one is CE, CE is always newer
-            if (year1 < 0 && year2 >= 0) {
-                return 1; // year2 (CE) comes first
-            }
-            if (year1 >= 0 && year2 < 0) {
-                return -1; // year1 (CE) comes first
-            }
-
-            // If both are CE (or both unknown), standard descending comparison
-            return Integer.compare(year2, year1);
         }
+
+        // For descending (newest first):
+
+        // Handle cross-boundary cases first (BCE vs CE)
+        if (year1 < 0 && year2 >= 0) {
+            // year1 is BCE, year2 is CE - so year2 comes first
+            return 1;
+        }
+
+        if (year1 >= 0 && year2 < 0) {
+            // year1 is CE, year2 is BCE - so year1 comes first
+            return -1;
+        }
+
+        // If both dates are BCE (both negative)
+        if (year1 < 0) {
+            // For BCE dates, smaller absolute value is newer
+            return Integer.compare(year1, year2);
+        }
+
+        // If both dates are CE (both non-negative), use standard descending comparison
+        return Integer.compare(year2, year1);
     }
 }
