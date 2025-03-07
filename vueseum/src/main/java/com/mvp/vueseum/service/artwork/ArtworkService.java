@@ -15,6 +15,7 @@ import com.mvp.vueseum.repository.ArtworkRepository;
 import com.mvp.vueseum.service.artist.ArtistService;
 import com.mvp.vueseum.service.museum.MuseumService;
 import com.mvp.vueseum.specification.ArtworkSpecifications;
+import com.mvp.vueseum.util.DateParsingUtil;
 import jakarta.persistence.criteria.Join;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -157,18 +158,46 @@ public class ArtworkService {
     public Page<ArtworkDetails> searchArtworks(ArtworkSearchCriteria criteria, Pageable pageable) {
         Page<Artwork> results;
 
+        // Special case for date sorting
         if ("date".equals(criteria.getSortField())) {
-            boolean hasImage = criteria.getHasImage() != null ? criteria.getHasImage() : false;
+            Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
+            List<Artwork> filteredResults = artworkRepository.findAll(spec);
 
-            if (criteria.getSortDirection() == Sort.Direction.DESC) {
-                results = artworkRepository.findWithDateSortDesc(
-                        hasImage, criteria.getTitle(), criteria.getOrigin(), criteria.getCategory(),
-                        pageable);
-            } else {
-                results = artworkRepository.findWithDateSortAsc(
-                        hasImage, criteria.getTitle(), criteria.getOrigin(), criteria.getCategory(),
-                        pageable);
-            }
+            // Sort using DateParsingUtil
+            Comparator<Artwork> dateComparator = (a1, a2) -> {
+                int year1 = 0;
+                int year2 = 0;
+
+                try {
+                    if (a1.getCreationDate() != null) {
+                        year1 = DateParsingUtil.extractYear(a1.getCreationDate());
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to parse date: {}", a1.getCreationDate());
+                }
+
+                try {
+                    if (a2.getCreationDate() != null) {
+                        year2 = DateParsingUtil.extractYear(a2.getCreationDate());
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to parse date: {}", a2.getCreationDate());
+                }
+
+                return criteria.getSortDirection() == Sort.Direction.ASC ?
+                        Integer.compare(year1, year2) :
+                        Integer.compare(year2, year1);
+            };
+
+            List<Artwork> sortedResults = filteredResults.stream()
+                    .sorted(dateComparator)
+                    .collect(Collectors.toList());
+
+            int start = (int)pageable.getOffset();
+            int end = Math.min((start + pageable.getPageSize()), sortedResults.size());
+            List<Artwork> pagedResults = sortedResults.subList(start, end);
+
+            results = new PageImpl<>(pagedResults, pageable, filteredResults.size());
         } else {
             Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
             results = artworkRepository.findAll(spec, pageable);
