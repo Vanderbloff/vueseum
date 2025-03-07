@@ -163,7 +163,6 @@ public class ArtworkService {
             Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
             List<Artwork> filteredResults = artworkRepository.findAll(spec);
 
-            // Sort using DateParsingUtil
             Comparator<Artwork> dateComparator = (a1, a2) -> {
                 int year1 = 0;
                 int year2 = 0;
@@ -184,9 +183,11 @@ public class ArtworkService {
                     log.warn("Failed to parse date: {}", a2.getCreationDate());
                 }
 
-                return criteria.getSortDirection() == Sort.Direction.ASC ?
-                        Integer.compare(year1, year2) :
-                        Integer.compare(year2, year1);
+                return DateParsingUtil.compareYearsChronologically(
+                        year1,
+                        year2,
+                        criteria.getSortDirection() == Sort.Direction.ASC
+                );
             };
 
             List<Artwork> sortedResults = filteredResults.stream()
