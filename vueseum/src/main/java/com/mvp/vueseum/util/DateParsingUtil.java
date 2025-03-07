@@ -165,4 +165,40 @@ public class DateParsingUtil {
         if (year <= 1900) return "A.D. 1800-1900";
         return "A.D. 1900-present";
     }
+
+    /**
+     * Compares two years chronologically, with special handling for BCE years.
+     *
+     * @param year1 The first year (negative for BCE)
+     * @param year2 The second year (negative for BCE)
+     * @param ascending True for ascending (oldest first), false for descending (newest first)
+     * @return negative integer if year1 should come before year2,
+     *         positive integer if year1 should come after year2,
+     *         zero if they are chronologically equal
+     */
+    public static int compareYearsChronologically(int year1, int year2, boolean ascending) {
+        if (ascending) {
+            // For ascending (oldest first), standard comparison works
+            return Integer.compare(year1, year2);
+        } else {
+            // For descending (newest first), special handling needed
+
+            // If both dates are BCE (negative years), smaller negative is newer
+            if (year1 < 0 && year2 < 0) {
+                // Ascending order for BCE dates
+                return Integer.compare(year1, year2);
+            }
+
+            // If one date is BCE and one is CE, CE is always newer
+            if (year1 < 0 && year2 >= 0) {
+                return 1; // year2 (CE) comes first
+            }
+            if (year1 >= 0 && year2 < 0) {
+                return -1; // year1 (CE) comes first
+            }
+
+            // If both are CE (or both unknown), standard descending comparison
+            return Integer.compare(year2, year1);
+        }
+    }
 }
