@@ -155,26 +155,25 @@ public class ArtworkService {
 
     @Transactional(readOnly = true)
     public Page<ArtworkDetails> searchArtworks(ArtworkSearchCriteria criteria, Pageable pageable) {
-        // Build the basic filter specification
-        Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
+        Page<Artwork> results;
 
-        // Handle date sorting with our special function
         if ("date".equals(criteria.getSortField())) {
-            String functionExpression = "function('extract_year_from_date', creationDate)";
-            Sort functionSort = criteria.getSortDirection() == Sort.Direction.DESC
-                    ? Sort.by(Sort.Order.desc(functionExpression))
-                    : Sort.by(Sort.Order.asc(functionExpression));
+            boolean hasImage = criteria.getHasImage() != null ? criteria.getHasImage() : false;
 
-            pageable = PageRequest.of(
-                    pageable.getPageNumber(),
-                    pageable.getPageSize(),
-                    functionSort
-            );
-
-            log.debug("Using function-based date sorting");
+            if (criteria.getSortDirection() == Sort.Direction.DESC) {
+                results = artworkRepository.findWithDateSortDesc(
+                        hasImage, criteria.getTitle(), criteria.getOrigin(), criteria.getCategory(),
+                        pageable);
+            } else {
+                results = artworkRepository.findWithDateSortAsc(
+                        hasImage, criteria.getTitle(), criteria.getOrigin(), criteria.getCategory(),
+                        pageable);
+            }
+        } else {
+            Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
+            results = artworkRepository.findAll(spec, pageable);
         }
 
-        Page<Artwork> results = artworkRepository.findAll(spec, pageable);
         return new PageImpl<>(
                 results.getContent().stream()
                         .map(this::convertToArtworkDetails)
