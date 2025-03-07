@@ -94,6 +94,38 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
             "LIMIT :limit")
     List<Object[]> findCulturesWithCountsLimited(@Param("limit") int limit);
 
+    @Query(nativeQuery = true, value =
+            "SELECT * FROM artworks a " +
+                    "WHERE (a.image_url IS NOT NULL OR :hasImage = false) " +
+                    "AND (:title IS NULL OR LOWER(a.title) LIKE CONCAT('%', LOWER(:title), '%')) " +
+                    "AND (:origin IS NULL OR LOWER(a.culture) LIKE CONCAT('%', LOWER(:origin), '%') " +
+                    "    OR LOWER(a.country) LIKE CONCAT('%', LOWER(:origin), '%')) " +
+                    "AND (:category IS NULL OR LOWER(a.classification) LIKE CONCAT('%', LOWER(:category), '%') " +
+                    "    OR LOWER(a.medium) LIKE CONCAT('%', LOWER(:category), '%')) " +
+                    "ORDER BY extract_year_from_date(a.creation_date) DESC")
+    Page<Artwork> findWithDateSortDesc(
+            @Param("hasImage") boolean hasImage,
+            @Param("title") String title,
+            @Param("origin") String origin,
+            @Param("category") String category,
+            Pageable pageable);
+
+    @Query(nativeQuery = true, value =
+            "SELECT * FROM artworks a " +
+                    "WHERE (a.image_url IS NOT NULL OR :hasImage = false) " +
+                    "AND (:title IS NULL OR LOWER(a.title) LIKE CONCAT('%', LOWER(:title), '%')) " +
+                    "AND (:origin IS NULL OR LOWER(a.culture) LIKE CONCAT('%', LOWER(:origin), '%') " +
+                    "    OR LOWER(a.country) LIKE CONCAT('%', LOWER(:origin), '%')) " +
+                    "AND (:category IS NULL OR LOWER(a.classification) LIKE CONCAT('%', LOWER(:category), '%') " +
+                    "    OR LOWER(a.medium) LIKE CONCAT('%', LOWER(:category), '%')) " +
+                    "ORDER BY extract_year_from_date(a.creation_date) ASC")
+    Page<Artwork> findWithDateSortAsc(
+            @Param("hasImage") boolean hasImage,
+            @Param("title") String title,
+            @Param("origin") String origin,
+            @Param("category") String category,
+            Pageable pageable);
+
     List<Artwork> findByTitleContainingAndMuseumId(String titleFragment, Long museumId);
 
     @NotNull Page<Artwork> findAll(Specification<Artwork> specification, @NotNull Pageable pageable);
