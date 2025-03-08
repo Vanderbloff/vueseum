@@ -160,48 +160,28 @@ public class ArtworkService {
 
         // Special case for date sorting
         if ("date".equals(criteria.getSortField())) {
-            Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
-            List<Artwork> filteredResults = artworkRepository.findAll(spec);
+            boolean hasImage = criteria.getHasImage() != null ? criteria.getHasImage() : true;
 
-            Comparator<Artwork> dateComparator = (a1, a2) -> {
-                boolean isAscending = criteria.getSortDirection() == Sort.Direction.ASC;
-                int defaultYear = isAscending ? Integer.MIN_VALUE/2 : Integer.MAX_VALUE/2;
-
-                int year1 = defaultYear;
-                int year2 = defaultYear;
-
-                try {
-                    if (a1.getCreationDate() != null) {
-                        year1 = DateParsingUtil.extractYear(a1.getCreationDate());
-                    }
-                } catch (Exception e) {
-                    log.debug("Failed to parse date: {}", a1.getCreationDate());
-                }
-
-                try {
-                    if (a2.getCreationDate() != null) {
-                        year2 = DateParsingUtil.extractYear(a2.getCreationDate());
-                    }
-                } catch (Exception e) {
-                    log.debug("Failed to parse date: {}", a2.getCreationDate());
-                }
-
-                return DateParsingUtil.compareYearsChronologically(
-                        year1,
-                        year2,
-                        criteria.getSortDirection() == Sort.Direction.ASC
+            if (criteria.getSortDirection() == Sort.Direction.ASC) {
+                results = artworkRepository.findWithDateSortAsc(
+                        hasImage,
+                        criteria.getTitle(),
+                        criteria.getOrigin(),
+                        criteria.getCategory(),
+                        pageable
                 );
-            };
+            } else {
+                results = artworkRepository.findWithDateSortDesc(
+                        hasImage,
+                        criteria.getTitle(),
+                        criteria.getOrigin(),
+                        criteria.getCategory(),
+                        pageable
+                );
+            }
 
-            List<Artwork> sortedResults = filteredResults.stream()
-                    .sorted(dateComparator)
-                    .collect(Collectors.toList());
-
-            int start = (int)pageable.getOffset();
-            int end = Math.min((start + pageable.getPageSize()), sortedResults.size());
-            List<Artwork> pagedResults = sortedResults.subList(start, end);
-
-            results = new PageImpl<>(pagedResults, pageable, filteredResults.size());
+            log.info("Using database date sorting ({}) with {} results",
+                    criteria.getSortDirection(), results.getTotalElements());
         } else {
             Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
             results = artworkRepository.findAll(spec, pageable);
