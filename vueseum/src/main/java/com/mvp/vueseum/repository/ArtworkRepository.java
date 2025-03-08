@@ -102,7 +102,11 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
                     "    OR LOWER(a.country) LIKE CONCAT('%', LOWER(:origin), '%')) " +
                     "AND (:category IS NULL OR LOWER(a.classification) LIKE CONCAT('%', LOWER(:category), '%') " +
                     "    OR LOWER(a.medium) LIKE CONCAT('%', LOWER(:category), '%')) " +
-                    "ORDER BY sort_by_chronology(a.creation_date) DESC NULLS LAST")
+                    "ORDER BY " +
+                    "  CASE " +
+                    "    WHEN extract_year_from_date(a.creation_date) > 3000 THEN -1 * extract_year_from_date(a.creation_date) " +
+                    "    ELSE extract_year_from_date(a.creation_date) " +
+                    "  END DESC NULLS LAST")
     Page<Artwork> findWithDateSortDesc(
             @Param("hasImage") boolean hasImage,
             @Param("title") String title,
@@ -119,7 +123,11 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
                     "    OR LOWER(a.country) LIKE CONCAT('%', LOWER(:origin), '%')) " +
                     "AND (:category IS NULL OR LOWER(a.classification) LIKE CONCAT('%', LOWER(:category), '%') " +
                     "    OR LOWER(a.medium) LIKE CONCAT('%', LOWER(:category), '%')) " +
-                    "ORDER BY sort_by_chronology(a.creation_date) ASC NULLS LAST")
+                    "ORDER BY " +
+                    "  CASE " +
+                    "    WHEN extract_year_from_date(a.creation_date) > 3000 THEN -1 * extract_year_from_date(a.creation_date) " +
+                    "    ELSE extract_year_from_date(a.creation_date) " +
+                    "  END ASC NULLS LAST")
     Page<Artwork> findWithDateSortAsc(
             @Param("hasImage") boolean hasImage,
             @Param("title") String title,
