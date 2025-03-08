@@ -43,8 +43,16 @@
 			return;
 		}
 
+		const timeoutPromise = new Promise((_, reject) => {
+			setTimeout(() => reject(new Error('Image loading timeout')), 5000);
+		});
+
 		try {
-			const response = await fetch(proxiedUrl);
+			const response = await Promise.race([
+				fetch(proxiedUrl),
+				timeoutPromise
+			]) as Response;
+
 			if (!response.ok) {
 				handleImageFailure(url);
 				return;
