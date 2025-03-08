@@ -150,7 +150,6 @@ public class DateParsingUtil {
         }
 
         String normalized = dateString.trim().toLowerCase();
-        log.debug("Attempting to parse date: {}", normalized);
 
         // ================ BCE/BC PATTERNS ================
 
@@ -158,7 +157,6 @@ public class DateParsingUtil {
         Matcher circaBCRangeMatcher = CIRCA_BC_RANGE_PATTERN.matcher(normalized);
         if (circaBCRangeMatcher.find()) {
             int year = Integer.parseInt(circaBCRangeMatcher.group(1));
-            log.debug("Matched CIRCA_BC_RANGE_PATTERN: {}", year);
             return -year;
         }
 
@@ -166,7 +164,7 @@ public class DateParsingUtil {
         Matcher bcRangeMatcher = BC_RANGE_PATTERN.matcher(normalized);
         if (bcRangeMatcher.find()) {
             int year = Integer.parseInt(bcRangeMatcher.group(1));
-            log.debug("Matched BC_RANGE_PATTERN: {}", year);
+            log.trace("Matched BC_RANGE_PATTERN: {}", year);
             return -year;
         }
 
@@ -174,7 +172,7 @@ public class DateParsingUtil {
         Matcher bceMatcher = BCE_BC_PATTERN.matcher(normalized);
         if (bceMatcher.find()) {
             int year = Integer.parseInt(bceMatcher.group(1));
-            log.debug("Matched BCE_BC_PATTERN: {}", year);
+            log.trace("Matched BCE_BC_PATTERN: {}", year);
             return -year;
         }
 
@@ -182,7 +180,7 @@ public class DateParsingUtil {
         Matcher bceNoSpaceMatcher = BCE_BC_NO_SPACE_PATTERN.matcher(normalized);
         if (bceNoSpaceMatcher.find()) {
             int year = Integer.parseInt(bceNoSpaceMatcher.group(1));
-            log.debug("Matched BCE_BC_NO_SPACE_PATTERN: {}", year);
+            log.trace("Matched BCE_BC_NO_SPACE_PATTERN: {}", year);
             return -year;
         }
 
@@ -190,7 +188,7 @@ public class DateParsingUtil {
         Matcher bcSpacedMatcher = BC_SPACED_PATTERN.matcher(normalized);
         if (bcSpacedMatcher.find()) {
             int year = Integer.parseInt(bcSpacedMatcher.group(1));
-            log.debug("Matched BC_SPACED_PATTERN: {}", year);
+            log.trace("Matched BC_SPACED_PATTERN: {}", year);
             return -year;
         }
 
@@ -199,14 +197,14 @@ public class DateParsingUtil {
         // Handle century with qualifiers (check before other patterns)
         if (normalized.contains("century")) {
             int year = handleCenturyPatterns(normalized);
-            log.debug("Matched century pattern: {}", year);
+            log.trace("Matched century pattern: {}", year);
             return year;
         }
 
         // Handle millennium notation (check before other patterns)
         if (normalized.contains("millennium")) {
             int year = handleMillenniumPatterns(normalized);
-            log.debug("Matched millennium pattern: {}", year);
+            log.trace("Matched millennium pattern: {}", year);
             return year;
         }
 
@@ -216,7 +214,7 @@ public class DateParsingUtil {
         Matcher crossEraMatcher = CROSS_ERA_RANGE_PATTERN.matcher(normalized);
         if (crossEraMatcher.find()) {
             int year = Integer.parseInt(crossEraMatcher.group(1));
-            log.debug("Matched CROSS_ERA_RANGE_PATTERN: {}", year);
+            log.trace("Matched CROSS_ERA_RANGE_PATTERN: {}", year);
             return -year; // Return the BCE/BC year
         }
 
@@ -226,7 +224,7 @@ public class DateParsingUtil {
         Matcher circaCEMatcher = CIRCA_CE_PATTERN.matcher(normalized);
         if (circaCEMatcher.find()) {
             int year = Integer.parseInt(circaCEMatcher.group(1));
-            log.debug("Matched CIRCA_CE_PATTERN: {}", year);
+            log.trace("Matched CIRCA_CE_PATTERN: {}", year);
             return year;
         }
 
@@ -234,7 +232,7 @@ public class DateParsingUtil {
         Matcher adMatcher = AD_PATTERN.matcher(normalized);
         if (adMatcher.find()) {
             int year = Integer.parseInt(adMatcher.group(1));
-            log.debug("Matched AD_PATTERN: {}", year);
+            log.trace("Matched AD_PATTERN: {}", year);
             return year;
         }
 
@@ -242,7 +240,7 @@ public class DateParsingUtil {
         Matcher ceMatcher = CE_PATTERN.matcher(normalized);
         if (ceMatcher.find()) {
             int year = Integer.parseInt(ceMatcher.group(1));
-            log.debug("Matched CE_PATTERN: {}", year);
+            log.trace("Matched CE_PATTERN: {}", year);
             return year;
         }
 
@@ -252,7 +250,7 @@ public class DateParsingUtil {
         Matcher adRangeMatcher = AD_RANGE_PATTERN.matcher(normalized);
         if (adRangeMatcher.find()) {
             int year = Integer.parseInt(adRangeMatcher.group(1));
-            log.debug("Matched AD_RANGE_PATTERN: {}", year);
+            log.trace("Matched AD_RANGE_PATTERN: {}", year);
             return year;
         }
 
@@ -260,7 +258,7 @@ public class DateParsingUtil {
         Matcher abbreviatedRangeMatcher = ABBREVIATED_RANGE.matcher(normalized);
         if (abbreviatedRangeMatcher.find()) {
             int year = Integer.parseInt(abbreviatedRangeMatcher.group(1));
-            log.debug("Matched ABBREVIATED_RANGE: {}", year);
+            log.trace("Matched ABBREVIATED_RANGE: {}", year);
             return year;
         }
 
@@ -270,7 +268,7 @@ public class DateParsingUtil {
         Matcher yearMatcher = YEAR_PATTERN.matcher(normalized);
         if (yearMatcher.find()) {
             int year = Integer.parseInt(yearMatcher.group(1));
-            log.debug("Matched YEAR_PATTERN: {}", year);
+            log.trace("Matched YEAR_PATTERN: {}", year);
             return year;
         }
 
@@ -282,7 +280,7 @@ public class DateParsingUtil {
             String startYearStr = rangeMatcher.group(1);
             boolean isBCE = normalized.contains("bce") || normalized.contains("bc");
             int startYear = Integer.parseInt(startYearStr);
-            log.debug("Matched YEAR_RANGE_PATTERN: {}", startYear);
+            log.trace("Matched YEAR_RANGE_PATTERN: {}", startYear);
             return isBCE ? -startYear : startYear;
         }
 
