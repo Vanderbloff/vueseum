@@ -14,7 +14,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.http.HttpClient;
+import java.text.SimpleDateFormat;
 import java.time.Duration;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
 
 @Service
 @Slf4j
@@ -84,6 +88,9 @@ public class ImageProxyService {
      */
     private void streamResponseToClient(ClientHttpResponse source, HttpServletResponse target)
             throws IOException {
+        target.setHeader("Cache-Control", "public, max-age=2592000"); // 30 days
+        target.setHeader("Expires", getExpiresDateString());
+
         try (InputStream is = source.getBody();
              OutputStream os = target.getOutputStream()) {
 
@@ -104,5 +111,12 @@ public class ImageProxyService {
 
             log.debug("Successfully streamed {} bytes for image", totalBytes);
         }
+    }
+
+    private String getExpiresDateString() {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
+        dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
+        Date expiresDate = new Date(System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000);
+        return dateFormat.format(expiresDate);
     }
 }
