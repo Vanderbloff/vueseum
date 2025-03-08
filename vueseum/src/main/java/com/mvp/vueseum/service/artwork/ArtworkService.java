@@ -164,15 +164,18 @@ public class ArtworkService {
             List<Artwork> filteredResults = artworkRepository.findAll(spec);
 
             Comparator<Artwork> dateComparator = (a1, a2) -> {
-                int year1 = 0;
-                int year2 = 0;
+                boolean isAscending = criteria.getSortDirection() == Sort.Direction.ASC;
+                int defaultYear = isAscending ? Integer.MIN_VALUE/2 : Integer.MAX_VALUE/2;
+
+                int year1 = defaultYear;
+                int year2 = defaultYear;
 
                 try {
                     if (a1.getCreationDate() != null) {
                         year1 = DateParsingUtil.extractYear(a1.getCreationDate());
                     }
                 } catch (Exception e) {
-                    log.warn("Failed to parse date: {}", a1.getCreationDate());
+                    log.debug("Failed to parse date: {}", a1.getCreationDate());
                 }
 
                 try {
@@ -180,7 +183,7 @@ public class ArtworkService {
                         year2 = DateParsingUtil.extractYear(a2.getCreationDate());
                     }
                 } catch (Exception e) {
-                    log.warn("Failed to parse date: {}", a2.getCreationDate());
+                    log.debug("Failed to parse date: {}", a2.getCreationDate());
                 }
 
                 return DateParsingUtil.compareYearsChronologically(
