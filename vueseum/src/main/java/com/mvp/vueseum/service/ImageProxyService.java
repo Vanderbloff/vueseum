@@ -47,8 +47,6 @@ public class ImageProxyService {
      */
     public void streamImage(String url, HttpServletResponse response) {
         try {
-            log.debug("Proxying image from URL: {}", url);
-
             restClient.get()
                     .uri(url)
                     .exchange((_, clientResponse) -> {
@@ -108,8 +106,6 @@ public class ImageProxyService {
                 os.write(buffer, 0, bytesRead);
                 os.flush(); // Ensure data is sent immediately
             }
-
-            log.debug("Successfully streamed {} bytes for image", totalBytes);
         }
     }
 

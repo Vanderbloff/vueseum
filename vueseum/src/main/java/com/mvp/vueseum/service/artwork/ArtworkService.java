@@ -95,8 +95,6 @@ public class ArtworkService {
         final int ORIGIN_LIMIT = 100;   // Standard limit for origins
 
         try {
-            log.info("Cache miss for filter options - executing database query");
-
             // Get classification options with counts
             List<String> objectTypeOptions = convertToFormattedOptions(
                     artworkRepository.findClassificationsWithCountsLimited(CATEGORY_LIMIT)
