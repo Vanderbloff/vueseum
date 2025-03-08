@@ -15,7 +15,6 @@ import com.mvp.vueseum.repository.ArtworkRepository;
 import com.mvp.vueseum.service.artist.ArtistService;
 import com.mvp.vueseum.service.museum.MuseumService;
 import com.mvp.vueseum.specification.ArtworkSpecifications;
-import com.mvp.vueseum.util.DateParsingUtil;
 import jakarta.persistence.criteria.Join;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -160,29 +159,42 @@ public class ArtworkService {
 
         // Special case for date sorting
         if ("date".equals(criteria.getSortField())) {
-            boolean hasImage = criteria.getHasImage() != null ? criteria.getHasImage() : true;
+            try {
+                Pageable unsortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+                boolean hasImage = criteria.getHasImage() != null ? criteria.getHasImage() : true;
 
-            if (criteria.getSortDirection() == Sort.Direction.ASC) {
-                results = artworkRepository.findWithDateSortAsc(
-                        hasImage,
-                        criteria.getTitle(),
-                        criteria.getOrigin(),
-                        criteria.getCategory(),
-                        pageable
-                );
-            } else {
-                results = artworkRepository.findWithDateSortDesc(
-                        hasImage,
-                        criteria.getTitle(),
-                        criteria.getOrigin(),
-                        criteria.getCategory(),
-                        pageable
-                );
+                if (criteria.getSortDirection() == Sort.Direction.ASC) {
+                    results = artworkRepository.findWithDateSortAsc(
+                            hasImage,
+                            criteria.getTitle(),
+                            criteria.getOrigin(),
+                            criteria.getCategory(),
+                            unsortedPageable
+                    );
+                } else {
+                    results = artworkRepository.findWithDateSortDesc(
+                            hasImage,
+                            criteria.getTitle(),
+                            criteria.getOrigin(),
+                            criteria.getCategory(),
+                            unsortedPageable
+                    );
+                }
+
+                // Fallback if the repository returns null
+                if (results == null) {
+                    log.warn("Date sorting repository method returned null, falling back to specification-based query");
+                    Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
+                    results = artworkRepository.findAll(spec, pageable);
+                }
+            } catch (Exception e) {
+                log.error("Error executing date sort query: {}", e.getMessage());
+                // Fallback to specification-based query
+                Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
+                results = artworkRepository.findAll(spec, pageable);
             }
-
-            log.info("Using database date sorting ({}) with {} results",
-                    criteria.getSortDirection(), results.getTotalElements());
         } else {
+            // Regular path for other sort fields
             Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
             results = artworkRepository.findAll(spec, pageable);
         }
