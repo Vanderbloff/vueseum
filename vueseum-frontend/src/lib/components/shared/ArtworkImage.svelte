@@ -44,7 +44,7 @@
 		}
 
 		const timeoutPromise = new Promise((_, reject) => {
-			setTimeout(() => reject(new Error('Image loading timeout')), 5000);
+			setTimeout(() => reject(new Error('Image loading timeout')), 30000);
 		});
 
 		try {
