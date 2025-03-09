@@ -95,14 +95,23 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
     List<Object[]> findCulturesWithCountsLimited(@Param("limit") int limit);
 
     @Query(nativeQuery = true, value =
-            "SELECT * FROM artworks a " +
-                    "WHERE ((:hasImage = false) OR (a.image_url IS NOT NULL AND LENGTH(a.image_url) > 0)) " +
-                    "AND (:title IS NULL OR LOWER(a.title) LIKE CONCAT('%', LOWER(:title), '%')) " +
-                    "AND (:origin IS NULL OR LOWER(a.culture) LIKE CONCAT('%', LOWER(:origin), '%') " +
-                    "    OR LOWER(a.country) LIKE CONCAT('%', LOWER(:origin), '%')) " +
-                    "AND (:category IS NULL OR LOWER(a.classification) LIKE CONCAT('%', LOWER(:category), '%') " +
-                    "    OR LOWER(a.medium) LIKE CONCAT('%', LOWER(:category), '%')) " +
-                    "ORDER BY extract_year_from_date(a.creation_date) DESC NULLS LAST")
+            "WITH sorted_artworks AS (" +
+                    "  SELECT a.*, " +
+                    "    CASE " +
+                    "      WHEN extract_year_from_date(a.creation_date) < 0 THEN " +
+                    "        (extract_year_from_date(a.creation_date) * -1) - 10000 " +
+                    "      ELSE extract_year_from_date(a.creation_date) " +
+                    "    END as sort_value " +
+                    "  FROM artworks a " +
+                    "  WHERE ((:hasImage = false) OR (a.image_url IS NOT NULL AND LENGTH(a.image_url) > 0)) " +
+                    "    AND (:title IS NULL OR LOWER(a.title) LIKE CONCAT('%', LOWER(:title), '%')) " +
+                    "    AND (:origin IS NULL OR LOWER(a.culture) LIKE CONCAT('%', LOWER(:origin), '%') " +
+                    "      OR LOWER(a.country) LIKE CONCAT('%', LOWER(:origin), '%')) " +
+                    "    AND (:category IS NULL OR LOWER(a.classification) LIKE CONCAT('%', LOWER(:category), '%') " +
+                    "      OR LOWER(a.medium) LIKE CONCAT('%', LOWER(:category), '%')) " +
+                    ") " +
+                    "SELECT * FROM sorted_artworks " +
+                    "ORDER BY sort_value DESC NULLS LAST")
     Page<Artwork> findWithDateSortDesc(
             @Param("hasImage") boolean hasImage,
             @Param("title") String title,
@@ -110,16 +119,24 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
             @Param("category") String category,
             Pageable pageable);
 
-
     @Query(nativeQuery = true, value =
-            "SELECT * FROM artworks a " +
-                    "WHERE ((:hasImage = false) OR (a.image_url IS NOT NULL AND LENGTH(a.image_url) > 0)) " +
-                    "AND (:title IS NULL OR LOWER(a.title) LIKE CONCAT('%', LOWER(:title), '%')) " +
-                    "AND (:origin IS NULL OR LOWER(a.culture) LIKE CONCAT('%', LOWER(:origin), '%') " +
-                    "    OR LOWER(a.country) LIKE CONCAT('%', LOWER(:origin), '%')) " +
-                    "AND (:category IS NULL OR LOWER(a.classification) LIKE CONCAT('%', LOWER(:category), '%') " +
-                    "    OR LOWER(a.medium) LIKE CONCAT('%', LOWER(:category), '%')) " +
-                    "ORDER BY extract_year_from_date(a.creation_date) ASC NULLS LAST")
+            "WITH sorted_artworks AS (" +
+                    "  SELECT a.*, " +
+                    "    CASE " +
+                    "      WHEN extract_year_from_date(a.creation_date) < 0 THEN " +
+                    "        (extract_year_from_date(a.creation_date) * -1) - 10000 " +
+                    "      ELSE extract_year_from_date(a.creation_date) " +
+                    "    END as sort_value " +
+                    "  FROM artworks a " +
+                    "  WHERE ((:hasImage = false) OR (a.image_url IS NOT NULL AND LENGTH(a.image_url) > 0)) " +
+                    "    AND (:title IS NULL OR LOWER(a.title) LIKE CONCAT('%', LOWER(:title), '%')) " +
+                    "    AND (:origin IS NULL OR LOWER(a.culture) LIKE CONCAT('%', LOWER(:origin), '%') " +
+                    "      OR LOWER(a.country) LIKE CONCAT('%', LOWER(:origin), '%')) " +
+                    "    AND (:category IS NULL OR LOWER(a.classification) LIKE CONCAT('%', LOWER(:category), '%') " +
+                    "      OR LOWER(a.medium) LIKE CONCAT('%', LOWER(:category), '%')) " +
+                    ") " +
+                    "SELECT * FROM sorted_artworks " +
+                    "ORDER BY sort_value ASC NULLS LAST")
     Page<Artwork> findWithDateSortAsc(
             @Param("hasImage") boolean hasImage,
             @Param("title") String title,
