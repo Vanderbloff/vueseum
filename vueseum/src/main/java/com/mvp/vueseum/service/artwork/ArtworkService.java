@@ -155,44 +155,19 @@ public class ArtworkService {
     public Page<ArtworkDetails> searchArtworks(ArtworkSearchCriteria criteria, Pageable pageable) {
         Page<Artwork> results;
 
-        // Special case for date sorting
         if ("date".equals(criteria.getSortField())) {
-            try {
-                Pageable unsortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-                boolean hasImage = criteria.getHasImage() != null ? criteria.getHasImage() : true;
+            boolean hasImage = criteria.getHasImage() != null ? criteria.getHasImage() : false;
 
-                if (criteria.getSortDirection() == Sort.Direction.ASC) {
-                    results = artworkRepository.findWithDateSortAsc(
-                            hasImage,
-                            criteria.getTitle(),
-                            criteria.getOrigin(),
-                            criteria.getCategory(),
-                            unsortedPageable
-                    );
-                } else {
-                    results = artworkRepository.findWithDateSortDesc(
-                            hasImage,
-                            criteria.getTitle(),
-                            criteria.getOrigin(),
-                            criteria.getCategory(),
-                            unsortedPageable
-                    );
-                }
-
-                // Fallback if the repository returns null
-                if (results == null) {
-                    log.warn("Date sorting repository method returned null, falling back to specification-based query");
-                    Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
-                    results = artworkRepository.findAll(spec, pageable);
-                }
-            } catch (Exception e) {
-                log.error("Error executing date sort query: {}", e.getMessage());
-                // Fallback to specification-based query
-                Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
-                results = artworkRepository.findAll(spec, pageable);
+            if (criteria.getSortDirection() == Sort.Direction.DESC) {
+                results = artworkRepository.findWithDateSortDesc(
+                        hasImage, criteria.getTitle(), criteria.getOrigin(), criteria.getCategory(),
+                        pageable);
+            } else {
+                results = artworkRepository.findWithDateSortAsc(
+                        hasImage, criteria.getTitle(), criteria.getOrigin(), criteria.getCategory(),
+                        pageable);
             }
         } else {
-            // Regular path for other sort fields
             Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
             results = artworkRepository.findAll(spec, pageable);
         }
