@@ -102,26 +102,14 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
                     "    OR LOWER(a.country) LIKE CONCAT('%', LOWER(:origin), '%')) " +
                     "AND (:category IS NULL OR LOWER(a.classification) LIKE CONCAT('%', LOWER(:category), '%') " +
                     "    OR LOWER(a.medium) LIKE CONCAT('%', LOWER(:category), '%')) " +
-                    "ORDER BY " +
-                    "  CASE " +
-                    "    WHEN a.creation_date ~* 'B\\.C\\.' OR a.creation_date ~* 'BC' OR " +
-                    "         a.creation_date ~* 'BCE' OR a.creation_date ~* 'century BCE' OR " +
-                    "         a.creation_date ~* 'millennium BCE' " +
-                    "    THEN 0 " +  // BC dates go at the end for "newest first"
-                    "    ELSE 1 " +  // Modern dates go at the beginning
-                    "  END DESC, " +
-                    "  CASE " +
-                    "    WHEN extract_year_from_date(a.creation_date) > 1000 " +
-                    "    THEN extract_year_from_date(a.creation_date) " +  // Modern years remain as-is
-                    "    ELSE -1 * extract_year_from_date(a.creation_date) " +  // Flip negative years for proper sorting
-                    "  END DESC " +
-                    "NULLS LAST")
+                    "ORDER BY extract_year_from_date(a.creation_date) DESC NULLS LAST")
     Page<Artwork> findWithDateSortDesc(
             @Param("hasImage") boolean hasImage,
             @Param("title") String title,
             @Param("origin") String origin,
             @Param("category") String category,
             Pageable pageable);
+
 
     @Query(nativeQuery = true, value =
             "SELECT * FROM artworks a " +
@@ -131,20 +119,7 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
                     "    OR LOWER(a.country) LIKE CONCAT('%', LOWER(:origin), '%')) " +
                     "AND (:category IS NULL OR LOWER(a.classification) LIKE CONCAT('%', LOWER(:category), '%') " +
                     "    OR LOWER(a.medium) LIKE CONCAT('%', LOWER(:category), '%')) " +
-                    "ORDER BY " +
-                    "  CASE " +
-                    "    WHEN a.creation_date ~* 'B\\.C\\.' OR a.creation_date ~* 'BC' OR " +
-                    "         a.creation_date ~* 'BCE' OR a.creation_date ~* 'century BCE' OR " +
-                    "         a.creation_date ~* 'millennium BCE' " +
-                    "    THEN 0 " +  // BC dates go at the beginning for "oldest first"
-                    "    ELSE 1 " +  // Modern dates go at the end
-                    "  END ASC, " +
-                    "  CASE " +
-                    "    WHEN extract_year_from_date(a.creation_date) > 1000 " +
-                    "    THEN extract_year_from_date(a.creation_date) " +  // Modern years remain as-is
-                    "    ELSE -1 * extract_year_from_date(a.creation_date) " +  // Flip negative years for proper sorting
-                    "  END ASC " +
-                    "NULLS LAST")
+                    "ORDER BY extract_year_from_date(a.creation_date) ASC NULLS LAST")
     Page<Artwork> findWithDateSortAsc(
             @Param("hasImage") boolean hasImage,
             @Param("title") String title,
