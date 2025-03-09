@@ -96,7 +96,7 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
 
     @Query(nativeQuery = true, value =
             "SELECT * FROM artworks a " +
-                    "WHERE ((:hasImage = false) OR (a.image_url IS NOT NULL AND LENGTH(a.image_url) > 0)) " +
+                    "WHERE (a.image_url IS NOT NULL OR :hasImage = false) " +
                     "AND (:title IS NULL OR LOWER(a.title) LIKE CONCAT('%', LOWER(:title), '%')) " +
                     "AND (:origin IS NULL OR LOWER(a.culture) LIKE CONCAT('%', LOWER(:origin), '%') " +
                     "    OR LOWER(a.country) LIKE CONCAT('%', LOWER(:origin), '%')) " +
@@ -113,7 +113,7 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
 
     @Query(nativeQuery = true, value =
             "SELECT * FROM artworks a " +
-                    "WHERE ((:hasImage = false) OR (a.image_url IS NOT NULL AND LENGTH(a.image_url) > 0)) " +
+                    "WHERE (a.image_url IS NOT NULL OR :hasImage = false) " +
                     "AND (:title IS NULL OR LOWER(a.title) LIKE CONCAT('%', LOWER(:title), '%')) " +
                     "AND (:origin IS NULL OR LOWER(a.culture) LIKE CONCAT('%', LOWER(:origin), '%') " +
                     "    OR LOWER(a.country) LIKE CONCAT('%', LOWER(:origin), '%')) " +
