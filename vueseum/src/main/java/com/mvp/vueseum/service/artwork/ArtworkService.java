@@ -15,6 +15,7 @@ import com.mvp.vueseum.repository.ArtworkRepository;
 import com.mvp.vueseum.service.artist.ArtistService;
 import com.mvp.vueseum.service.museum.MuseumService;
 import com.mvp.vueseum.specification.ArtworkSpecifications;
+import com.mvp.vueseum.util.DateParsingUtil;
 import jakarta.persistence.criteria.Join;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -157,16 +158,24 @@ public class ArtworkService {
 
         if ("date".equals(criteria.getSortField())) {
             boolean hasImage = criteria.getHasImage() != null ? criteria.getHasImage() : false;
+            Sort dateSort = Sort.by(
+                    criteria.getSortDirection(),
+                    "chronologicalSortValue"
+            );
 
-            if (criteria.getSortDirection() == Sort.Direction.DESC) {
-                results = artworkRepository.findWithDateSortDesc(
-                        hasImage, criteria.getTitle(), criteria.getOrigin(), criteria.getCategory(),
-                        pageable);
-            } else {
-                results = artworkRepository.findWithDateSortAsc(
-                        hasImage, criteria.getTitle(), criteria.getOrigin(), criteria.getCategory(),
-                        pageable);
-            }
+            Pageable datePageable = PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    dateSort
+            );
+
+            results = artworkRepository.findWithDateSort(
+                    hasImage,
+                    criteria.getTitle(),
+                    criteria.getOrigin(),
+                    criteria.getCategory(),
+                    datePageable
+            );
         } else {
             Specification<Artwork> spec = ArtworkSpecifications.withSearchCriteria(criteria);
             results = artworkRepository.findAll(spec, pageable);
@@ -330,6 +339,39 @@ public class ArtworkService {
         Map<String, Object> additionalMetadata = new HashMap<>();
         additionalMetadata.put("tags", new ArrayList<>(details.getTags()));
         artwork.setAdditionalMetadata(additionalMetadata);
+
+        String creationDate = details.getCreationYear();
+        int sortValue = calculateChronologicalSortValue(creationDate);
+        artwork.setChronologicalSortValue(sortValue);
+    }
+
+    private int calculateChronologicalSortValue(String creationDate) {
+        if (creationDate == null) return 0;
+
+        boolean isBC = creationDate.contains("B.C.") ||
+                creationDate.contains("BC") ||
+                creationDate.contains("BCE") ||
+                creationDate.contains("century BCE") ||
+                creationDate.contains("millennium BCE");
+
+        // Use the existing extract_year_from_date function
+        Integer extractedYear = extractYearFromDate(creationDate);
+        if (extractedYear == null) extractedYear = 0;
+
+        return isBC ? -10000 + extractedYear : extractedYear;
+    }
+
+    private Integer extractYearFromDate(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            return DateParsingUtil.extractYear(dateStr);
+        } catch (NumberFormatException e) {
+            log.warn("Could not extract year from date string: {}", dateStr);
+            return null;
+        }
     }
 
     @Transactional
