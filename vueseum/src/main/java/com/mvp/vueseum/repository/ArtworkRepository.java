@@ -94,13 +94,16 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
             "LIMIT :limit")
     List<Object[]> findCulturesWithCountsLimited(@Param("limit") int limit);
 
-    @Query("SELECT a FROM Artwork a " +
-            "WHERE (:hasImage = false OR (a.imageUrl IS NOT NULL AND LENGTH(a.imageUrl) > 0)) " +
-            "AND (:title IS NULL OR LOWER(a.title) LIKE CONCAT('%', LOWER(:title), '%')) " +
-            "AND (:origin IS NULL OR LOWER(a.culture) LIKE CONCAT('%', LOWER(:origin), '%') " +
-            "    OR LOWER(a.country) LIKE CONCAT('%', LOWER(:origin), '%')) " +
-            "AND (:category IS NULL OR LOWER(a.classification) LIKE CONCAT('%', LOWER(:category), '%') " +
-            "    OR LOWER(a.medium) LIKE CONCAT('%', LOWER(:category), '%'))")
+    @Query(nativeQuery = true, value =
+            "SELECT a.* FROM artworks a " +
+                    "WHERE (:hasImage = false OR (a.image_url IS NOT NULL AND LENGTH(a.image_url) > 0)) " +
+                    "AND (:title IS NULL OR a.title ILIKE CONCAT('%', :title, '%')) " +
+                    "AND (:origin IS NULL OR " +
+                    "     (a.culture IS NOT NULL AND a.culture ILIKE CONCAT('%', :origin, '%')) OR " +
+                    "     (a.country IS NOT NULL AND a.country ILIKE CONCAT('%', :origin, '%'))) " +
+                    "AND (:category IS NULL OR " +
+                    "     (a.classification IS NOT NULL AND a.classification ILIKE CONCAT('%', :category, '%')) OR " +
+                    "     (a.medium IS NOT NULL AND a.medium ILIKE CONCAT('%', :category, '%')))")
     Page<Artwork> findWithDateSort(
             @Param("hasImage") boolean hasImage,
             @Param("title") String title,
