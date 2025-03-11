@@ -106,6 +106,8 @@ public class Artwork extends BaseEntity {
     @Column(name = "artist_role")
     private String artistRole;
 
+    @Column(name = "chronological_sort_value")
+    private Integer chronologicalSortValue;
 
     public enum ProcessingStatus {
         PENDING,
