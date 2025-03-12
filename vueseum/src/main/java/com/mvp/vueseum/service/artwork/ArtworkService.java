@@ -160,7 +160,7 @@ public class ArtworkService {
             boolean hasImage = criteria.getHasImage() != null ? criteria.getHasImage() : false;
             Sort dateSort = Sort.by(
                     criteria.getSortDirection(),
-                    "chronological_sort_value"
+                    "COALESCE(chronological_sort_value, 0)"  // Handle NULLs in the sort expression
             );
 
             Pageable datePageable = PageRequest.of(
