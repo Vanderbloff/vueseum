@@ -24,7 +24,7 @@ export const load = (async ({ url }): Promise<PageData> => {
 		category: searchParams.getAll('category'),
 		origin: searchParams.getAll('origin'),
 		era: searchParams.getAll('period') as StandardPeriod[],
-		hasImage: true,
+		hasImage: false,
 		museumId: searchParams.getAll('museumId')
 	}
 
