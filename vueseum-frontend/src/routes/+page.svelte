@@ -248,7 +248,7 @@
 			region: state.currentFilters.filters.region,
 			culture: state.currentFilters.filters.culture,
 			period: state.currentFilters.filters.era,
-			hasImage: state.currentFilters.filters.hasImage === false ? 'false' : null,
+			hasImage: state.currentFilters.filters.hasImage ? 'true' : 'false',
 
 			// Sort parameters
 			sortBy: state.currentFilters.sort.field !== 'relevance' ?
@@ -283,8 +283,7 @@
 		const hasImageParam = url.searchParams.get('hasImage');
 		const explicitlyDisabled = hasImageParam === 'false';
 
-		state.currentFilters.filters.hasImage = hasImageParam === 'true' ||
-			(state.currentFilters.sort.field !== 'date' && !explicitlyDisabled);
+		state.currentFilters.filters.hasImage = hasImageParam === 'true';
 
 		// Only initialize filters if we have URL parameters
 		if (hasSearchParams || !explicitlyDisabled) {
