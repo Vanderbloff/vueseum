@@ -283,10 +283,8 @@
 		const hasImageParam = url.searchParams.get('hasImage');
 		const explicitlyDisabled = hasImageParam === 'false';
 
-		// Set hasImage to true by default unless explicitly disabled
-		if (!explicitlyDisabled) {
-			state.currentFilters.filters.hasImage = true;
-		}
+		state.currentFilters.filters.hasImage = hasImageParam === 'true' ||
+			(state.currentFilters.sort.field !== 'date' && !explicitlyDisabled);
 
 		// Only initialize filters if we have URL parameters
 		if (hasSearchParams || !explicitlyDisabled) {

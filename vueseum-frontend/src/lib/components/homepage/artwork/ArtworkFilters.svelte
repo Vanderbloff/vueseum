@@ -305,6 +305,12 @@
 					onCheckedChange={(checked) => onFilterChange('hasImage', checked)}
 				/>
 				<Label for="hasImage">Has image</Label>
+
+				{#if filters?.sort?.field === 'date'}
+        <span class="text-xs text-muted-foreground ml-2">
+            (Unchecking shows more items in chronological order)
+        </span>
+				{/if}
 			</div>
 		</div>
 	</div>
