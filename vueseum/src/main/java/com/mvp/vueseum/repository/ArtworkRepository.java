@@ -103,7 +103,8 @@ public interface ArtworkRepository extends JpaRepository<Artwork, Long>, JpaSpec
                     "     (a.country IS NOT NULL AND a.country ILIKE CONCAT('%', :origin, '%'))) " +
                     "AND (:category IS NULL OR " +
                     "     (a.classification IS NOT NULL AND a.classification ILIKE CONCAT('%', :category, '%')) OR " +
-                    "     (a.medium IS NOT NULL AND a.medium ILIKE CONCAT('%', :category, '%')))")
+                    "     (a.medium IS NOT NULL AND a.medium ILIKE CONCAT('%', :category, '%'))) " +
+                    "ORDER BY COALESCE(a.chronological_sort_value, 0) #{#pageable.sort.direction.name()}")
     Page<Artwork> findWithDateSort(
             @Param("hasImage") boolean hasImage,
             @Param("title") String title,
