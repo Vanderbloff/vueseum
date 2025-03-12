@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
+import org.springframework.data.jpa.domain.JpaSort;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -158,10 +159,10 @@ public class ArtworkService {
 
         if ("date".equals(criteria.getSortField())) {
             boolean hasImage = criteria.getHasImage() != null ? criteria.getHasImage() : false;
-            Sort dateSort = Sort.by(
-                    criteria.getSortDirection(),
-                    "COALESCE(chronological_sort_value, 0)"  // Handle NULLs in the sort expression
-            );
+            // Use JpaSort.unsafe() for SQL functions in ORDER BY
+            Sort dateSort = criteria.getSortDirection() == Sort.Direction.ASC
+                    ? JpaSort.unsafe(Sort.Direction.ASC, "COALESCE(chronological_sort_value, 0)")
+                    : JpaSort.unsafe(Sort.Direction.DESC, "COALESCE(chronological_sort_value, 0)");
 
             Pageable datePageable = PageRequest.of(
                     pageable.getPageNumber(),
