@@ -10,13 +10,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Service for standardizing cultural and medium terms using Wikidata
- * Implements a cache-first approach with database persistence
+ * Service for standardizing cultural and medium terms using Getty Vocabularies.
+ * Implements a cache-first approach with database persistence.
  */
 @Service
 @Slf4j
@@ -29,7 +31,7 @@ public class CulturalTermStandardizationService {
     private final StandardizedTermRepository standardizedTermRepository;
     private final WikidataVocabularyClient wikidataClient;
 
-    // Simple rate limiting to avoid overloading Wikidata API
+    // Simple rate limiting to avoid overloading Getty API
     private final AtomicInteger requestCount = new AtomicInteger(0);
     private final AtomicLong lastResetTime = new AtomicLong(System.currentTimeMillis());
     private static final int MAX_REQUESTS_PER_MINUTE = 60;
@@ -75,7 +77,37 @@ public class CulturalTermStandardizationService {
 
         return getStandardizedTerm(rawTerm, CATEGORY_MEDIUM);
     }
-    
+
+    /**
+     * Extract the primary material term from a complex medium description.
+     * Takes the first term before commas, "and", or "on".
+     */
+    private String extractPrimaryTerm(String rawMedium) {
+        if (rawMedium == null || rawMedium.isBlank()) {
+            return rawMedium;
+        }
+
+        String cleaned = rawMedium.trim();
+
+        // Extract first term before comma, if present
+        if (cleaned.contains(",")) {
+            return cleaned.split(",")[0].trim();
+        }
+
+        // Extract first term before "and", if present
+        if (cleaned.contains(" and ")) {
+            return cleaned.split(" and ")[0].trim();
+        }
+
+        // Extract first term before "on", if present
+        if (cleaned.contains(" on ")) {
+            return cleaned.split(" on ")[0].trim();
+        }
+
+        // If no delimiters found, return the cleaned term
+        return cleaned;
+    }
+
     /**
      * Get the standardized version of a term for a specific category.
      *
@@ -138,6 +170,63 @@ public class CulturalTermStandardizationService {
     }
 
     /**
+     * Find standardized culture terms that start with the given prefix.
+     * <p>
+     * TODO: Integrate with SuggestionService to optimize cultural term suggestions
+     * by querying the standardized terms database directly instead of filtering all terms in memory.
+     * This will improve performance as the dataset grows.
+     *
+     * @param prefix The prefix to match
+     * @return List of matching standardized culture terms
+     */
+    @Transactional(readOnly = true)
+    public List<String> findStandardizedCulturesByPrefix(String prefix) {
+        return findStandardizedTermsByPrefix(prefix, CATEGORY_CULTURE);
+    }
+
+    /**
+     * Find standardized medium terms that start with the given prefix.
+     * <p>
+     * TODO: Integrate with SuggestionService to optimize medium term suggestions
+     * by querying the standardized terms database directly instead of filtering all terms in memory.
+     * This will improve performance as the standardized terms database grows.
+     *
+     * @param prefix The prefix to match
+     * @return List of matching standardized medium terms
+     */
+    @Transactional(readOnly = true)
+    public List<String> findStandardizedMediumsByPrefix(String prefix) {
+        return findStandardizedTermsByPrefix(prefix, CATEGORY_MEDIUM);
+    }
+
+    /**
+     * Find standardized terms that start with the given prefix.
+     * Used for providing optimized suggestions in the UI.
+     * <p>
+     * TODO: This is a helper method for the prefix matching functions above.
+     * Will provide significant performance benefits for suggestion lookups
+     * once integrated with SuggestionService.
+     *
+     * @param prefix The prefix to match
+     * @param category The category (CULTURE or MEDIUM)
+     * @return List of matching standardized terms
+     */
+    @Transactional(readOnly = true)
+    private List<String> findStandardizedTermsByPrefix(String prefix, String category) {
+        if (prefix == null || prefix.length() < 2) {
+            return Collections.emptyList();
+        }
+
+        // Search for standardized terms that start with this prefix
+        return standardizedTermRepository
+                .findByStandardizedTermStartingWithAndCategory(prefix, category)
+                .stream()
+                .map(StandardizedTerm::getStandardizedTerm)
+                .distinct()
+                .toList();
+    }
+
+    /**
      * Updates access statistics for tracking term usage.
      */
     private void updateTermAccessStats(StandardizedTerm term) {
@@ -163,8 +252,8 @@ public class CulturalTermStandardizationService {
     }
 
     /**
-     * Simple rate limiting to avoid overloading the Wikidata API
-     * Allows MAX_REQUESTS_PER_MINUTE requests per minute
+     * Simple rate limiting to avoid overloading the Getty API.
+     * Allows MAX_REQUESTS_PER_MINUTE requests per minute.
      *
      * @return true if we can make another request, false if rate limited
      */
