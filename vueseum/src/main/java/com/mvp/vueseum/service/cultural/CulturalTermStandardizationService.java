@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Service for standardizing cultural and medium terms using Getty Vocabularies.
+ * Service for standardizing cultural and medium terms using Wikidata Vocabularies.
  * Implements a cache-first approach with database persistence.
  */
 @Service
@@ -31,7 +31,7 @@ public class CulturalTermStandardizationService {
     private final StandardizedTermRepository standardizedTermRepository;
     private final WikidataVocabularyClient wikidataClient;
 
-    // Simple rate limiting to avoid overloading Getty API
+    // Simple rate limiting to avoid overloading Wikidata API
     private final AtomicInteger requestCount = new AtomicInteger(0);
     private final AtomicLong lastResetTime = new AtomicLong(System.currentTimeMillis());
     private static final int MAX_REQUESTS_PER_MINUTE = 60;
@@ -76,36 +76,6 @@ public class CulturalTermStandardizationService {
         }
 
         return getStandardizedTerm(rawTerm, CATEGORY_MEDIUM);
-    }
-
-    /**
-     * Extract the primary material term from a complex medium description.
-     * Takes the first term before commas, "and", or "on".
-     */
-    private String extractPrimaryTerm(String rawMedium) {
-        if (rawMedium == null || rawMedium.isBlank()) {
-            return rawMedium;
-        }
-
-        String cleaned = rawMedium.trim();
-
-        // Extract first term before comma, if present
-        if (cleaned.contains(",")) {
-            return cleaned.split(",")[0].trim();
-        }
-
-        // Extract first term before "and", if present
-        if (cleaned.contains(" and ")) {
-            return cleaned.split(" and ")[0].trim();
-        }
-
-        // Extract first term before "on", if present
-        if (cleaned.contains(" on ")) {
-            return cleaned.split(" on ")[0].trim();
-        }
-
-        // If no delimiters found, return the cleaned term
-        return cleaned;
     }
 
     /**
@@ -252,7 +222,7 @@ public class CulturalTermStandardizationService {
     }
 
     /**
-     * Simple rate limiting to avoid overloading the Getty API.
+     * Simple rate limiting to avoid overloading the Wikidata API.
      * Allows MAX_REQUESTS_PER_MINUTE requests per minute.
      *
      * @return true if we can make another request, false if rate limited
