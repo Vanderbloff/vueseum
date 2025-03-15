@@ -75,37 +75,7 @@ public class CulturalTermStandardizationService {
 
         return getStandardizedTerm(rawTerm, CATEGORY_MEDIUM);
     }
-
-    /**
-     * Extract the primary material term from a complex medium description.
-     * Takes the first term before commas, "and", or "on".
-     */
-    private String extractPrimaryTerm(String rawMedium) {
-        if (rawMedium == null || rawMedium.isBlank()) {
-            return rawMedium;
-        }
-
-        String cleaned = rawMedium.trim();
-
-        // Extract first term before comma, if present
-        if (cleaned.contains(",")) {
-            return cleaned.split(",")[0].trim();
-        }
-
-        // Extract first term before "and", if present
-        if (cleaned.contains(" and ")) {
-            return cleaned.split(" and ")[0].trim();
-        }
-
-        // Extract first term before "on", if present
-        if (cleaned.contains(" on ")) {
-            return cleaned.split(" on ")[0].trim();
-        }
-
-        // If no delimiters found, return the cleaned term
-        return cleaned;
-    }
-
+    
     /**
      * Get the standardized version of a term for a specific category.
      *
