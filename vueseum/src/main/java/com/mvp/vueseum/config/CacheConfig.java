@@ -57,6 +57,14 @@ public class CacheConfig {
                 .build();
     }
 
+    @Bean
+    public Cache<String, String> standardizedTermCache() {
+        return Caffeine.newBuilder()
+                .expireAfterWrite(Duration.ofHours(12))
+                .maximumSize(2000)
+                .build();
+    }
+
     private <K, V> Cache<K, V> createCache(Duration expiration, int maxSize) {
         return Caffeine.newBuilder()
                 .expireAfterWrite(expiration)
