@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.RateLimiter;
 import com.mvp.vueseum.domain.ArtworkDetails;
+import com.mvp.vueseum.event.SyncOperation;
 import com.mvp.vueseum.exception.ApiClientException;
 import com.mvp.vueseum.exception.RetryException;
 import com.mvp.vueseum.service.artwork.ArtworkService;
@@ -20,6 +21,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -63,6 +65,31 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
                 .build();
     }
 
+    public void performSync(SyncOperation operation) {
+        try {
+            syncStartTime = operation.getStartTime();
+            log.info("Starting {} sync at {}",
+                    operation.isFullSync() ? "full" : "incremental",
+                    syncStartTime);
+
+            List<String> artworkIds;
+            if (operation.isFullSync()) {
+                artworkIds = getCurrentlyDisplayedArtworkIds();
+                artworkService.removeNonDisplayedArtworks(
+                        new HashSet<>(artworkIds),
+                        getMuseumId()
+                );
+            } else {
+                artworkIds = getUpdatedArtworkIds(operation.getIncrementalSince());
+            }
+
+            processDisplayedBatch(artworkIds);
+        } catch (Exception e) {
+            log.error("Failed to complete sync", e);
+            throw new ApiClientException("Sync failed", e);
+        }
+    }
+
     /**
      * Processes a batch of artwork IDs, extracting details and saving to the database.
      * Continues processing even if individual artworks fail.
@@ -72,6 +99,8 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
         List<String> failedIds = new ArrayList<>();
         int batchCount = 0;
         int totalBatches = batches.size();
+
+        logMemoryUsage("Starting batch processing for " + objectIds.size() + " artworks");
 
         for (List<String> batch : batches) {
             batchCount++;
@@ -124,6 +153,13 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
                 failedIds.addAll(batchFailedIds);
             }
 
+            artworkService.clearSession();
+
+            logMemoryUsage("After batch " + batchCount + "/" + totalBatches +
+                    " (" + batch.size() + " items processed)");
+
+            System.gc();
+
             getRateLimiter().acquire(batch.size());
         }
 
@@ -141,6 +177,22 @@ public abstract class BaseMuseumApiClient implements MuseumApiClient {
                         retriedSuccessfully, failedIds.size());
             }
         }
+
+        logMemoryUsage("Completed all batches");
+    }
+
+    /**
+     * Logs current memory usage for monitoring
+     */
+    protected void logMemoryUsage(String checkpoint) {
+        Runtime runtime = Runtime.getRuntime();
+        long totalMemory = runtime.totalMemory() / (1024 * 1024);
+        long freeMemory = runtime.freeMemory() / (1024 * 1024);
+        long usedMemory = totalMemory - freeMemory;
+        long maxMemory = runtime.maxMemory() / (1024 * 1024);
+
+        log.info("Memory usage at {}: Used={}MB, Free={}MB, Total={}MB, Max={}MB",
+                checkpoint, usedMemory, freeMemory, totalMemory, maxMemory);
     }
 
     private int retryFailedArtworks(List<String> failedIds) {
