@@ -34,7 +34,7 @@ public class Museum extends BaseEntity {
     private Map<String, MuseumHours> museumHours = new HashMap<>();
 
     @Column(name = "artworks")
-    @OneToMany(mappedBy = "museum", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "museum", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private Set<Artwork> collection = new HashSet<>();
 
     @JdbcTypeCode(SqlTypes.JSON)

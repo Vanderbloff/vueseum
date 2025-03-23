@@ -33,7 +33,7 @@ public class Artist extends BaseEntity {
     @Pattern(regexp = "^$|^[0-9]{4}$", message = "Year must be in YYYY format")
     private String deathDate;
 
-    @OneToMany(mappedBy = "artist", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "artist", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Artwork> works = new HashSet<>();
 
 
