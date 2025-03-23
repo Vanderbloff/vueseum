@@ -53,7 +53,7 @@ class SyncManagementServiceTest {
     @DisplayName("when museum not found, throws exception")
     void whenMuseumNotFound_throwsException() {
         assertThatThrownBy(() ->
-                syncManagementService.startSync(999L, SyncOperation.daily())
+                syncManagementService.executeSync(999L, SyncOperation.daily())
         )
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("No API client found for museum ID: 999");
@@ -64,7 +64,7 @@ class SyncManagementServiceTest {
     void whenPerformingFullSyncForSpecificMuseum_syncsOnlyThatMuseum() {
         SyncOperation operation = SyncOperation.monthly();
 
-        syncManagementService.startSync(1L, operation);
+        syncManagementService.executeSync(1L, operation);
 
         verify(metMuseumClient).performSync(operation);
         verify(otherMuseumClient, never()).performSync(any());
@@ -75,7 +75,7 @@ class SyncManagementServiceTest {
     void whenPerformingFullSyncForAllMuseums_syncsAllMuseums() {
         SyncOperation operation = SyncOperation.monthly();
 
-        syncManagementService.startSync(null, operation);
+        syncManagementService.executeSync(null, operation);
 
         verify(metMuseumClient).performSync(operation);
         verify(otherMuseumClient).performSync(operation);
@@ -86,7 +86,7 @@ class SyncManagementServiceTest {
     void whenPerformingIncrementalSync_shouldUseDailyOperation() {
         SyncOperation operation = SyncOperation.daily();
 
-        syncManagementService.startSync(null, operation);
+        syncManagementService.executeSync(null, operation);
 
         verify(metMuseumClient).performSync(argThat(op ->
                 !op.isFullSync() && op.getIncrementalSince() != null
@@ -104,7 +104,7 @@ class SyncManagementServiceTest {
                 .performSync(any(SyncOperation.class));
 
         assertThatThrownBy(() ->
-                syncManagementService.startSync(1L, SyncOperation.daily())
+                syncManagementService.executeSync(1L, SyncOperation.daily())
         )
                 .isInstanceOf(ApiClientException.class)
                 .hasMessage("Sync failed");
@@ -117,7 +117,7 @@ class SyncManagementServiceTest {
                 .when(metMuseumClient)
                 .performSync(any(SyncOperation.class));
 
-        syncManagementService.startSync(null, SyncOperation.daily());
+        syncManagementService.executeSync(null, SyncOperation.daily());
 
         verify(metMuseumClient).performSync(any(SyncOperation.class));
         verify(otherMuseumClient).performSync(any(SyncOperation.class));
