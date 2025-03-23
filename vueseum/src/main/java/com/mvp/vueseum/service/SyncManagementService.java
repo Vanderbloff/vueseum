@@ -2,7 +2,6 @@ package com.mvp.vueseum.service;
 
 import com.mvp.vueseum.client.MuseumApiClient;
 import com.mvp.vueseum.event.SyncOperation;
-import com.mvp.vueseum.exception.PersistenceException;
 import com.mvp.vueseum.exception.ResourceNotFoundException;
 import com.mvp.vueseum.repository.ArtworkRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +25,7 @@ public class SyncManagementService {
 
     @Scheduled(cron = "0 0 1 * * *")  // Run at 1 AM daily
     public void scheduledSync() {
-        // On the first day of the month, do a full sync
+        // Determine sync type based on day of month
         LocalDateTime now = LocalDateTime.now();
         SyncOperation operation = now.getDayOfMonth() == 1
                 ? SyncOperation.monthly()
@@ -37,37 +36,35 @@ public class SyncManagementService {
                 now);
 
         try {
-            startSync(null, operation);
+            // Execute sync for all museums
+            executeSync(null, operation);
             log.info("Completed scheduled sync successfully");
         } catch (Exception e) {
             log.error("Scheduled sync failed", e);
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
-    public void startSync(Long museumId, SyncOperation operation) {
+    @PreAuthorize("hasRole('ADMIN)")
+    public void executeSync(Long museumId, SyncOperation operation) {
         if (museumId != null) {
+            // Single museum sync
             MuseumApiClient client = findClientForMuseum(museumId);
-            processSync(client, operation);
+            try {
+                client.performSync(operation);
+            } catch (Exception e) {
+                log.error("Sync failed for museum {}", client.getMuseumId(), e);
+                throw e;
+            }
         } else {
-            // Process each museum independently
-            museumApiClients.forEach(client -> {
+            // All museums sync
+            for (MuseumApiClient client : museumApiClients) {
                 try {
-                    processSync(client, operation);
+                    client.performSync(operation);
                 } catch (Exception e) {
                     log.error("Sync failed for museum {}", client.getMuseumId(), e);
-                    // Continue with next museum instead of rethrowing
+                    // Continue with next museum
                 }
-            });
-        }
-    }
-
-    private void processSync(MuseumApiClient client, SyncOperation operation) {
-        try {
-            client.performSync(operation);
-        } catch (PersistenceException e) {
-            log.error("Sync failed for museum {}", client.getMuseumId(), e);
-            throw e;
+            }
         }
     }
 

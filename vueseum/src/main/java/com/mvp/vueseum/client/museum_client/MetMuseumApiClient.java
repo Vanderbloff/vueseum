@@ -7,7 +7,6 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.mvp.vueseum.client.BaseMuseumApiClient;
 import com.mvp.vueseum.domain.ArtworkDetails;
 import com.mvp.vueseum.entity.Museum;
-import com.mvp.vueseum.event.SyncOperation;
 import com.mvp.vueseum.exception.ApiClientException;
 import com.mvp.vueseum.service.artwork.ArtworkService;
 import com.mvp.vueseum.service.museum.MuseumService;
@@ -27,7 +26,6 @@ import org.springframework.web.client.RestClient;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -276,31 +274,6 @@ public class MetMuseumApiClient extends BaseMuseumApiClient {
 
         } catch (Exception e) {
             throw new ApiClientException("Failed to parse response from Met Museum API", e);
-        }
-    }
-
-    public void performSync(SyncOperation operation) {
-        try {
-            syncStartTime = operation.getStartTime();
-            log.info("Starting {} sync at {}",
-                    operation.isFullSync() ? "full" : "incremental",
-                    syncStartTime);
-
-            List<String> artworkIds;
-            if (operation.isFullSync()) {
-                artworkIds = getCurrentlyDisplayedArtworkIds();
-                artworkService.removeNonDisplayedArtworks(
-                        new HashSet<>(artworkIds),
-                        getMuseumId()
-                );
-            } else {
-                artworkIds = getUpdatedArtworkIds(operation.getIncrementalSince());
-            }
-
-            processDisplayedBatch(artworkIds);
-        } catch (Exception e) {
-            log.error("Failed to complete sync", e);
-            throw new ApiClientException("Sync failed", e);
         }
     }
 }
