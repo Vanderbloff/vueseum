@@ -16,6 +16,8 @@ import com.mvp.vueseum.service.artist.ArtistService;
 import com.mvp.vueseum.service.museum.MuseumService;
 import com.mvp.vueseum.specification.ArtworkSpecifications;
 import com.mvp.vueseum.util.DateParsingUtil;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Join;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +48,33 @@ public class ArtworkService {
     private final ArtistService artistService;
     private final MuseumService museumService;
     private final Cache<String, Artwork> artworkCache;
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
+    /**
+     * Clears the Hibernate session to free memory.
+     * This is crucial for long-running processes to prevent memory accumulation.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void clearSession() {
+        if (entityManager == null) {
+            log.warn("EntityManager is null - unable to clear session");
+            return;
+        }
+
+        if (entityManager.isOpen()) {
+            log.info("Clearing Hibernate session to release memory");
+            try {
+                entityManager.flush();
+                entityManager.clear();
+            } catch (Exception e) {
+                log.warn("Error while clearing session: {}", e.getMessage(), e);
+            }
+        } else {
+            log.warn("Cannot clear session: EntityManager is closed");
+        }
+    }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @CacheEvict(value = "artworks", key = "#details.externalId")
