@@ -23,7 +23,7 @@ public class AdminController {
                 ? SyncOperation.monthly()  // Full sync
                 : SyncOperation.daily();   // Incremental sync
 
-        syncService.startSync(museumId, operation);
+        syncService.executeSync(museumId, operation);
     }
 
     @GetMapping("/sync/status")
