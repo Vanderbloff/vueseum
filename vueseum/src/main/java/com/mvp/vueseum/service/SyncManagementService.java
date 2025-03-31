@@ -44,7 +44,7 @@ public class SyncManagementService {
         }
     }
 
-    @PreAuthorize("hasRole('ADMIN)")
+    @PreAuthorize("hasRole('ADMIN')")
     public void executeSync(Long museumId, SyncOperation operation) {
         if (museumId != null) {
             // Single museum sync
