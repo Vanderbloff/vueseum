@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -34,7 +35,10 @@ public class Museum extends BaseEntity {
     private Map<String, MuseumHours> museumHours = new HashMap<>();
 
     @Column(name = "artworks")
-    @OneToMany(mappedBy = "museum", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @OneToMany(mappedBy = "museum",
+            cascade = {CascadeType.PERSIST, CascadeType.MERGE},
+            fetch = FetchType.LAZY)
+    @BatchSize(size = 20)
     private Set<Artwork> collection = new HashSet<>();
 
     @JdbcTypeCode(SqlTypes.JSON)
