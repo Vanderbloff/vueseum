@@ -83,7 +83,7 @@ public class SuggestionService {
     }
 
     private List<Suggestion> getArtworkSuggestions(String prefix, Long museumId, TourPreferences currentPreferences) {
-        return artworkRepository.findByTitleContainingAndMuseumId(prefix, museumId)
+        return artworkRepository.findByTitleContainingAndMuseumIdAndDeletedFalse(prefix, museumId)
                 .stream()
                 .map(artwork -> new Suggestion(
                         artwork.getId().toString(),
