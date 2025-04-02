@@ -186,30 +186,20 @@ class ArtworkServiceTest {
     }
 
     @Test
-    @DisplayName("when removing non-displayed artworks, then removes all not in displayed set")
-    void whenRemovingNonDisplayedArtworks_thenRemovesAllNotInDisplayedSet() {
-        Artwork displayedArtwork = new Artwork();
-        displayedArtwork.setExternalId("DISPLAYED-001");
-        displayedArtwork.setMuseum(testMuseum);
+    @DisplayName("when removing non-displayed artworks, then soft deletes all not in displayed set")
+    void whenRemovingNonDisplayedArtworks_thenSoftDeletesAllNotInDisplayedSet() {
+        Set<String> displayedIds = Set.of("DISPLAYED-001");
+        Long museumId = 1L;
 
-        Artwork nonDisplayedArtwork = new Artwork();
-        nonDisplayedArtwork.setExternalId("NOT-DISPLAYED-001");
-        nonDisplayedArtwork.setMuseum(testMuseum);
-
-        when(museumService.findMuseumByIdForSync(1L))
+        when(museumService.findMuseumByIdForSync(museumId))
                 .thenReturn(Optional.of(testMuseum));
 
-        when(artworkRepository.findAllWithArtistsAndMuseums())
-                .thenReturn(List.of(displayedArtwork, nonDisplayedArtwork));
+        when(artworkRepository.softDeleteNonDisplayedArtworks(displayedIds, museumId))
+                .thenReturn(1);
 
-        artworkService.removeNonDisplayedArtworks(
-                Set.of("DISPLAYED-001"),
-                1L
-        );
+        artworkService.removeNonDisplayedArtworks(displayedIds, museumId);
 
-        verify(artworkRepository).delete(nonDisplayedArtwork);
-        verify(artworkRepository, never()).delete(displayedArtwork);
-        assertThat(artworkCache.getIfPresent("NOT-DISPLAYED-001")).isNull();
+        verify(artworkRepository).softDeleteNonDisplayedArtworks(displayedIds, museumId);
     }
 
     @Test
