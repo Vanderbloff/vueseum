@@ -21,6 +21,10 @@ import java.util.List;
 @Slf4j
 public class ArtworkSpecifications {
 
+    private static Predicate createNotDeletedPredicate(Root<Artwork> root, CriteriaBuilder cb) {
+        return cb.equal(root.get("deleted"), false);
+    }
+
     /**
      * Creates a predicate requiring an artwork to have an image
      */
@@ -245,6 +249,8 @@ public class ArtworkSpecifications {
         return (root, _, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
+            predicates.add(createNotDeletedPredicate(root, cb));
+
             // Has Image filter
             if (criteria.getHasImage() != null && criteria.getHasImage()) {
                 predicates.add(createHasImagePredicate(root, cb));
@@ -296,6 +302,8 @@ public class ArtworkSpecifications {
         return (root, _, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
+            predicates.add(createNotDeletedPredicate(root, cb));
+
             predicates.add(createHasImagePredicate(root, cb));
 
             if (!preferences.getRequiredArtworkIds().isEmpty()) {
@@ -345,6 +353,8 @@ public class ArtworkSpecifications {
             Join<Artwork, Museum> museumJoin = root.join("museum");
             Predicate museumPredicate = cb.equal(museumJoin.get("id"), museumId);
 
+            Predicate notDeletedPredicate = createNotDeletedPredicate(root, cb);
+
             Predicate hasImagePredicate = createHasImagePredicate(root, cb);
 
             // Then add theme-specific filters
@@ -363,7 +373,7 @@ public class ArtworkSpecifications {
                 case CULTURAL -> cb.isNotNull(root.get("culture"));
             };
 
-            return cb.and(museumPredicate, hasImagePredicate, themePredicate);
+            return cb.and(notDeletedPredicate, museumPredicate, hasImagePredicate, themePredicate);
         };
     }
 
