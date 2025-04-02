@@ -40,7 +40,6 @@ public abstract class BaseEntity {
     @LastModifiedBy
     private String lastModifiedBy;
 
-    // Add soft delete support
     @Column(name = "is_deleted")
     private Boolean deleted = false;
 
