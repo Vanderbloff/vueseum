@@ -26,6 +26,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +52,13 @@ public class ArtworkService {
 
     @PersistenceContext
     private EntityManager entityManager;
+
+    @Scheduled(cron = "0 0 1 1 * ?") // 1 AM on the 1st of each month
+    public void scheduledCleanup() {
+        LocalDateTime threshold = LocalDateTime.now().minusYears(1);
+        int deletedCount = cleanupDeletedArtworks(threshold);
+        log.info("Scheduled cleanup completed: {} artworks permanently deleted", deletedCount);
+    }
 
     /**
      * Clears the Hibernate session to free memory.
@@ -435,9 +443,10 @@ public class ArtworkService {
      */
     @Transactional
     private void doRemoveArtwork(Artwork artwork) {
-        log.info("Removing artwork {} as it is no longer on display",
+        log.info("Soft-deleting artwork {} as it is no longer on display",
                 artwork.getExternalId());
-        artworkRepository.delete(artwork);
+        artwork.markAsDeleted();
+        artworkRepository.save(artwork);
         artworkCache.invalidate(artwork.getExternalId());
     }
 
@@ -454,10 +463,34 @@ public class ArtworkService {
         museumService.findMuseumByIdForSync(museumId)
                 .orElseThrow(() -> new ResourceNotFoundException("Museum not found"));
 
-        findAllWithArtistsAndMuseums().stream()
-                .filter(art -> art.getMuseum().getId().equals(museumId))
-                .filter(art -> !displayedIds.contains(art.getExternalId()))
-                .forEach(this::doRemoveArtwork);
+        int deletedCount = artworkRepository.softDeleteNonDisplayedArtworks(displayedIds, museumId);
+        log.info("Soft-deleted {} artworks no longer on display for museum {}", deletedCount, museumId);
+    }
+
+    @Transactional
+    public int cleanupDeletedArtworks(LocalDateTime olderThan) {
+        List<Long> eligibleForDeletion = artworkRepository.findSoftDeletedArtworksNotInTours(olderThan);
+
+        if (eligibleForDeletion.isEmpty()) {
+            return 0;
+        }
+
+        // Process in batches to avoid memory issues
+        int batchSize = 100;
+        int totalDeleted = 0;
+
+        for (int i = 0; i < eligibleForDeletion.size(); i += batchSize) {
+            int endIndex = Math.min(i + batchSize, eligibleForDeletion.size());
+            List<Long> batch = eligibleForDeletion.subList(i, endIndex);
+
+            int deletedInBatch = artworkRepository.deleteByIdIn(batch);
+            totalDeleted += deletedInBatch;
+
+            // Clear session to avoid memory buildup
+            clearSession();
+        }
+
+        return totalDeleted;
     }
 
     @VisibleForTesting
